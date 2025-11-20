@@ -12,11 +12,21 @@ import AppointmentModal from './AppointmentModal';
 
 export default function Calendar() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  // ... altro stato invariato ...
+  // Mantieni tutte le altre variabili di stato necessarie qui
+  const [appointments, setAppointments] = useState<Appuntamento[]>([]);
+  const [persone, setPersone] = useState<Persona[]>([]);
+  const [sedi, setSedi] = useState<Sede[]>([]);
+  const [personaSede, setPersonaSede] = useState<PersonaSede[]>([]);
+  const [selectedSedeId, setSelectedSedeId] = useState<string>('');
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
+  const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
 
   const weekDays = getWeekDays(currentWeek);
+  const selectedSede = sedi.find((s) => s.id === selectedSedeId);
 
-  // ... resto del codice invariato ...
+  // ... resto del componente invariato ...
 
   return (
     <div className="min-h-screen p-4 md:p-8 animate-fade-in">
