@@ -2,7 +2,6 @@
 
 import { Appuntamento } from '@/lib/types';
 import { User } from 'lucide-react';
-import { useState } from 'react';
 
 interface TimeSlotProps {
   time: string;
@@ -29,7 +28,7 @@ export default function TimeSlot({ time, appointments = [], onClick }: TimeSlotP
           <div
             onClick={() => onClick(apt)}
             data-appointment-id={apt.id}
-            className="appointment-cell h-full min-h-[60px] bg-[#E6F2FF] border-l-4 border-[#005CA9] cursor-pointer transition-colors"
+            className="appointment-cell absolute inset-0 bg-[#E6F2FF] border-l-4 border-[#005CA9] cursor-pointer transition-colors"
           >
             {/* Continuazione */} 
           </div>
@@ -37,7 +36,7 @@ export default function TimeSlot({ time, appointments = [], onClick }: TimeSlotP
       } else {
         // CONTINUAZIONI MULTIPLE
         return (
-          <div className="h-full min-h-[60px] flex gap-1 bg-white p-1">
+          <div className="absolute inset-0 flex gap-1 bg-white p-1">
             {continuesInThisSlot.map((apt) => (
               <div
                 key={apt.id}
@@ -62,7 +61,7 @@ export default function TimeSlot({ time, appointments = [], onClick }: TimeSlotP
         <div
           onClick={() => onClick(appointment)}
           data-appointment-id={appointment.id}
-          className="appointment-cell h-full min-h-[60px] bg-[#E6F2FF] border-l-4 border-[#005CA9] p-2 cursor-pointer transition-colors rounded-t-lg"
+          className="appointment-cell absolute inset-0 bg-[#E6F2FF] border-l-4 border-[#005CA9] p-2 cursor-pointer transition-colors"
         >
           <div className="flex items-start gap-2">
             <div className="bg-[#005CA9] text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
@@ -88,7 +87,7 @@ export default function TimeSlot({ time, appointments = [], onClick }: TimeSlotP
 
     // APPUNTAMENTI MULTIPLI
     return (
-      <div className="h-full min-h-[60px] flex gap-1 bg-white p-1">
+      <div className="absolute inset-0 flex gap-1 bg-white p-1">
         {startsInThisSlot.map((appointment) => (
           <div
             key={appointment.id}
@@ -97,7 +96,7 @@ export default function TimeSlot({ time, appointments = [], onClick }: TimeSlotP
               onClick(appointment);
             }}
             data-appointment-id={appointment.id}
-            className="appointment-cell flex-1 bg-[#E6F2FF] border-l-4 border-[#005CA9] p-1.5 cursor-pointer transition-all min-w-0 rounded-t-lg"
+            className="appointment-cell flex-1 bg-[#E6F2FF] border-l-4 border-[#005CA9] p-1.5 cursor-pointer transition-all min-w-0"
           >
             <p className="text-xs font-bold text-[#005CA9] truncate leading-tight">
               {appointment.cliente || 'App.'}

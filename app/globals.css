@@ -64,6 +64,12 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
 .appointment-hover {
   background-color: #D1E7FF !important;
+}
+
+/* Fix per i bordi delle celle con appuntamenti */
+table tbody td {
+  position: relative;
 }

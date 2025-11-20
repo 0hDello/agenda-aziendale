@@ -36,7 +36,7 @@ export default function Calendar() {
     }
   }, [sedi, selectedSedeId]);
 
-// Hover sincronizzato per appuntamenti multipli
+  // Hover sincronizzato per appuntamenti multipli
   useEffect(() => {
     const handleMouseEnter = (e: Event) => {
       const target = e.target;
@@ -74,7 +74,6 @@ export default function Calendar() {
     return () => {
       document.removeEventListener('mouseenter', handleMouseEnter, true);
       document.removeEventListener('mouseleave', handleMouseLeave, true);
-      // Cleanup: rimuovi tutte le classi hover
       document.querySelectorAll('.appointment-hover').forEach((el) => {
         el.classList.remove('appointment-hover');
       });
@@ -155,7 +154,6 @@ export default function Calendar() {
           ora_fine: data.ora_fine,
           cliente: data.cliente || null,
           note: data.note || null,
-          created_by: data.created_by || null,
         }]);
       
       if (error) {
@@ -391,7 +389,7 @@ export default function Calendar() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                 <thead>
                   <tr className="border-b-2 border-[#005CA9]/20">
                     <th className="p-4 text-left font-semibold bg-[#F5F8FA] sticky left-0 z-10 min-w-[100px] border-r border-gray-200">
@@ -413,30 +411,37 @@ export default function Calendar() {
                   </tr>
                 </thead>
                 <tbody>
-                  {TIME_SLOTS.map((slot) => (
-                    <tr key={slot.label} className="border-b border-gray-100">
-                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200">
-                        <div className="px-4 py-3 text-sm font-semibold text-gray-700">
-                          {slot.label}
-                        </div>
-                      </td>
-                      {weekDays.map((day) => {
-                        const dateStr = formatDate(day);
-                        const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label);
+                  {TIME_SLOTS.map((slot, slotIndex) => {
+                    return (
+                      <tr key={slot.label}>
+                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100">
+                          <div className="px-4 py-3 text-sm font-semibold text-gray-700">
+                            {slot.label}
+                          </div>
+                        </td>
+                        {weekDays.map((day) => {
+                          const dateStr = formatDate(day);
+                          const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label);
+                          
+                          const hasAppointment = appointmentsInSlot.length > 0;
 
-                        return (
-                          <td key={`${dateStr}-${slot.label}`} className="p-0 border-r border-black-100">
-
-                            <TimeSlot
-                              time={slot.label}
-                              appointments={appointmentsInSlot}
-                              onClick={(appointment) => handleSlotClick(dateStr, slot.label, appointment)}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                          return (
+                            <td
+                              key={`${dateStr}-${slot.label}`}
+                              className={`relative p-0 ${hasAppointment ? '' : 'border-t border-b border-gray-100'} border-r border-gray-100`}
+                              style={{ height: '60px' }}
+                            >
+                              <TimeSlot
+                                time={slot.label}
+                                appointments={appointmentsInSlot}
+                                onClick={(appointment) => handleSlotClick(dateStr, slot.label, appointment)}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
