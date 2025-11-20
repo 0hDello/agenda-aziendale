@@ -21,6 +21,10 @@ export default function Calendar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
   const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
+  const [draggedAppointment, setDraggedAppointment] = useState<{
+    appointment: Appuntamento;
+    originalTime: string;
+  } | null>(null);
 
   const weekDays = getWeekDays(currentWeek);
 
@@ -269,6 +273,77 @@ export default function Calendar() {
     return found;
   };
 
+  // Gestione Drag and Drop
+  const handleDragStart = (appointment: Appuntamento, time: string) => {
+    setDraggedAppointment({ appointment, originalTime: time });
+  };
+
+  const handleDrop = async (date: string, newTime: string) => {
+    if (!draggedAppointment) return;
+
+    const { appointment, originalTime } = draggedAppointment;
+    
+    // Calcola la differenza di tempo
+    const originalIndex = TIME_SLOTS.findIndex((slot) => slot.label === originalTime);
+    const newIndex = TIME_SLOTS.findIndex((slot) => slot.label === newTime);
+    
+    if (originalIndex === -1 || newIndex === -1) {
+      setDraggedAppointment(null);
+      return;
+    }
+
+    const timeDiff = newIndex - originalIndex;
+    
+    // Calcola nuovo ora_inizio e ora_fine
+    const startIndex = TIME_SLOTS.findIndex((slot) => slot.label === appointment.ora_inizio.substring(0, 5));
+    const endIndex = TIME_SLOTS.findIndex((slot) => slot.label === appointment.ora_fine.substring(0, 5));
+    
+    const newStartIndex = startIndex + timeDiff;
+    const newEndIndex = endIndex + timeDiff;
+    
+    // Verifica che gli indici siano validi
+    if (newStartIndex < 0 || newEndIndex >= TIME_SLOTS.length) {
+      alert('Impossibile spostare l\'appuntamento in questo orario');
+      setDraggedAppointment(null);
+      return;
+    }
+    
+    const newOraInizio = TIME_SLOTS[newStartIndex].label;
+    const newOraFine = TIME_SLOTS[newEndIndex].label;
+    
+    // Aggiorna l'appuntamento
+    try {
+      console.log('🔄 Spostamento appuntamento:', { date, newOraInizio, newOraFine });
+      
+      const { error } = await supabase
+        .from('appuntamenti')
+        .update({
+          data: date,
+          ora_inizio: newOraInizio,
+          ora_fine: newOraFine,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', appointment.id);
+      
+      if (error) {
+        console.error('❌ Errore spostamento:', error);
+        alert('Errore durante lo spostamento: ' + error.message);
+      } else {
+        console.log('✅ Appuntamento spostato!');
+        await loadData();
+      }
+    } catch (err) {
+      console.error('❌ Errore:', err);
+      alert('Errore imprevisto: ' + String(err));
+    }
+    
+    setDraggedAppointment(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
   const selectedSede = sedi.find((s) => s.id === selectedSedeId);
   const sedePersone = persone.filter((persona) =>
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === selectedSedeId)
@@ -435,6 +510,9 @@ export default function Calendar() {
                                 time={slot.label}
                                 appointments={appointmentsInSlot}
                                 onClick={(appointment) => handleSlotClick(dateStr, slot.label, appointment)}
+                                onDragStart={handleDragStart}
+                                onDrop={(time) => handleDrop(dateStr, time)}
+                                onDragOver={handleDragOver}
                               />
                             </td>
                           );
