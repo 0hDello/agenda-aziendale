@@ -47,7 +47,7 @@ export default function AppointmentModal({
     persona_id: '',
     sede_id: '',
     ora_inizio: '09:00',
-    ora_fine: '',
+    ora_fine: '09:30',
     cliente: '',
     note: '',
   });
@@ -55,6 +55,7 @@ export default function AppointmentModal({
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [minTime, setMinTime] = useState<string>('09:00'); // Orario minimo selezionabile
 
   // Aggiorna i valori quando il modal viene aperto
   useEffect(() => {
@@ -70,20 +71,30 @@ export default function AppointmentModal({
           note: existingAppointment.note || '',
         });
         setSelectedDates([existingAppointment.data]);
+        setMinTime(existingAppointment.ora_inizio.substring(0, 5));
       } else {
         // MODALITÀ CREAZIONE: valori di default
         const newValidDate = getValidDate(selectedDate);
         const newValidDateString = format(newValidDate, 'yyyy-MM-dd');
+        const timeToUse = selectedTime || '09:00';
+        
+        // Trova l'indice dello slot cliccato
+        const currentIndex = TIME_SLOTS.findIndex((slot) => slot.label === timeToUse);
+        // Imposta ora fine allo slot successivo
+        const nextSlotTime = currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1
+          ? TIME_SLOTS[currentIndex + 1].label
+          : timeToUse;
         
         setFormData({
           persona_id: '',
           sede_id: selectedSedeId || '',
-          ora_inizio: selectedTime || '09:00',
-          ora_fine: '',
+          ora_inizio: timeToUse,
+          ora_fine: nextSlotTime, // Imposta ora fine allo slot successivo
           cliente: '',
           note: '',
         });
         
+        setMinTime(timeToUse); // Imposta il minimo selezionabile
         setSelectedDates([newValidDateString]);
       }
       
@@ -163,18 +174,33 @@ export default function AppointmentModal({
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === formData.sede_id)
   );
 
-  // Calcola automaticamente ora fine (aggiungi 30 minuti)
-  useEffect(() => {
-    if (formData.ora_inizio) {
-      const currentIndex = TIME_SLOTS.findIndex((slot) => slot.label === formData.ora_inizio);
-      if (currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1) {
-        setFormData((prev) => ({
-          ...prev,
-          ora_fine: TIME_SLOTS[currentIndex + 1].label,
-        }));
+  // Filtra gli slot disponibili in base all'orario minimo
+  const getAvailableSlots = (isStartTime: boolean) => {
+    return TIME_SLOTS.filter((slot) => {
+      if (isStartTime) {
+        // Per ora inizio: mostra solo slot >= minTime
+        return slot.label >= minTime;
+      } else {
+        // Per ora fine: mostra solo slot > ora_inizio (non uguale)
+        return slot.label > formData.ora_inizio;
       }
-    }
-  }, [formData.ora_inizio]);
+    });
+  };
+
+  // Gestisce il cambio di ora inizio
+  const handleOraInizioChange = (newOraInizio: string) => {
+    setFormData((prev) => {
+      const newFormData = { ...prev, ora_inizio: newOraInizio };
+      // Se ora fine è minore o uguale a ora inizio, aggiornala allo slot successivo
+      if (prev.ora_fine <= newOraInizio) {
+        const currentIndex = TIME_SLOTS.findIndex((slot) => slot.label === newOraInizio);
+        if (currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1) {
+          newFormData.ora_fine = TIME_SLOTS[currentIndex + 1].label;
+        }
+      }
+      return newFormData;
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -262,10 +288,11 @@ export default function AppointmentModal({
                 <select
                   required
                   value={formData.ora_inizio}
-                  onChange={(e) => setFormData({ ...formData, ora_inizio: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors"
+                  onChange={(e) => handleOraInizioChange(e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors bg-gray-50"
+                  disabled={!existingAppointment}
                 >
-                  {TIME_SLOTS.map((slot) => (
+                  {getAvailableSlots(true).map((slot) => (
                     <option key={slot.label} value={slot.label}>
                       {slot.label}
                     </option>
@@ -283,7 +310,7 @@ export default function AppointmentModal({
                   onChange={(e) => setFormData({ ...formData, ora_fine: e.target.value })}
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors"
                 >
-                  {TIME_SLOTS.map((slot) => (
+                  {getAvailableSlots(false).map((slot) => (
                     <option key={slot.label} value={slot.label}>
                       {slot.label}
                     </option>
