@@ -50,7 +50,6 @@ export default function AppointmentModal({
     ora_fine: '',
     cliente: '',
     note: '',
-    created_by: '',
   });
 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
@@ -69,7 +68,6 @@ export default function AppointmentModal({
           ora_fine: existingAppointment.ora_fine.substring(0, 5),
           cliente: existingAppointment.cliente || '',
           note: existingAppointment.note || '',
-          created_by: existingAppointment.created_by || '',
         });
         setSelectedDates([existingAppointment.data]);
       } else {
@@ -84,7 +82,6 @@ export default function AppointmentModal({
           ora_fine: '',
           cliente: '',
           note: '',
-          created_by: '',
         });
         
         setSelectedDates([newValidDateString]);
@@ -126,7 +123,6 @@ export default function AppointmentModal({
         ora_fine: formData.ora_fine,
         cliente: formData.cliente,
         note: formData.note,
-        created_by: formData.created_by,
       }));
 
       appointments.forEach((apt) => onSave(apt));
@@ -370,23 +366,6 @@ export default function AppointmentModal({
                 placeholder="Note aggiuntive..."
               />
             </div>
-
-            {/* Creato da - SOLO IN CREAZIONE */}
-            {!existingAppointment && (
-              <div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  <User className="w-4 h-4 text-[#005CA9]" />
-                  Creato da
-                </label>
-                <input
-                  type="text"
-                  value={formData.created_by}
-                  onChange={(e) => setFormData({ ...formData, created_by: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors"
-                  placeholder="Il tuo nome..."
-                />
-              </div>
-            )}
 
             {/* Pulsanti */}
             <div className="flex gap-3 pt-4">
