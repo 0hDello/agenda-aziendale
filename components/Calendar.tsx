@@ -11,10 +11,12 @@ import TimeSlot from './TimeSlot';
 import AppointmentModal from './AppointmentModal';
 
 export default function Calendar() {
-  // ... codice invariato ...
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  // ... altro stato invariato ...
+
   const weekDays = getWeekDays(currentWeek);
 
-  // ... codice invariato ...
+  // ... resto del codice invariato ...
 
   return (
     <div className="min-h-screen p-4 md:p-8 animate-fade-in">
