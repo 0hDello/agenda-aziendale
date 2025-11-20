@@ -25,6 +25,7 @@ export default function Calendar() {
     appointment: Appuntamento;
     originalTime: string;
   } | null>(null);
+  const [resizingAppointment, setResizingAppointment] = useState<Appuntamento | null>(null);
 
   const weekDays = getWeekDays(currentWeek);
 
@@ -83,6 +84,226 @@ export default function Calendar() {
       });
     };
   }, []);
+
+// Gestione Resize
+useEffect(() => {
+  if (!resizingAppointment) {
+    // Cleanup completo quando non stiamo ridimensionando
+    document.querySelectorAll('.resize-preview').forEach((el) => {
+      el.classList.remove('resize-preview');
+    });
+    document.querySelectorAll('.resize-shrink').forEach((el) => {
+      el.classList.remove('resize-shrink');
+    });
+    document.querySelectorAll('[data-appointment-id]').forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.opacity = '';
+      }
+    });
+    return;
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    const table = document.querySelector('table tbody');
+    if (!table) return;
+
+    const rect = table.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    
+    const rowHeight = 60;
+    const slotIndex = Math.floor(relativeY / rowHeight);
+    
+    if (slotIndex >= 0 && slotIndex < TIME_SLOTS.length) {
+      // Rimuovi tutte le ombre precedenti
+      document.querySelectorAll('.resize-preview').forEach((el) => {
+        el.classList.remove('resize-preview');
+      });
+      document.querySelectorAll('.resize-shrink').forEach((el) => {
+        el.classList.remove('resize-shrink');
+      });
+      
+      // Reset opacità per tutti gli appuntamenti
+      document.querySelectorAll('[data-appointment-id]').forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.style.opacity = '';
+        }
+      });
+      
+      // Trova l'indice dello slot di inizio e fine
+      const startTime = resizingAppointment.ora_inizio.substring(0, 5);
+      const endTime = resizingAppointment.ora_fine.substring(0, 5);
+      const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
+      const endIndex = TIME_SLOTS.findIndex(slot => slot.label === endTime);
+      
+      // Trova la data dell'appuntamento
+      const appointmentDate = resizingAppointment.data;
+      
+      const allRows = table.querySelectorAll('tr');
+      
+      // CASO 1: Estensione (slotIndex > endIndex - 1)
+      if (slotIndex >= endIndex - 1) {
+        // Aggiungi opacità alle celle esistenti dell'appuntamento
+        const appointmentCells = document.querySelectorAll(`[data-appointment-id="${resizingAppointment.id}"]`);
+        appointmentCells.forEach((el) => {
+          if (el instanceof HTMLElement) {
+            el.style.opacity = '0.7';
+          }
+        });
+        
+        // Aggiungi ombra verde/blu per estensione
+        for (let i = endIndex; i <= slotIndex; i++) {
+          if (i < allRows.length) {
+            const row = allRows[i];
+            const cells = row.querySelectorAll('td');
+            
+            weekDays.forEach((day, dayIndex) => {
+              const dateStr = formatDate(day);
+              
+              if (dateStr === appointmentDate) {
+                const targetCell = cells[dayIndex + 1];
+                
+                if (targetCell) {
+                  const hasAppointment = targetCell.querySelector(`[data-appointment-id]`);
+                  if (!hasAppointment) {
+                    targetCell.classList.add('resize-preview');
+                  }
+                }
+              }
+            });
+          }
+        }
+      } 
+      // CASO 2: Riduzione (slotIndex < endIndex - 1)
+      else if (slotIndex < endIndex - 1 && slotIndex >= startIndex) {
+        // Aggiungi ombra rossa/scura per le celle che verranno rimosse
+        for (let i = slotIndex + 1; i < endIndex; i++) {
+          if (i < allRows.length) {
+            const row = allRows[i];
+            const cells = row.querySelectorAll('td');
+            
+            weekDays.forEach((day, dayIndex) => {
+              const dateStr = formatDate(day);
+              
+              if (dateStr === appointmentDate) {
+                const targetCell = cells[dayIndex + 1];
+                
+                if (targetCell) {
+                  // Aggiungi classe speciale per riduzione
+                  const appointmentInCell = targetCell.querySelector(`[data-appointment-id="${resizingAppointment.id}"]`);
+                  if (appointmentInCell) {
+                    appointmentInCell.classList.add('resize-shrink');
+                  }
+                }
+              }
+            });
+          }
+        }
+      }
+    }
+  };
+
+  const cleanupResizeEffects = () => {
+    // Rimuovi tutte le ombre
+    document.querySelectorAll('.resize-preview').forEach((el) => {
+      el.classList.remove('resize-preview');
+    });
+    document.querySelectorAll('.resize-shrink').forEach((el) => {
+      el.classList.remove('resize-shrink');
+    });
+    
+    // Reset opacità per tutti gli appuntamenti
+    document.querySelectorAll('[data-appointment-id]').forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.opacity = '';
+      }
+    });
+  };
+
+  const handleMouseUp = async (e: MouseEvent) => {
+    if (!resizingAppointment) return;
+
+    cleanupResizeEffects();
+
+    const table = document.querySelector('table tbody');
+    if (!table) {
+      setResizingAppointment(null);
+      return;
+    }
+
+    const rect = table.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    
+    const rowHeight = 60;
+    const slotIndex = Math.floor(relativeY / rowHeight);
+    
+    if (slotIndex >= 0 && slotIndex < TIME_SLOTS.length) {
+      const nextSlotIndex = slotIndex + 1;
+      if (nextSlotIndex < TIME_SLOTS.length) {
+        const newEndTime = TIME_SLOTS[nextSlotIndex].label;
+        const startTime = resizingAppointment.ora_inizio.substring(0, 5);
+        
+        if (newEndTime > startTime) {
+          // Controlla conflitti
+          const hasConflict = appointments.some((apt) => {
+            if (apt.id === resizingAppointment.id) return false;
+            if (apt.persona_id !== resizingAppointment.persona_id) return false;
+            if (apt.sede_id !== resizingAppointment.sede_id) return false;
+            if (apt.data !== resizingAppointment.data) return false;
+            
+            const aptStart = apt.ora_inizio.substring(0, 5);
+            const aptEnd = apt.ora_fine.substring(0, 5);
+            
+            return startTime < aptEnd && newEndTime > aptStart;
+          });
+          
+          if (hasConflict) {
+            alert('Impossibile ridimensionare: fascia oraria già occupata');
+            setResizingAppointment(null);
+            return;
+          } else {
+            // Aggiorna l'appuntamento
+            try {
+              const { error } = await supabase
+                .from('appuntamenti')
+                .update({
+                  ora_fine: newEndTime,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', resizingAppointment.id);
+              
+              if (error) {
+                console.error('❌ Errore resize:', error);
+                alert('Errore durante il ridimensionamento: ' + error.message);
+              } else {
+                console.log('✅ Appuntamento ridimensionato!');
+                // Cleanup prima di ricaricare
+                cleanupResizeEffects();
+                await loadData();
+              }
+            } catch (err) {
+              console.error('❌ Errore:', err);
+            }
+          }
+        }
+      }
+    }
+    
+    setResizingAppointment(null);
+  };
+
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+
+  return () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    cleanupResizeEffects();
+  };
+}, [resizingAppointment, appointments, weekDays]);
+
+
+
+
 
   const loadData = async () => {
     console.log('🔄 Caricamento dati...');
@@ -311,6 +532,32 @@ export default function Calendar() {
     const newOraInizio = TIME_SLOTS[newStartIndex].label;
     const newOraFine = TIME_SLOTS[newEndIndex].label;
     
+    // Controlla se la fascia oraria è già occupata dalla stessa persona
+    const hasConflict = appointments.some((apt) => {
+      // Ignora l'appuntamento che stiamo spostando
+      if (apt.id === appointment.id) return false;
+      
+      // Controlla solo appuntamenti della stessa persona e sede
+      if (apt.persona_id !== appointment.persona_id || apt.sede_id !== appointment.sede_id) return false;
+      
+      // Controlla solo appuntamenti nella stessa data di destinazione
+      if (apt.data !== date) return false;
+      
+      const aptStart = apt.ora_inizio.substring(0, 5);
+      const aptEnd = apt.ora_fine.substring(0, 5);
+      
+      // Controlla se c'è sovrapposizione
+      const hasOverlap = newOraInizio < aptEnd && newOraFine > aptStart;
+      
+      return hasOverlap;
+    });
+    
+    if (hasConflict) {
+      alert('Impossibile spostare l\'appuntamento: fascia oraria già occupata per questa persona');
+      setDraggedAppointment(null);
+      return;
+    }
+    
     // Aggiorna l'appuntamento
     try {
       console.log('🔄 Spostamento appuntamento:', { date, newOraInizio, newOraFine });
@@ -342,6 +589,10 @@ export default function Calendar() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+  };
+
+  const handleResizeStart = (appointment: Appuntamento) => {
+    setResizingAppointment(appointment);
   };
 
   const selectedSede = sedi.find((s) => s.id === selectedSedeId);
@@ -513,6 +764,7 @@ export default function Calendar() {
                                 onDragStart={handleDragStart}
                                 onDrop={(time) => handleDrop(dateStr, time)}
                                 onDragOver={handleDragOver}
+                                onResizeStart={handleResizeStart}
                               />
                             </td>
                           );

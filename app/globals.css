@@ -73,3 +73,33 @@ body {
 table tbody td {
   position: relative;
 }
+/* Ombra per il resize preview (estensione) */
+.resize-preview {
+  position: relative;
+}
+
+.resize-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 92, 169, 0.2);
+  border-left: 4px solid rgba(0, 92, 169, 0.4);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Ombra per il resize shrink (riduzione) */
+.resize-shrink {
+  position: relative;
+  opacity: 0.4 !important;
+}
+
+.resize-shrink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(239, 68, 68, 0.3);
+  pointer-events: none;
+  z-index: 5;
+}
+
