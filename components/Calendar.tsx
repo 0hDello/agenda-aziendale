@@ -10,7 +10,10 @@ import { getWeekDays, formatDate, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
 import AppointmentModal from './AppointmentModal';
 
-export default function Calendar() {
+interface CalendarProps {
+  agendaId?: string;
+}
+export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [appointments, setAppointments] = useState<Appuntamento[]>([]);
   const [persone, setPersone] = useState<Persona[]>([]);
