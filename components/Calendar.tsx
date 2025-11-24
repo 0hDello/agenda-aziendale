@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, User, ChevronDown } from 'lucide-react';
 import { format, addWeeks, subWeeks } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
@@ -303,10 +303,6 @@ useEffect(() => {
     cleanupResizeEffects();
   };
 }, [resizingAppointment, appointments, weekDays]);
-
-
-
-
 
   const loadData = async () => {
     console.log('🔄 Caricamento dati...');
@@ -615,31 +611,13 @@ useEffect(() => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-[#005CA9]">
-                  Agenda CNA
+                  Agenda 730
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">Gestione appuntamenti condivisa</p>
+                <p className="text-sm text-gray-600 mt-1">Gestione appuntamenti</p>
               </div>
             </div>
             
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-[#005CA9]" />
-                <select
-                  value={selectedSedeId}
-                  onChange={(e) => {
-                    setSelectedSedeId(e.target.value);
-                    setSelectedPersonaId(null);
-                  }}
-                  className="px-4 py-2.5 bg-white border-2 border-[#005CA9] text-[#005CA9] rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all shadow-sm hover:shadow-md cursor-pointer"
-                >
-                  {sedi.map((sede) => (
-                    <option key={sede.id} value={sede.id}>
-                      {sede.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <button
                 onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
                 className="p-2.5 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
@@ -669,53 +647,79 @@ useEffect(() => {
         </div>
 
         {/* Griglia sede selezionata */}
-        {selectedSede && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-slide-in border-l-4 border-[#005CA9]">
-            <div className="bg-[#005CA9] text-white p-5">
-              <h2 className="text-2xl font-bold tracking-wide mb-4">{selectedSede.nome}</h2>
-              
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => setSelectedPersonaId(null)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all ${
-                    selectedPersonaId === null
-                      ? 'bg-white text-[#005CA9] shadow-lg scale-105'
-                      : 'bg-white/20 text-white hover:bg-white/30'
-                  }`}
-                >
-                  <User size={18} />
-                  <span>Tutti ({sedePersone.length})</span>
-                </button>
+{selectedSede && (
+  <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-slide-in border-l-4 border-[#005CA9]">
+    <div className="bg-[#005CA9] text-white p-5">
+      {/* Header con Sede a destra */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold tracking-wide">Seleziona Operatore</h2>
+        
+        {/* Selettore Sede in alto a destra */}
+        <div className="flex items-center gap-3">
+          <Building2 className="w-6 h-6" />
+          <div className="relative">
+            <select
+              value={selectedSedeId}
+              onChange={(e) => {
+                setSelectedSedeId(e.target.value);
+                setSelectedPersonaId(null);
+              }}
+              className="px-4 py-2 pr-10 bg-white/20 text-white border-2 border-white/30 rounded-xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/50 transition-all cursor-pointer hover:bg-white/30 appearance-none"
+            >
+              {sedi.map((sede) => (
+                <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
+                  {sede.nome}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" />
+          </div>
+        </div>
+      </div>
+      
+      {/* Pulsanti operatori */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => setSelectedPersonaId(null)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all ${
+            selectedPersonaId === null
+              ? 'bg-white text-[#005CA9] shadow-lg scale-105'
+              : 'bg-white/20 text-white hover:bg-white/30'
+          }`}
+        >
+          <User size={18} />
+          <span>Tutti ({sedePersone.length})</span>
+        </button>
 
-                {sedePersone.map((persona) => {
-                  const personaAppointments = appointments.filter(
-                    (apt) => apt.persona_id === persona.id && apt.sede_id === selectedSedeId
-                  );
-                  
-                  return (
-                    <button
-                      key={persona.id}
-                      onClick={() => setSelectedPersonaId(persona.id)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all ${
-                        selectedPersonaId === persona.id
-                          ? 'bg-white text-[#005CA9] shadow-lg scale-105'
-                          : 'bg-white/20 text-white hover:bg-white/30'
-                      }`}
-                    >
-                      <div className="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center">
-                        <User size={16} />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-sm leading-tight">{persona.nome}</div>
-                        <div className="text-xs opacity-80 leading-tight">
-                          {personaAppointments.length} app.
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+        {sedePersone.map((persona) => {
+          const personaAppointments = appointments.filter(
+            (apt) => apt.persona_id === persona.id && apt.sede_id === selectedSedeId
+          );
+          
+          return (
+            <button
+              key={persona.id}
+              onClick={() => setSelectedPersonaId(persona.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all ${
+                selectedPersonaId === persona.id
+                  ? 'bg-white text-[#005CA9] shadow-lg scale-105'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              <div className="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center">
+                <User size={16} />
               </div>
-            </div>
+              <div className="text-left">
+                <div className="text-sm leading-tight">{persona.nome}</div>
+                <div className="text-xs opacity-80 leading-tight">
+                  {personaAppointments.length} app.
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
 
             <div className="overflow-x-auto">
               <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>

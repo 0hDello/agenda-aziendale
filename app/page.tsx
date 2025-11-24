@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar as CalendarIcon, Settings, Plus, Users, Building2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Agenda {
   id: string;
@@ -17,10 +18,32 @@ export default function HomePage() {
   const router = useRouter();
   const [agende, setAgende] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsOperatori, setStatsOperatori] = useState(0);
+  const [statsSedi, setStatsSedi] = useState(0);
 
   useEffect(() => {
     loadAgende();
+    loadStats();
   }, []);
+
+  const loadStats = async () => {
+    try {
+      // Conta operatori/persone
+      const { count: personeCount } = await supabase
+        .from('persone')
+        .select('*', { count: 'exact', head: true });
+      
+      // Conta sedi
+      const { count: sediCount } = await supabase
+        .from('sedi')
+        .select('*', { count: 'exact', head: true });
+
+      setStatsOperatori(personeCount || 0);
+      setStatsSedi(sediCount || 0);
+    } catch (error) {
+      console.error('Errore caricamento statistiche:', error);
+    }
+  };
 
   const loadAgende = async () => {
     try {
@@ -28,8 +51,8 @@ export default function HomePage() {
       const staticAgende: Agenda[] = [
         {
           id: '730',
-          nome: '730',
-          descrizione: 'Gestione appuntamenti 730',
+          nome: 'Agenda 730',
+          descrizione: 'Gestione appuntamenti',
           colore: '#005CA9',
           icona: 'calendar',
           created_at: new Date().toISOString()
@@ -101,26 +124,26 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-green-500">
+          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-[#005CA9]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Operatori</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">4</p>
+                <p className="text-3xl font-bold text-[#005CA9] mt-2">{statsOperatori}</p>
               </div>
-              <div className="bg-green-50 p-3 rounded-xl">
-                <Users className="w-8 h-8 text-green-600" />
+              <div className="bg-[#E6F2FF] p-3 rounded-xl">
+                <Users className="w-8 h-8 text-[#005CA9]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-purple-500">
+          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-[#005CA9]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Sedi</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">3</p>
+                <p className="text-3xl font-bold text-[#005CA9] mt-2">{statsSedi}</p>
               </div>
-              <div className="bg-purple-50 p-3 rounded-xl">
-                <Building2 className="w-8 h-8 text-purple-600" />
+              <div className="bg-[#E6F2FF] p-3 rounded-xl">
+                <Building2 className="w-8 h-8 text-[#005CA9]" />
               </div>
             </div>
           </div>

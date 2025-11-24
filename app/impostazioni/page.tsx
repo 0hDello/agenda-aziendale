@@ -25,7 +25,10 @@ export default function ImpostazioniPage() {
 
         {/* Sezioni Impostazioni */}
         <div className="space-y-4">
-          <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer">
+          <div
+            className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+            onClick={() => router.push('/impostazioni/persone')}
+          >
             <div className="flex items-center gap-4">
               <div className="bg-[#E6F2FF] p-3 rounded-xl">
                 <Users className="w-6 h-6 text-[#005CA9]" />
@@ -38,10 +41,13 @@ export default function ImpostazioniPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer">
+          <div
+            className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+            onClick={() => router.push('/impostazioni/sedi')}
+          >
             <div className="flex items-center gap-4">
-              <div className="bg-green-50 p-3 rounded-xl">
-                <Building2 className="w-6 h-6 text-green-600" />
+              <div className="bg-[#E6F2FF] p-3 rounded-xl">
+                <Building2 className="w-6 h-6 text-[#005CA9]" />
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-gray-800">Gestione Sedi</h3>
@@ -51,10 +57,13 @@ export default function ImpostazioniPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer">
+          <div
+            className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+            onClick={() => router.push('/impostazioni/agende')}
+          >
             <div className="flex items-center gap-4">
-              <div className="bg-purple-50 p-3 rounded-xl">
-                <Calendar className="w-6 h-6 text-purple-600" />
+              <div className="bg-[#E6F2FF] p-3 rounded-xl">
+                <Calendar className="w-6 h-6 text-[#005CA9]" />
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-gray-800">Gestione Agende</h3>
@@ -64,18 +73,7 @@ export default function ImpostazioniPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="bg-orange-50 p-3 rounded-xl">
-                <Bell className="w-6 h-6 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-gray-800">Notifiche</h3>
-                <p className="text-sm text-gray-600">Configura avvisi e promemoria</p>
-              </div>
-              <div className="text-gray-400">→</div>
-            </div>
-          </div>
+          
         </div>
       </div>
     </div>
