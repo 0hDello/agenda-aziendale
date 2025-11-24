@@ -20,6 +20,7 @@ interface AppointmentModalProps {
   selectedDate: string;
   selectedTime: string;
   selectedSedeId?: string;
+  defaultPersonaId?: string | null;  // <-- AGGIUNTO
 }
 
 export default function AppointmentModal({
@@ -35,6 +36,7 @@ export default function AppointmentModal({
   selectedDate,
   selectedTime,
   selectedSedeId,
+  defaultPersonaId,  // <-- AGGIUNTO
 }: AppointmentModalProps) {
   // Valida e usa la data corrente se selectedDate non è valido
   const getValidDate = (dateStr: string): Date => {
@@ -55,7 +57,7 @@ export default function AppointmentModal({
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [minTime, setMinTime] = useState<string>('09:00'); // Orario minimo selezionabile
+  const [minTime, setMinTime] = useState<string>('09:00');
 
   // Aggiorna i valori quando il modal viene aperto
   useEffect(() => {
@@ -86,21 +88,21 @@ export default function AppointmentModal({
           : timeToUse;
         
         setFormData({
-          persona_id: '',
+          persona_id: defaultPersonaId || '',  // <-- USA defaultPersonaId
           sede_id: selectedSedeId || '',
           ora_inizio: timeToUse,
-          ora_fine: nextSlotTime, // Imposta ora fine allo slot successivo
+          ora_fine: nextSlotTime,
           cliente: '',
           note: '',
         });
         
-        setMinTime(timeToUse); // Imposta il minimo selezionabile
+        setMinTime(timeToUse);
         setSelectedDates([newValidDateString]);
       }
       
       setShowCalendar(false);
     }
-  }, [isOpen, existingAppointment, selectedDate, selectedTime, selectedSedeId]);
+  }, [isOpen, existingAppointment, selectedDate, selectedTime, selectedSedeId, defaultPersonaId]);  // <-- AGGIUNTO defaultPersonaId
 
   // Aggiorna la sede quando cambia quella selezionata
   useEffect(() => {
@@ -178,10 +180,8 @@ export default function AppointmentModal({
   const getAvailableSlots = (isStartTime: boolean) => {
     return TIME_SLOTS.filter((slot) => {
       if (isStartTime) {
-        // Per ora inizio: mostra solo slot >= minTime
         return slot.label >= minTime;
       } else {
-        // Per ora fine: mostra solo slot > ora_inizio (non uguale)
         return slot.label > formData.ora_inizio;
       }
     });
@@ -191,7 +191,6 @@ export default function AppointmentModal({
   const handleOraInizioChange = (newOraInizio: string) => {
     setFormData((prev) => {
       const newFormData = { ...prev, ora_inizio: newOraInizio };
-      // Se ora fine è minore o uguale a ora inizio, aggiornala allo slot successivo
       if (prev.ora_fine <= newOraInizio) {
         const currentIndex = TIME_SLOTS.findIndex((slot) => slot.label === newOraInizio);
         if (currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1) {

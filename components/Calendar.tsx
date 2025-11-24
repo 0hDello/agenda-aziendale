@@ -802,6 +802,7 @@ useEffect(() => {
         selectedDate={selectedSlot.date}
         selectedTime={selectedSlot.time}
         selectedSedeId={selectedSedeId}
+        defaultPersonaId={selectedPersonaId}
       />
     </div>
   );
