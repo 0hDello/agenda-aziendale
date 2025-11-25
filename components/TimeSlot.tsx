@@ -81,7 +81,6 @@ export default function TimeSlot({
     }
   };
 
-  // Calcola l'altezza in pixel dell'appuntamento
   const calculateAppointmentHeight = (appointment: Appuntamento): number => {
     const startTime = appointment.ora_inizio.substring(0, 5);
     const endTime = appointment.ora_fine.substring(0, 5);
@@ -89,19 +88,17 @@ export default function TimeSlot({
     const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
     let endIndex = TIME_SLOTS.findIndex(slot => slot.label === endTime);
     
-    // Gestisce il caso delle 18:00
     if (endIndex === -1 && endTime === '18:00') {
       endIndex = TIME_SLOTS.length;
     }
     
     const slotCount = endIndex - startIndex;
-    const slotHeight = 60;
+    const slotHeight = 45;
 
-    // Non sottrarre nulla - occupa tutto lo spazio
+    // NON aggiungere nulla - altezza esatta
     return slotCount * slotHeight;
   };
 
-  // Assegna colonne agli appuntamenti
   const assignColumns = (allAppointments: Appuntamento[]): Map<string, number> => {
     const columnMap = new Map<string, number>();
     
@@ -154,12 +151,10 @@ export default function TimeSlot({
   };
 
   if (appointments.length > 0) {
-    // IMPORTANTE: renderizza solo gli appuntamenti che INIZIANO in questo slot
     const startsInThisSlot = appointments.filter(
       (apt) => apt.ora_inizio.substring(0, 5) === time
     );
 
-    // Se non ci sono appuntamenti che iniziano qui, mostra solo la continuazione (senza contenuto)
     if (startsInThisSlot.length === 0) {
       return (
         <div
@@ -173,7 +168,6 @@ export default function TimeSlot({
     const columnAssignments = assignColumns(allDayAppointments);
     const maxColumns = getMaxColumns(allDayAppointments);
 
-    // Caso semplice: un solo appuntamento
     if (startsInThisSlot.length === 1 && maxColumns === 1) {
       const appointment = startsInThisSlot[0];
       const height = calculateAppointmentHeight(appointment);
@@ -226,7 +220,6 @@ export default function TimeSlot({
       );
     }
 
-    // APPUNTAMENTI MULTIPLI
     const columnWidth = 100 / maxColumns;
     const gap = 4;
 
@@ -282,13 +275,12 @@ export default function TimeSlot({
     );
   }
 
-  // Cella vuota
   return (
     <div
       onClick={() => onClick()}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      className="h-full min-h-[60px] hover:bg-gray-50 cursor-pointer transition-colors flex items-center justify-center group"
+      className="h-full min-h-[45px] hover:bg-gray-50 cursor-pointer transition-colors flex items-center justify-center group"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

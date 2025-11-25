@@ -1,28 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, User, ChevronDown } from 'lucide-react';
-import { format, addWeeks, subWeeks } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, User, ChevronDown, X } from 'lucide-react';
+import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
-import { getWeekDays, formatDate, TIME_SLOTS } from '@/utils/dateUtils';
+import { formatDate, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
 import AppointmentModal from './AppointmentModal';
+
+
 
 interface CalendarProps {
   agendaId?: string;
 }
+
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appuntamento[]>([]);
   const [persone, setPersone] = useState<Persona[]>([]);
   const [sedi, setSedi] = useState<Sede[]>([]);
   const [personaSede, setPersonaSede] = useState<PersonaSede[]>([]);
   const [selectedSedeId, setSelectedSedeId] = useState<string>('');
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
+  const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '', personaId: '' });
   const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
   const [draggedAppointment, setDraggedAppointment] = useState<{
     appointment: Appuntamento;
@@ -30,8 +32,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   } | null>(null);
   const [resizingAppointment, setResizingAppointment] = useState<Appuntamento | null>(null);
   const [isResizing, setIsResizing] = useState(false);
-
-  const weekDays = getWeekDays(currentWeek);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -45,7 +46,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [sedi, selectedSedeId]);
 
-  // Hover sincronizzato per appuntamenti multipli
   useEffect(() => {
     const handleMouseEnter = (e: Event) => {
       const target = e.target;
@@ -87,7 +87,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, []);
 
-  // Gestione Resize
   useEffect(() => {
     if (!resizingAppointment) {
       document.querySelectorAll('.resize-overlay').forEach((el) => {
@@ -111,7 +110,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
       const rect = table.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
-      const rowHeight = 60;
+      const rowHeight = 45;
       const slotIndex = Math.floor(relativeY / rowHeight);
 
       if (slotIndex >= 0 && slotIndex < TIME_SLOTS.length) {
@@ -132,7 +131,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             oldOverlay.remove();
           }
 
-          // CASO 1: Estensione
           if (slotIndex >= endIndex - 1) {
             const newSlotCount = slotIndex - startIndex + 1;
             const newHeight = newSlotCount * rowHeight;
@@ -151,9 +149,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
             appointmentElement.appendChild(overlay);
             appointmentElement.style.opacity = '0.7';
-          }
-          // CASO 2: Riduzione
-          else if (slotIndex < endIndex - 1 && slotIndex >= startIndex) {
+          } else if (slotIndex < endIndex - 1 && slotIndex >= startIndex) {
             const newSlotCount = slotIndex - startIndex + 1;
             const newHeight = newSlotCount * rowHeight;
 
@@ -204,7 +200,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
       const rect = table.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
-      const rowHeight = 60;
+      const rowHeight = 45;
       const slotIndex = Math.floor(relativeY / rowHeight);
 
       if (slotIndex >= 0 && slotIndex < TIME_SLOTS.length) {
@@ -381,7 +377,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  const handleSlotClick = (date: string, time: string, existingAppointment?: Appuntamento) => {
+  const handleSlotClick = (date: string, time: string, personaId: string, existingAppointment?: Appuntamento) => {
     if (isResizing) {
       console.log('🚫 Click bloccato durante resize');
       return;
@@ -391,12 +387,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       setSelectedAppointment(existingAppointment);
     } else {
       setSelectedAppointment(null);
-      setSelectedSlot({ date, time });
+      setSelectedSlot({ date, time, personaId });
     }
     setIsModalOpen(true);
   };
 
-  const getAppointmentsForSlot = (date: string, time: string) => {
+  const getAppointmentsForSlot = (date: string, time: string, personaId: string) => {
     const found = appointments.filter((apt) => {
       const aptOraInizio = apt.ora_inizio ? apt.ora_inizio.substring(0, 5) : '';
       const aptOraFine = apt.ora_fine ? apt.ora_fine.substring(0, 5) : '';
@@ -404,7 +400,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         && apt.sede_id === selectedSedeId
         && time >= aptOraInizio
         && time < aptOraFine
-        && (selectedPersonaId === null || apt.persona_id === selectedPersonaId);
+        && apt.persona_id === personaId;
     });
     return found;
   };
@@ -413,7 +409,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment({ appointment, originalTime: time });
   };
 
-  const handleDrop = async (date: string, newTime: string) => {
+  const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
 
     const { appointment, originalTime } = draggedAppointment;
@@ -450,7 +446,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     const hasConflict = appointments.some((apt) => {
       if (apt.id === appointment.id) return false;
-      if (apt.persona_id !== appointment.persona_id || apt.sede_id !== appointment.sede_id) return false;
+      if (apt.persona_id !== personaId || apt.sede_id !== appointment.sede_id) return false;
       if (apt.data !== date) return false;
       const aptStart = apt.ora_inizio.substring(0, 5);
       const aptEnd = apt.ora_fine.substring(0, 5);
@@ -469,6 +465,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         .from('appuntamenti')
         .update({
           data: date,
+          persona_id: personaId,
           ora_inizio: newOraInizio,
           ora_fine: newOraFine,
           updated_at: new Date().toISOString(),
@@ -500,65 +497,170 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === selectedSedeId)
   );
 
+  const dateStr = formatDate(selectedDate);
+
   return (
-    <div className="min-h-screen p-4 md:p-8 animate-fade-in">
+    <div className="min-h-screen p-2 md:p-4 animate-fade-in">
       <div className="max-w-[1800px] mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 animate-slide-in border-t-4 border-[#005CA9]">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-[#005CA9] p-3 rounded-xl shadow-lg">
-                <CalendarIcon className="w-8 h-8 text-white" />
+        <div className="bg-white rounded-xl shadow-lg p-4 mb-4 animate-slide-in border-t-4 border-[#005CA9]">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
+                <CalendarIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-[#005CA9]">
+                <h1 className="text-2xl font-bold text-[#005CA9]">
                   Agenda 730
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">Gestione appuntamenti</p>
+                <p className="text-xs text-gray-600 mt-0.5">Gestione appuntamenti</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-                className="p-2.5 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
+                onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+                className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
-              <div className="bg-[#E6F2FF] px-6 py-2.5 rounded-xl border border-[#005CA9]/20">
-                <span className="text-base font-semibold text-[#005CA9] whitespace-nowrap">
-                  {format(weekDays[0], 'dd MMM', { locale: it })} -{' '}
-                  {format(weekDays[6], 'dd MMM yyyy', { locale: it })}
+              <button
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer"
+              >
+                <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
+                  {format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })}
                 </span>
-              </div>
-              <button
-                onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-                className="p-2.5 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-              >
-                <ChevronRight className="w-5 h-5 text-gray-600" />
               </button>
               <button
-                onClick={() => setCurrentWeek(new Date())}
-                className="px-5 py-2.5 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
+                onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+                className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+              <button
+                onClick={() => setSelectedDate(new Date())}
+                className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
               >
                 Oggi
               </button>
             </div>
           </div>
+
+          {showDatePicker && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-[#005CA9]">
+          Seleziona Data
+        </h3>
+        <button
+          onClick={() => setShowDatePicker(false)}
+          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
+        <button
+          type="button"
+          onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ChevronLeft size={20} className="text-[#005CA9]" />
+        </button>
+        <h4 className="text-lg font-bold text-gray-800 capitalize">
+          {format(selectedDate, 'MMMM yyyy', { locale: it })}
+        </h4>
+        <button
+          type="button"
+          onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ChevronRight size={20} className="text-[#005CA9]" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-2 mb-2">
+        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
+          <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-2 mb-6">
+        {(() => {
+          const monthStart = startOfMonth(selectedDate);
+          const monthEnd = endOfMonth(selectedDate);
+          const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+          const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+          const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+          return days.map((day, index) => {
+            const isCurrentMonth = isSameMonth(day, selectedDate);
+            const isSelected = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+            const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => {
+                  setSelectedDate(day);
+                  setShowDatePicker(false);
+                }}
+                className={`
+                  aspect-square rounded-lg text-sm font-medium transition-all
+                  ${isSelected 
+                    ? 'bg-[#005CA9] text-white shadow-md scale-105' 
+                    : isToday
+                      ? 'bg-[#E6F2FF] text-[#005CA9] font-bold'
+                      : isCurrentMonth 
+                        ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' 
+                        : 'bg-transparent text-gray-300'
+                  }
+                  cursor-pointer
+                `}
+              >
+                {format(day, 'd')}
+              </button>
+            );
+          });
+        })()}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setSelectedDate(new Date());
+          setShowDatePicker(false);
+        }}
+        className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
+      >
+        Vai a Oggi
+      </button>
+    </div>
+  </div>
+)}
+
         </div>
+
         {selectedSede && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-slide-in border-l-4 border-[#005CA9]">
-            <div className="bg-[#005CA9] text-white p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold tracking-wide">Seleziona Operatore</h2>
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-6 h-6" />
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-l-4 border-[#005CA9]">
+            <div className="bg-[#005CA9] text-white p-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold tracking-wide">
+                  {format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5" />
                   <div className="relative">
                     <select
                       value={selectedSedeId}
                       onChange={(e) => {
                         setSelectedSedeId(e.target.value);
-                        setSelectedPersonaId(null);
                       }}
-                      className="px-4 py-2 pr-10 bg-white/20 text-white border-2 border-white/30 rounded-xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/50 transition-all cursor-pointer hover:bg-white/30 appearance-none"
+                      className="px-3 py-1.5 pr-8 text-sm bg-white/20 text-white border-2 border-white/30 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-white/50 transition-all cursor-pointer hover:bg-white/30 appearance-none"
                     >
                       {sedi.map((sede) => (
                         <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
@@ -566,105 +668,66 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" />
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => setSelectedPersonaId(null)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all ${
-                    selectedPersonaId === null
-                      ? 'bg-white text-[#005CA9] shadow-lg scale-105'
-                      : 'bg-white/20 text-white hover:bg-white/30'
-                  }`}
-                >
-                  <User size={18} />
-                  <span>Tutti ({sedePersone.length})</span>
-                </button>
-                {sedePersone.map((persona) => {
-                  const personaAppointments = appointments.filter(
-                    (apt) => apt.persona_id === persona.id && apt.sede_id === selectedSedeId
-                  );
-                  return (
-                    <button
-                      key={persona.id}
-                      onClick={() => setSelectedPersonaId(persona.id)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all ${
-                        selectedPersonaId === persona.id
-                          ? 'bg-white text-[#005CA9] shadow-lg scale-105'
-                          : 'bg-white/20 text-white hover:bg-white/30'
-                      }`}
-                    >
-                      <div className="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center">
-                        <User size={16} />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-sm leading-tight">{persona.nome}</div>
-                        <div className="text-xs opacity-80 leading-tight">
-                          {personaAppointments.length} app.
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
+
             <div className="overflow-x-auto">
               <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                 <thead>
                   <tr className="border-b-2 border-[#005CA9]/20">
-                    <th className="p-4 text-left font-semibold bg-[#F5F8FA] sticky left-0 z-10 min-w-[100px] border-r border-gray-200">
-                      <span className="text-[#005CA9]">Orario</span>
-                    </th>
-                    {weekDays.map((day) => (
+                    <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+  <span className="text-[#005CA9]">Orario</span>
+</th>
+                    {sedePersone.map((persona) => (
                       <th
-                        key={day.toISOString()}
-                        className="p-4 text-center font-semibold bg-[#F5F8FA] min-w-[150px]"
+                        key={persona.id}
+                        className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]"
                       >
-                        <div className="text-sm text-gray-500 uppercase tracking-wide">
-                          {format(day, 'EEE', { locale: it })}
-                        </div>
-                        <div className="text-lg font-bold text-[#005CA9] mt-1">
-                          {format(day, 'dd/MM', { locale: it })}
+                        <div className="flex items-center justify-center gap-1.5">
+                          <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center">
+                            <User size={14} className="text-white" />
+                          </div>
+                          <span className="text-[#005CA9]">{persona.nome}</span>
                         </div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {TIME_SLOTS.map((slot, slotIndex) => {
+                  {TIME_SLOTS.map((slot) => {
                     return (
                       <tr key={slot.label}>
-                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100">
-                          <div className="px-4 py-3 text-sm font-semibold text-gray-700">
-                            {slot.label}
-                          </div>
-                        </td>
-                        {weekDays.map((day) => {
-                          const dateStr = formatDate(day);
-                          const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label);
+                       <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+  <div className="px-1 py-2 text-xs font-semibold text-gray-700">
+    {slot.label}
+  </div>
+</td>
+
+                        {sedePersone.map((persona) => {
+                          const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label, persona.id);
 
                           const allDayAppointments = appointments.filter((apt) =>
-                            apt.data === dateStr && apt.sede_id === selectedSedeId &&
-                            (selectedPersonaId === null || apt.persona_id === selectedPersonaId)
+                            apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
                           );
 
                           const hasAppointment = appointmentsInSlot.length > 0;
 
                           return (
                             <td
-                              key={`${dateStr}-${slot.label}`}
+                              key={`${persona.id}-${slot.label}`}
                               className={`relative p-0 border-r border-gray-100 ${!hasAppointment ? 'border-b border-gray-100' : ''}`}
-                              style={{ height: '60px' }}
+                              style={{ height: '45px' }}
                             >
                               <TimeSlot
                                 time={slot.label}
                                 appointments={appointmentsInSlot}
                                 allDayAppointments={allDayAppointments}
-                                onClick={(appointment) => handleSlotClick(dateStr, slot.label, appointment)}
+                                onClick={(appointment) => handleSlotClick(dateStr, slot.label, persona.id, appointment)}
                                 onDragStart={handleDragStart}
-                                onDrop={(time) => handleDrop(dateStr, time)}
+                                onDrop={(time) => handleDrop(dateStr, time, persona.id)}
                                 onDragOver={handleDragOver}
                                 onResizeStart={handleResizeStart}
                               />
@@ -680,6 +743,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           </div>
         )}
       </div>
+
       <AppointmentModal
         isOpen={isModalOpen}
         onClose={() => {
@@ -696,7 +760,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         selectedDate={selectedSlot.date}
         selectedTime={selectedSlot.time}
         selectedSedeId={selectedSedeId}
-        defaultPersonaId={selectedPersonaId}
+        defaultPersonaId={selectedSlot.personaId}
       />
     </div>
   );

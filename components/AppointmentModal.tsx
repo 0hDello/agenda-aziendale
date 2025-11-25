@@ -357,19 +357,7 @@ export default function AppointmentModal({
               />
             </div>
 
-            <div>
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
-                <FileText className="w-3.5 h-3.5 text-[#005CA9]" />
-                Note
-              </label>
-              <textarea
-                value={formData.note}
-                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors resize-none"
-                rows={2}
-                placeholder="Note aggiuntive..."
-              />
-            </div>
+            
 
             <div className="flex gap-2 pt-2">
               {existingAppointment && onDelete && (
