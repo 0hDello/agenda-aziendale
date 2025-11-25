@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, User, ChevronDown, X } from 'lucide-react';
 import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -9,8 +9,7 @@ import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
 import { formatDate, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
 import AppointmentModal from './AppointmentModal';
-
-
+import React from 'react';
 
 interface CalendarProps {
   agendaId?: string;
@@ -18,6 +17,7 @@ interface CalendarProps {
 
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [visibleDays, setVisibleDays] = useState<Date[]>([]);
   const [appointments, setAppointments] = useState<Appuntamento[]>([]);
   const [persone, setPersone] = useState<Persona[]>([]);
   const [sedi, setSedi] = useState<Sede[]>([]);
@@ -33,6 +33,38 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [resizingAppointment, setResizingAppointment] = useState<Appuntamento | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Inizializza con 7 giorni a partire dalla data selezionata
+  useEffect(() => {
+    const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
+    setVisibleDays(days);
+  }, [selectedDate]);
+
+  // Scroll infinito: carica più giorni quando si arriva in fondo
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+      // Quando si raggiunge il 90% dello scroll, carica altri 3 giorni
+      if (scrollPercentage > 0.9 && !isLoadingMore) {
+        setIsLoadingMore(true);
+        const lastDay = visibleDays[visibleDays.length - 1];
+        const newDays = Array.from({ length: 3 }, (_, i) => addDays(lastDay, i + 1));
+        setVisibleDays((prev) => [...prev, ...newDays]);
+        setTimeout(() => setIsLoadingMore(false), 500);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [visibleDays, isLoadingMore]);
 
   useEffect(() => {
     loadData();
@@ -497,8 +529,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === selectedSedeId)
   );
 
-  const dateStr = formatDate(selectedDate);
-
   return (
     <div className="min-h-screen p-2 md:p-4 animate-fade-in">
       <div className="max-w-[1800px] mx-auto">
@@ -544,105 +574,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               </button>
             </div>
           </div>
-
-          {showDatePicker && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-[#005CA9]">
-          Seleziona Data
-        </h3>
-        <button
-          onClick={() => setShowDatePicker(false)}
-          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between mb-4">
-        <button
-          type="button"
-          onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ChevronLeft size={20} className="text-[#005CA9]" />
-        </button>
-        <h4 className="text-lg font-bold text-gray-800 capitalize">
-          {format(selectedDate, 'MMMM yyyy', { locale: it })}
-        </h4>
-        <button
-          type="button"
-          onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ChevronRight size={20} className="text-[#005CA9]" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-2 mb-2">
-        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
-          <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
-            {day}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-2 mb-6">
-        {(() => {
-          const monthStart = startOfMonth(selectedDate);
-          const monthEnd = endOfMonth(selectedDate);
-          const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-          const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-          const days = eachDayOfInterval({ start: startDate, end: endDate });
-
-          return days.map((day, index) => {
-            const isCurrentMonth = isSameMonth(day, selectedDate);
-            const isSelected = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-            const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() => {
-                  setSelectedDate(day);
-                  setShowDatePicker(false);
-                }}
-                className={`
-                  aspect-square rounded-lg text-sm font-medium transition-all
-                  ${isSelected 
-                    ? 'bg-[#005CA9] text-white shadow-md scale-105' 
-                    : isToday
-                      ? 'bg-[#E6F2FF] text-[#005CA9] font-bold'
-                      : isCurrentMonth 
-                        ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' 
-                        : 'bg-transparent text-gray-300'
-                  }
-                  cursor-pointer
-                `}
-              >
-                {format(day, 'd')}
-              </button>
-            );
-          });
-        })()}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          setSelectedDate(new Date());
-          setShowDatePicker(false);
-        }}
-        className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
-      >
-        Vai a Oggi
-      </button>
-    </div>
-  </div>
-)}
-
         </div>
 
         {selectedSede && (
@@ -650,7 +581,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             <div className="bg-[#005CA9] text-white p-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold tracking-wide">
-                  {format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })}
+                  Scroll per vedere più giorni
                 </h2>
                 <div className="flex items-center gap-2">
                   <Building2 className="w-5 h-5" />
@@ -674,13 +605,17 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div 
+              ref={scrollContainerRef}
+              className="overflow-y-auto" 
+              style={{ maxHeight: 'calc(100vh - 280px)' }}
+            >
               <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead>
+                <thead className="sticky top-0 z-20">
                   <tr className="border-b-2 border-[#005CA9]/20">
                     <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-  <span className="text-[#005CA9]">Orario</span>
-</th>
+                      <span className="text-[#005CA9]">Orario</span>
+                    </th>
                     {sedePersone.map((persona) => (
                       <th
                         key={persona.id}
@@ -697,52 +632,182 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {TIME_SLOTS.map((slot) => {
+                  {visibleDays.map((day) => {
+                    const dateStr = formatDate(day);
+                    const isToday = formatDate(new Date()) === dateStr;
+                    
                     return (
-                      <tr key={slot.label}>
-                       <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-  <div className="px-1 py-2 text-xs font-semibold text-gray-700">
-    {slot.label}
-  </div>
-</td>
-
-                        {sedePersone.map((persona) => {
-                          const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label, persona.id);
-
-                          const allDayAppointments = appointments.filter((apt) =>
-                            apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
-                          );
-
-                          const hasAppointment = appointmentsInSlot.length > 0;
-
+                      <React.Fragment key={dateStr}>
+                        {/* Separatore giorno */}
+                        <tr>
+                          <td 
+                            colSpan={sedePersone.length + 1}
+                            className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
+                              isToday 
+                                ? 'bg-[#005CA9] text-white' 
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                          </td>
+                        </tr>
+                        
+                        {/* Slot orari per questo giorno */}
+                        {TIME_SLOTS.map((slot) => {
                           return (
-                            <td
-                              key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-100 ${!hasAppointment ? 'border-b border-gray-100' : ''}`}
-                              style={{ height: '45px' }}
-                            >
-                              <TimeSlot
-                                time={slot.label}
-                                appointments={appointmentsInSlot}
-                                allDayAppointments={allDayAppointments}
-                                onClick={(appointment) => handleSlotClick(dateStr, slot.label, persona.id, appointment)}
-                                onDragStart={handleDragStart}
-                                onDrop={(time) => handleDrop(dateStr, time, persona.id)}
-                                onDragOver={handleDragOver}
-                                onResizeStart={handleResizeStart}
-                              />
-                            </td>
+                            <tr key={`${dateStr}-${slot.label}`}>
+                              <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                                <div className="px-1 py-2 text-xs font-semibold text-gray-700">
+                                  {slot.label}
+                                </div>
+                              </td>
+                              {sedePersone.map((persona) => {
+                                const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label, persona.id);
+
+                                const allDayAppointments = appointments.filter((apt) =>
+                                  apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
+                                );
+
+                                const hasAppointment = appointmentsInSlot.length > 0;
+
+                                return (
+                                  <td
+                                    key={`${persona.id}-${slot.label}`}
+                                    className={`relative p-0 border-r border-gray-100 ${!hasAppointment ? 'border-b border-gray-100' : ''}`}
+                                    style={{ height: '45px' }}
+                                  >
+                                    <TimeSlot
+                                      time={slot.label}
+                                      appointments={appointmentsInSlot}
+                                      allDayAppointments={allDayAppointments}
+                                      onClick={(appointment) => handleSlotClick(dateStr, slot.label, persona.id, appointment)}
+                                      onDragStart={handleDragStart}
+                                      onDrop={(time) => handleDrop(dateStr, time, persona.id)}
+                                      onDragOver={handleDragOver}
+                                      onResizeStart={handleResizeStart}
+                                    />
+                                  </td>
+                                );
+                              })}
+                            </tr>
                           );
                         })}
-                      </tr>
+                      </React.Fragment>
                     );
                   })}
+                  
+                  {isLoadingMore && (
+                    <tr>
+                      <td colSpan={sedePersone.length + 1} className="p-4 text-center text-gray-500">
+                        Caricamento...
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
       </div>
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-[#005CA9]">
+                Seleziona Data
+              </h3>
+              <button
+                onClick={() => setShowDatePicker(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={20} className="text-[#005CA9]" />
+              </button>
+              <h4 className="text-lg font-bold text-gray-800 capitalize">
+                {format(selectedDate, 'MMMM yyyy', { locale: it })}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronRight size={20} className="text-[#005CA9]" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
+                <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 mb-6">
+              {(() => {
+                const monthStart = startOfMonth(selectedDate);
+                const monthEnd = endOfMonth(selectedDate);
+                const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+                const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+                const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+                return days.map((day, index) => {
+                  const isCurrentMonth = isSameMonth(day, selectedDate);
+                  const isSelected = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                  const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(day);
+                        setShowDatePicker(false);
+                      }}
+                      className={`
+                        aspect-square rounded-lg text-sm font-medium transition-all
+                        ${isSelected 
+                          ? 'bg-[#005CA9] text-white shadow-md scale-105' 
+                          : isToday
+                            ? 'bg-[#E6F2FF] text-[#005CA9] font-bold'
+                            : isCurrentMonth 
+                              ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' 
+                              : 'bg-transparent text-gray-300'
+                        }
+                        cursor-pointer
+                      `}
+                    >
+                      {format(day, 'd')}
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(new Date());
+                setShowDatePicker(false);
+              }}
+              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
+            >
+              Vai a Oggi
+            </button>
+          </div>
+        </div>
+      )}
 
       <AppointmentModal
         isOpen={isModalOpen}
