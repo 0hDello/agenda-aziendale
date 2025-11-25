@@ -20,7 +20,7 @@ interface AppointmentModalProps {
   selectedDate: string;
   selectedTime: string;
   selectedSedeId?: string;
-  defaultPersonaId?: string | null;  // <-- AGGIUNTO
+  defaultPersonaId?: string | null;
 }
 
 export default function AppointmentModal({
@@ -36,9 +36,8 @@ export default function AppointmentModal({
   selectedDate,
   selectedTime,
   selectedSedeId,
-  defaultPersonaId,  // <-- AGGIUNTO
+  defaultPersonaId,
 }: AppointmentModalProps) {
-  // Valida e usa la data corrente se selectedDate non è valido
   const getValidDate = (dateStr: string): Date => {
     if (!dateStr) return new Date();
     const parsed = parseISO(dateStr);
@@ -59,11 +58,9 @@ export default function AppointmentModal({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [minTime, setMinTime] = useState<string>('09:00');
 
-  // Aggiorna i valori quando il modal viene aperto
   useEffect(() => {
     if (isOpen) {
       if (existingAppointment) {
-        // MODALITÀ MODIFICA: carica i dati dell'appuntamento esistente
         setFormData({
           persona_id: existingAppointment.persona_id,
           sede_id: existingAppointment.sede_id,
@@ -75,20 +72,17 @@ export default function AppointmentModal({
         setSelectedDates([existingAppointment.data]);
         setMinTime(existingAppointment.ora_inizio.substring(0, 5));
       } else {
-        // MODALITÀ CREAZIONE: valori di default
         const newValidDate = getValidDate(selectedDate);
         const newValidDateString = format(newValidDate, 'yyyy-MM-dd');
         const timeToUse = selectedTime || '09:00';
         
-        // Trova l'indice dello slot cliccato
         const currentIndex = TIME_SLOTS.findIndex((slot) => slot.label === timeToUse);
-        // Imposta ora fine allo slot successivo
         const nextSlotTime = currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1
           ? TIME_SLOTS[currentIndex + 1].label
           : timeToUse;
         
         setFormData({
-          persona_id: defaultPersonaId || '',  // <-- USA defaultPersonaId
+          persona_id: defaultPersonaId || '',
           sede_id: selectedSedeId || '',
           ora_inizio: timeToUse,
           ora_fine: nextSlotTime,
@@ -102,9 +96,8 @@ export default function AppointmentModal({
       
       setShowCalendar(false);
     }
-  }, [isOpen, existingAppointment, selectedDate, selectedTime, selectedSedeId, defaultPersonaId]);  // <-- AGGIUNTO defaultPersonaId
+  }, [isOpen, existingAppointment, selectedDate, selectedTime, selectedSedeId, defaultPersonaId]);
 
-  // Aggiorna la sede quando cambia quella selezionata
   useEffect(() => {
     if (selectedSedeId && isOpen && !existingAppointment) {
       setFormData((prev) => ({ ...prev, sede_id: selectedSedeId }));
@@ -115,7 +108,6 @@ export default function AppointmentModal({
     e.preventDefault();
     
     if (existingAppointment) {
-      // MODALITÀ MODIFICA
       if (onUpdate) {
         onUpdate(existingAppointment.id, {
           persona_id: formData.persona_id,
@@ -127,7 +119,6 @@ export default function AppointmentModal({
         });
       }
     } else {
-      // MODALITÀ CREAZIONE
       const appointments = selectedDates.map((date) => ({
         persona_id: formData.persona_id,
         sede_id: formData.sede_id,
@@ -158,7 +149,6 @@ export default function AppointmentModal({
     }
   };
 
-  // Genera i giorni del mese per il calendario
   const generateCalendarDays = () => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -170,13 +160,11 @@ export default function AppointmentModal({
 
   const calendarDays = generateCalendarDays();
 
-  // Filtra le persone che lavorano nella sede selezionata
   const personeFiltered = persone.filter((persona) =>
     !formData.sede_id ||
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === formData.sede_id)
   );
 
-  // Filtra gli slot disponibili in base all'orario minimo
   const getAvailableSlots = (isStartTime: boolean) => {
     return TIME_SLOTS.filter((slot) => {
       if (isStartTime) {
@@ -187,7 +175,6 @@ export default function AppointmentModal({
     });
   };
 
-  // Gestisce il cambio di ora inizio
   const handleOraInizioChange = (newOraInizio: string) => {
     setFormData((prev) => {
       const newFormData = { ...prev, ora_inizio: newOraInizio };
@@ -207,43 +194,41 @@ export default function AppointmentModal({
 
   return (
     <>
-      {/* Modal Principale */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in overflow-y-auto">
-        <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl animate-slide-in border-t-4 border-[#005CA9] my-8 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-[#005CA9] p-2.5 rounded-xl">
-                <Calendar className="w-6 h-6 text-white" />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="bg-white rounded-xl p-4 w-full max-w-xl shadow-2xl animate-slide-in border-t-4 border-[#005CA9] max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <div className="bg-[#005CA9] p-2 rounded-lg">
+                <Calendar className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-[#005CA9]">
+                <h2 className="text-xl font-bold text-[#005CA9]">
                   {existingAppointment ? 'Visualizza Appuntamento' : 'Nuovo Appuntamento'}
                 </h2>
                 {selectedSede && (
-                  <p className="text-sm text-gray-600 mt-1">Sede: {selectedSede.nome}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">Sede: {selectedSede.nome}</p>
                 )}
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Sede */}
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <MapPin className="w-4 h-4 text-[#005CA9]" />
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                <MapPin className="w-3.5 h-3.5 text-[#005CA9]" />
                 Sede
               </label>
               <select
                 required
                 value={formData.sede_id}
                 onChange={(e) => setFormData({ ...formData, sede_id: e.target.value, persona_id: '' })}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors bg-gray-50"
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors bg-gray-50"
                 disabled={!!selectedSedeId || !!existingAppointment}
               >
                 <option value="">Seleziona sede...</option>
@@ -255,17 +240,16 @@ export default function AppointmentModal({
               </select>
             </div>
 
-            {/* Operatore */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <User className="w-4 h-4 text-[#005CA9]" />
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                <User className="w-3.5 h-3.5 text-[#005CA9]" />
                 Operatore
               </label>
               <select
                 required
                 value={formData.persona_id}
                 onChange={(e) => setFormData({ ...formData, persona_id: e.target.value })}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors"
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors"
                 disabled={!formData.sede_id}
               >
                 <option value="">Seleziona operatore...</option>
@@ -277,18 +261,17 @@ export default function AppointmentModal({
               </select>
             </div>
 
-            {/* Orari */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  <Clock className="w-4 h-4 text-[#005CA9]" />
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-[#005CA9]" />
                   Ora Inizio
                 </label>
                 <select
                   required
                   value={formData.ora_inizio}
                   onChange={(e) => handleOraInizioChange(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors bg-gray-50"
+                  className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors bg-gray-50"
                   disabled={!existingAppointment}
                 >
                   {getAvailableSlots(true).map((slot) => (
@@ -299,15 +282,15 @@ export default function AppointmentModal({
                 </select>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  <Clock className="w-4 h-4 text-[#005CA9]" />
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-[#005CA9]" />
                   Ora Fine
                 </label>
                 <select
                   required
                   value={formData.ora_fine}
                   onChange={(e) => setFormData({ ...formData, ora_fine: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors"
+                  className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors"
                 >
                   {getAvailableSlots(false).map((slot) => (
                     <option key={slot.label} value={slot.label}>
@@ -318,32 +301,30 @@ export default function AppointmentModal({
               </div>
             </div>
 
-            {/* Selezione Date Multiple - SOLO IN MODALITÀ CREAZIONE */}
             {!existingAppointment && (
               <div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  <CalendarDays className="w-4 h-4 text-[#005CA9]" />
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                  <CalendarDays className="w-3.5 h-3.5 text-[#005CA9]" />
                   Giorni selezionati ({selectedDates.length})
                 </label>
                 
-                {/* Lista date selezionate */}
-                <div className="space-y-2 mb-3">
+                <div className="space-y-1.5 mb-2">
                   {selectedDates.map((date) => {
                     const dateObj = parseISO(date);
                     const dateLabel = format(dateObj, 'EEEE dd MMMM yyyy', { locale: it });
                     return (
                       <div
                         key={date}
-                        className="flex items-center justify-between bg-[#E6F2FF] border border-[#005CA9]/20 rounded-lg px-4 py-2"
+                        className="flex items-center justify-between bg-[#E6F2FF] border border-[#005CA9]/20 rounded-lg px-3 py-1.5"
                       >
-                        <span className="text-sm font-medium text-[#005CA9]">{dateLabel}</span>
+                        <span className="text-xs font-medium text-[#005CA9]">{dateLabel}</span>
                         {selectedDates.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeDate(date)}
-                            className="text-red-600 hover:text-red-800 p-1"
+                            className="text-red-600 hover:text-red-800 p-0.5"
                           >
-                            <Minus size={16} />
+                            <Minus size={14} />
                           </button>
                         )}
                       </div>
@@ -351,50 +332,46 @@ export default function AppointmentModal({
                   })}
                 </div>
 
-                {/* Pulsante per aprire calendario */}
                 <button
                   type="button"
                   onClick={() => setShowCalendar(true)}
-                  className="w-full flex items-center justify-center gap-2 border-2 border-[#005CA9] text-[#005CA9] rounded-xl px-4 py-3 hover:bg-[#E6F2FF] transition-colors font-medium"
+                  className="w-full flex items-center justify-center gap-2 border-2 border-[#005CA9] text-[#005CA9] rounded-lg px-3 py-1.5 text-sm hover:bg-[#E6F2FF] transition-colors font-medium"
                 >
-                  <Plus size={18} />
+                  <Plus size={16} />
                   Aggiungi un altro giorno
                 </button>
               </div>
             )}
 
-            {/* Cliente */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <UserCircle className="w-4 h-4 text-[#005CA9]" />
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                <UserCircle className="w-3.5 h-3.5 text-[#005CA9]" />
                 Cliente / Descrizione
               </label>
               <input
                 type="text"
                 value={formData.cliente}
                 onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors"
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors"
                 placeholder="Es: Formazione, Riunione, Nome Cliente..."
               />
             </div>
 
-            {/* Note */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <FileText className="w-4 h-4 text-[#005CA9]" />
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-1">
+                <FileText className="w-3.5 h-3.5 text-[#005CA9]" />
                 Note
               </label>
               <textarea
                 value={formData.note}
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-[#005CA9] focus:outline-none transition-colors resize-none"
-                rows={3}
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors resize-none"
+                rows={2}
                 placeholder="Note aggiuntive..."
               />
             </div>
 
-            {/* Pulsanti */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-2 pt-2">
               {existingAppointment && onDelete && (
                 <button
                   type="button"
@@ -402,7 +379,7 @@ export default function AppointmentModal({
                     onDelete(existingAppointment.id);
                     onClose();
                   }}
-                  className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-semibold"
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-semibold"
                 >
                   Elimina
                 </button>
@@ -410,30 +387,28 @@ export default function AppointmentModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-colors font-semibold"
+                className="flex-1 px-4 py-2 text-sm border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
               >
                 Annulla
               </button>
               <button
                 type="submit"
-                className="flex-1 px-6 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-semibold"
+                className="flex-1 px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-semibold"
               >
                 {existingAppointment 
-                  ? 'Aggiorna Appuntamento'
+                  ? 'Aggiorna'
                   : selectedDates.length === 1 
-                    ? 'Salva Appuntamento' 
-                    : `Salva ${selectedDates.length} Appuntamenti`}
+                    ? 'Salva' 
+                    : `Salva ${selectedDates.length}`}
               </button>
             </div>
           </form>
         </div>
       </div>
 
-      {/* Calendario Modal Overlay - SEPARATO */}
       {showCalendar && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[60] p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
-            {/* Header calendario */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#005CA9]">
                 Seleziona Giorni
@@ -446,7 +421,6 @@ export default function AppointmentModal({
               </button>
             </div>
 
-            {/* Navigazione mese */}
             <div className="flex items-center justify-between mb-4">
               <button
                 type="button"
@@ -467,7 +441,6 @@ export default function AppointmentModal({
               </button>
             </div>
 
-            {/* Giorni della settimana */}
             <div className="grid grid-cols-7 gap-2 mb-2">
               {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
                 <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
@@ -476,7 +449,6 @@ export default function AppointmentModal({
               ))}
             </div>
 
-            {/* Giorni del mese */}
             <div className="grid grid-cols-7 gap-2 mb-6">
               {calendarDays.map((day, index) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
@@ -511,7 +483,6 @@ export default function AppointmentModal({
               })}
             </div>
 
-            {/* Info e pulsante chiudi */}
             <div className="border-t pt-4">
               <p className="text-sm text-gray-600 mb-4 text-center">
                 {selectedDates.length} {selectedDates.length === 1 ? 'giorno selezionato' : 'giorni selezionati'}
