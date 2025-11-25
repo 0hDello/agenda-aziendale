@@ -7,6 +7,7 @@ import { TIME_SLOTS } from '@/utils/dateUtils';
 interface TimeSlotProps {
   time: string;
   appointments?: Appuntamento[];
+  allDayAppointments?: Appuntamento[];
   onClick: (appointment?: Appuntamento) => void;
   onDragStart?: (appointment: Appuntamento, time: string) => void;
   onDrop?: (time: string) => void;
@@ -17,6 +18,7 @@ interface TimeSlotProps {
 export default function TimeSlot({ 
   time, 
   appointments = [], 
+  allDayAppointments = [],
   onClick, 
   onDragStart, 
   onDrop,
@@ -27,11 +29,9 @@ export default function TimeSlot({
     if (onDragStart) {
       e.stopPropagation();
       
-      // Usa l'ora di inizio effettiva dell'appuntamento, non l'ora dello slot corrente
       const startTime = appointment.ora_inizio.substring(0, 5);
       onDragStart(appointment, startTime);
       
-      // Crea un'immagine di drag personalizzata
       const dragImage = document.createElement('div');
       dragImage.style.position = 'absolute';
       dragImage.style.top = '-1000px';
@@ -81,110 +81,120 @@ export default function TimeSlot({
     }
   };
 
-  // Funzione helper per verificare se questo slot è l'ultimo dell'appuntamento
-  const isLastSlotForAppointment = (appointment: Appuntamento): boolean => {
-    const currentSlotIndex = TIME_SLOTS.findIndex(slot => slot.label === time);
-    const nextSlotTime = currentSlotIndex >= 0 && currentSlotIndex < TIME_SLOTS.length - 1
-      ? TIME_SLOTS[currentSlotIndex + 1].label
-      : null;
+  // Calcola l'altezza in pixel dell'appuntamento
+  const calculateAppointmentHeight = (appointment: Appuntamento): number => {
+    const startTime = appointment.ora_inizio.substring(0, 5);
+    const endTime = appointment.ora_fine.substring(0, 5);
     
-    const aptEnd = appointment.ora_fine.substring(0, 5);
-    return nextSlotTime ? aptEnd <= nextSlotTime : true;
+    const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
+    let endIndex = TIME_SLOTS.findIndex(slot => slot.label === endTime);
+    
+    // Gestisce il caso delle 18:00
+    if (endIndex === -1 && endTime === '18:00') {
+      endIndex = TIME_SLOTS.length;
+    }
+    
+    const slotCount = endIndex - startIndex;
+    const slotHeight = 60;
+
+    // Non sottrarre nulla - occupa tutto lo spazio
+    return slotCount * slotHeight;
+  };
+
+  // Assegna colonne agli appuntamenti
+  const assignColumns = (allAppointments: Appuntamento[]): Map<string, number> => {
+    const columnMap = new Map<string, number>();
+    
+    const sorted = [...allAppointments].sort((a, b) => 
+      a.ora_inizio.localeCompare(b.ora_inizio) || a.id.localeCompare(b.id)
+    );
+    
+    const columns: { end: string; appointmentId: string }[] = [];
+    
+    for (const apt of sorted) {
+      const start = apt.ora_inizio.substring(0, 5);
+      const end = apt.ora_fine.substring(0, 5);
+      
+      let columnIndex = 0;
+      for (let i = 0; i < columns.length; i++) {
+        if (columns[i].end <= start) {
+          columnIndex = i;
+          columns[i] = { end, appointmentId: apt.id };
+          break;
+        }
+        columnIndex = i + 1;
+      }
+      
+      if (columnIndex === columns.length) {
+        columns.push({ end, appointmentId: apt.id });
+      }
+      
+      columnMap.set(apt.id, columnIndex);
+    }
+    
+    return columnMap;
+  };
+
+  const getMaxColumns = (allAppointments: Appuntamento[]): number => {
+    if (allAppointments.length === 0) return 1;
+    
+    let maxColumns = 1;
+    
+    TIME_SLOTS.forEach(slot => {
+      const overlapping = allAppointments.filter(apt => {
+        const aptStart = apt.ora_inizio.substring(0, 5);
+        const aptEnd = apt.ora_fine.substring(0, 5);
+        return slot.label >= aptStart && slot.label < aptEnd;
+      });
+      
+      maxColumns = Math.max(maxColumns, overlapping.length);
+    });
+    
+    return maxColumns;
   };
 
   if (appointments.length > 0) {
-    // Separa appuntamenti che INIZIANO qui da quelli che CONTINUANO
+    // IMPORTANTE: renderizza solo gli appuntamenti che INIZIANO in questo slot
     const startsInThisSlot = appointments.filter(
       (apt) => apt.ora_inizio.substring(0, 5) === time
     );
-    const continuesInThisSlot = appointments.filter(
-      (apt) => apt.ora_inizio.substring(0, 5) !== time
-    );
 
-    // Se questo slot contiene solo continuazioni
-    if (startsInThisSlot.length === 0 && continuesInThisSlot.length > 0) {
-      if (continuesInThisSlot.length === 1) {
-        // UNA SOLA CONTINUAZIONE
-        const apt = continuesInThisSlot[0];
-        const isLastSlot = isLastSlotForAppointment(apt);
-        
-        return (
-          <div
-            draggable
-            onDragStart={(e) => handleDragStart(e, apt)}
-            onClick={() => onClick(apt)}
-            data-appointment-id={apt.id}
-            className="appointment-cell absolute inset-0 bg-[#E6F2FF] border-l-4 border-[#005CA9] cursor-move transition-colors group"
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-          >
-            {/* Continuazione */}
-            
-            {/* RESIZE HANDLE - Solo nell'ultima cella */}
-            {isLastSlot && (
-              <div
-                onMouseDown={(e) => handleResizeMouseDown(e, apt)}
-                className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity bg-[#005CA9]/20 hover:bg-[#005CA9]/40 flex items-center justify-center"
-                style={{ zIndex: 10 }}
-              >
-                <div className="w-12 h-1 bg-[#005CA9] rounded-full"></div>
-              </div>
-            )}
-          </div>
-        );
-      } else {
-        // CONTINUAZIONI MULTIPLE
-        return (
-          <div 
-            className="absolute inset-0 flex gap-1 bg-white p-1"
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-          >
-            {continuesInThisSlot.map((apt) => {
-              const isLastSlot = isLastSlotForAppointment(apt);
-              
-              return (
-                <div
-                  key={apt.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, apt)}
-                  onClick={() => onClick(apt)}
-                  data-appointment-id={apt.id}
-                  className="appointment-cell flex-1 bg-[#E6F2FF] border-l-4 border-[#005CA9] cursor-move transition-colors relative group"
-                >
-                  {/* Continuazione */}
-                  
-                  {/* RESIZE HANDLE - Solo nell'ultima cella */}
-                  {isLastSlot && (
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, apt)}
-                      className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity bg-[#005CA9]/20 hover:bg-[#005CA9]/40"
-                      style={{ zIndex: 10 }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
+    // Se non ci sono appuntamenti che iniziano qui, mostra solo la continuazione (senza contenuto)
+    if (startsInThisSlot.length === 0) {
+      return (
+        <div
+          className="h-full"
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        />
+      );
     }
 
-    // Se ci sono appuntamenti che INIZIANO in questo slot
-    if (startsInThisSlot.length === 1) {
-      // UN SOLO APPUNTAMENTO
+    const columnAssignments = assignColumns(allDayAppointments);
+    const maxColumns = getMaxColumns(allDayAppointments);
+
+    // Caso semplice: un solo appuntamento
+    if (startsInThisSlot.length === 1 && maxColumns === 1) {
       const appointment = startsInThisSlot[0];
-      const isLastSlot = isLastSlotForAppointment(appointment);
+      const height = calculateAppointmentHeight(appointment);
 
       return (
         <div
           draggable
           onDragStart={(e) => handleDragStart(e, appointment)}
           onClick={() => onClick(appointment)}
-          data-appointment-id={appointment.id}
-          className="appointment-cell absolute inset-0 bg-[#E6F2FF] border-l-4 border-[#005CA9] p-2 cursor-move transition-colors hover:bg-[#D1E7FF] group"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
+          data-appointment-id={appointment.id}
+          style={{
+            height: `${height}px`,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 5,
+          }}
+          className="appointment-cell bg-[#E6F2FF] border-l-4 border-[#005CA9] p-2 cursor-move transition-colors hover:bg-[#D1E7FF] group"
         >
           <div className="flex items-start gap-2 pointer-events-none">
             <div className="bg-[#005CA9] text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
@@ -205,29 +215,29 @@ export default function TimeSlot({
             </div>
           </div>
           
-          {/* RESIZE HANDLE - Solo se questo slot è l'ultimo */}
-          {isLastSlot && (
-            <div
-              onMouseDown={(e) => handleResizeMouseDown(e, appointment)}
-              className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity bg-[#005CA9]/20 hover:bg-[#005CA9]/40 flex items-center justify-center"
-              style={{ zIndex: 10 }}
-            >
-              <div className="w-12 h-1 bg-[#005CA9] rounded-full"></div>
-            </div>
-          )}
+          <div
+            onMouseDown={(e) => handleResizeMouseDown(e, appointment)}
+            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity bg-[#005CA9]/20 hover:bg-[#005CA9]/40 flex items-center justify-center"
+            style={{ zIndex: 10 }}
+          >
+            <div className="w-12 h-1 bg-[#005CA9] rounded-full"></div>
+          </div>
         </div>
       );
     }
 
     // APPUNTAMENTI MULTIPLI
+    const columnWidth = 100 / maxColumns;
+    const gap = 4;
+
     return (
-      <div 
-        className="absolute inset-0 flex gap-1 bg-white p-1"
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-      >
+      <div className="relative h-full">
         {startsInThisSlot.map((appointment) => {
-          const isLastSlot = isLastSlotForAppointment(appointment);
+          const columnIndex = columnAssignments.get(appointment.id) ?? 0;
+          const height = calculateAppointmentHeight(appointment);
+          
+          const leftPosition = columnIndex * columnWidth;
+          const actualWidth = columnWidth - (gap / maxColumns);
           
           return (
             <div
@@ -238,8 +248,18 @@ export default function TimeSlot({
                 e.stopPropagation();
                 onClick(appointment);
               }}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
               data-appointment-id={appointment.id}
-              className="appointment-cell flex-1 bg-[#E6F2FF] border-l-4 border-[#005CA9] p-1.5 cursor-move transition-all min-w-0 hover:bg-[#D1E7FF] relative group"
+              style={{
+                position: 'absolute',
+                left: `calc(${leftPosition}% + ${columnIndex > 0 ? gap : 0}px)`,
+                width: `calc(${actualWidth}% - ${columnIndex > 0 ? gap : 0}px)`,
+                top: 0,
+                height: `${height}px`,
+                zIndex: 5,
+              }}
+              className="appointment-cell bg-[#E6F2FF] border-l-4 border-[#005CA9] p-1.5 cursor-move transition-all hover:bg-[#D1E7FF] group"
             >
               <div className="pointer-events-none">
                 <p className="text-xs font-bold text-[#005CA9] truncate leading-tight">
@@ -250,14 +270,11 @@ export default function TimeSlot({
                 </p>
               </div>
               
-              {/* RESIZE HANDLE - Solo se questo slot è l'ultimo */}
-              {isLastSlot && (
-                <div
-                  onMouseDown={(e) => handleResizeMouseDown(e, appointment)}
-                  className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity bg-[#005CA9]/20 hover:bg-[#005CA9]/40"
-                  style={{ zIndex: 10 }}
-                />
-              )}
+              <div
+                onMouseDown={(e) => handleResizeMouseDown(e, appointment)}
+                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity bg-[#005CA9]/20 hover:bg-[#005CA9]/40"
+                style={{ zIndex: 10 }}
+              />
             </div>
           );
         })}
