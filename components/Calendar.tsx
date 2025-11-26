@@ -120,190 +120,217 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   }, []);
 
   useEffect(() => {
-    if (!resizingAppointment) {
-      document.querySelectorAll('.resize-overlay').forEach((el) => {
-        el.remove();
-      });
-      document.querySelectorAll('[data-appointment-id]').forEach((el) => {
-        if (el instanceof HTMLElement) {
-          el.style.opacity = '';
-        }
-      });
-      return;
+  if (!resizingAppointment) {
+    document.querySelectorAll('.resize-overlay').forEach((el) => {
+      el.remove();
+    });
+    document.querySelectorAll('[data-appointment-id]').forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.opacity = '';
+      }
+    });
+    return;
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing) {
+      setIsResizing(true);
     }
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) {
-        setIsResizing(true);
-      }
+    const table = document.querySelector('table tbody');
+    if (!table) return;
 
-      const table = document.querySelector('table tbody');
-      if (!table) return;
+    const rect = table.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    const rowHeight = 45;
+    
+    // Calcola esattamente in quale slot si trova il cursore
+    const exactSlotPosition = relativeY / rowHeight;
+    const targetSlotIndex = Math.floor(exactSlotPosition);
 
-      const rect = table.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
-      const rowHeight = 45;
-      const slotIndex = Math.floor(relativeY / rowHeight);
+    if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
+      const startTime = resizingAppointment.ora_inizio.substring(0, 5);
+      const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
+      
+      const appointmentElement = document.querySelector(`[data-appointment-id="${resizingAppointment.id}"]`);
 
-      if (slotIndex >= 0 && slotIndex < TIME_SLOTS.length) {
-        const startTime = resizingAppointment.ora_inizio.substring(0, 5);
-        const endTime = resizingAppointment.ora_fine.substring(0, 5);
-        const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
-        let endIndex = TIME_SLOTS.findIndex(slot => slot.label === endTime);
-
-        if (endIndex === -1 && endTime === '18:00') {
-          endIndex = TIME_SLOTS.length;
+      if (appointmentElement instanceof HTMLElement) {
+        const oldOverlay = appointmentElement.querySelector('.resize-overlay');
+        if (oldOverlay) {
+          oldOverlay.remove();
         }
 
-        const appointmentElement = document.querySelector(`[data-appointment-id="${resizingAppointment.id}"]`);
+        // Calcola l'indice finale basandosi su dove si trova il cursore
+        const newEndSlotIndex = targetSlotIndex + 1;
+        
+        // Controlla se stiamo estendendo o riducendo
+        const currentEndTime = resizingAppointment.ora_fine.substring(0, 5);
+        let currentEndIndex = TIME_SLOTS.findIndex(slot => slot.label === currentEndTime);
+        if (currentEndIndex === -1 && currentEndTime === '18:00') {
+          currentEndIndex = TIME_SLOTS.length;
+        }
 
-        if (appointmentElement instanceof HTMLElement) {
-          const oldOverlay = appointmentElement.querySelector('.resize-overlay');
-          if (oldOverlay) {
-            oldOverlay.remove();
-          }
+        if (newEndSlotIndex > currentEndIndex) {
+          // Estensione (verde)
+          const newSlotCount = newEndSlotIndex - startIndex;
+          const newHeight = newSlotCount * rowHeight;
 
-          if (slotIndex >= endIndex - 1) {
-            const newSlotCount = slotIndex - startIndex + 1;
-            const newHeight = newSlotCount * rowHeight;
+          const overlay = document.createElement('div');
+          overlay.className = 'resize-overlay';
+          overlay.style.position = 'absolute';
+          overlay.style.top = '0';
+          overlay.style.left = '0';
+          overlay.style.right = '0';
+          overlay.style.height = `${newHeight}px`;
+          overlay.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
+          overlay.style.border = '2px dashed rgb(34, 197, 94)';
+          overlay.style.pointerEvents = 'none';
+          overlay.style.zIndex = '20';
 
-            const overlay = document.createElement('div');
-            overlay.className = 'resize-overlay';
-            overlay.style.position = 'absolute';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.right = '0';
-            overlay.style.height = `${newHeight}px`;
-            overlay.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
-            overlay.style.border = '2px dashed rgb(34, 197, 94)';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '20';
+          appointmentElement.appendChild(overlay);
+          appointmentElement.style.opacity = '0.7';
+        } else if (newEndSlotIndex < currentEndIndex && newEndSlotIndex > startIndex) {
+          // Riduzione (rosso)
+          const newSlotCount = newEndSlotIndex - startIndex;
+          const newHeight = newSlotCount * rowHeight;
 
-            appointmentElement.appendChild(overlay);
-            appointmentElement.style.opacity = '0.7';
-          } else if (slotIndex < endIndex - 1 && slotIndex >= startIndex) {
-            const newSlotCount = slotIndex - startIndex + 1;
-            const newHeight = newSlotCount * rowHeight;
+          const overlay = document.createElement('div');
+          overlay.className = 'resize-overlay';
+          overlay.style.position = 'absolute';
+          overlay.style.top = `${newHeight}px`;
+          overlay.style.left = '0';
+          overlay.style.right = '0';
+          overlay.style.bottom = '0';
+          overlay.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+          overlay.style.border = '2px dashed rgb(239, 68, 68)';
+          overlay.style.pointerEvents = 'none';
+          overlay.style.zIndex = '20';
 
-            const overlay = document.createElement('div');
-            overlay.className = 'resize-overlay';
-            overlay.style.position = 'absolute';
-            overlay.style.top = `${newHeight}px`;
-            overlay.style.left = '0';
-            overlay.style.right = '0';
-            overlay.style.bottom = '0';
-            overlay.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
-            overlay.style.border = '2px dashed rgb(239, 68, 68)';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '20';
-
-            appointmentElement.appendChild(overlay);
-            appointmentElement.style.opacity = '0.8';
-          }
+          appointmentElement.appendChild(overlay);
+          appointmentElement.style.opacity = '0.8';
         }
       }
-    };
+    }
+  };
 
-    const cleanupResizeEffects = () => {
-      document.querySelectorAll('.resize-overlay').forEach((el) => {
-        el.remove();
-      });
+  const cleanupResizeEffects = () => {
+    document.querySelectorAll('.resize-overlay').forEach((el) => {
+      el.remove();
+    });
 
-      document.querySelectorAll('[data-appointment-id]').forEach((el) => {
-        if (el instanceof HTMLElement) {
-          el.style.opacity = '';
-        }
-      });
-    };
-
-    const handleMouseUp = async (e: MouseEvent) => {
-      if (!resizingAppointment) return;
-
-      cleanupResizeEffects();
-
-      const table = document.querySelector('table tbody');
-      if (!table) {
-        setResizingAppointment(null);
-        setTimeout(() => {
-          setIsResizing(false);
-        }, 100);
-        return;
+    document.querySelectorAll('[data-appointment-id]').forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.opacity = '';
       }
+    });
+  };
 
-      const rect = table.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
-      const rowHeight = 45;
-      const slotIndex = Math.floor(relativeY / rowHeight);
+  const handleMouseUp = async (e: MouseEvent) => {
+    if (!resizingAppointment) return;
 
-      if (slotIndex >= 0 && slotIndex < TIME_SLOTS.length) {
-        const nextSlotIndex = slotIndex + 1;
-        if (nextSlotIndex <= TIME_SLOTS.length) {
-          const newEndTime = nextSlotIndex < TIME_SLOTS.length
-            ? TIME_SLOTS[nextSlotIndex].label
-            : '18:00';
-          const startTime = resizingAppointment.ora_inizio.substring(0, 5);
+    cleanupResizeEffects();
 
-          if (newEndTime > startTime) {
-            const hasConflict = appointments.some((apt) => {
-              if (apt.id === resizingAppointment.id) return false;
-              if (apt.persona_id !== resizingAppointment.persona_id) return false;
-              if (apt.sede_id !== resizingAppointment.sede_id) return false;
-              if (apt.data !== resizingAppointment.data) return false;
-
-              const aptStart = apt.ora_inizio.substring(0, 5);
-              const aptEnd = apt.ora_fine.substring(0, 5);
-
-              return startTime < aptEnd && newEndTime > aptStart;
-            });
-
-            if (hasConflict) {
-              alert('Impossibile ridimensionare: fascia oraria già occupata');
-              setResizingAppointment(null);
-              setTimeout(() => {
-                setIsResizing(false);
-              }, 100);
-              return;
-            } else {
-              try {
-                const { error } = await supabase
-                  .from('appuntamenti')
-                  .update({
-                    ora_fine: newEndTime,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('id', resizingAppointment.id);
-
-                if (error) {
-                  console.error('❌ Errore resize:', error);
-                  alert('Errore durante il ridimensionamento: ' + error.message);
-                } else {
-                  console.log('✅ Appuntamento ridimensionato!');
-                  cleanupResizeEffects();
-                  await loadData();
-                }
-              } catch (err) {
-                console.error('❌ Errore:', err);
-              }
-            }
-          }
-        }
-      }
-
+    const table = document.querySelector('table tbody');
+    if (!table) {
       setResizingAppointment(null);
       setTimeout(() => {
         setIsResizing(false);
       }, 100);
-    };
+      return;
+    }
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    const rect = table.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    const rowHeight = 45;
+    
+    // Calcola esattamente in quale slot si trova il cursore
+    const exactSlotPosition = relativeY / rowHeight;
+    const targetSlotIndex = Math.floor(exactSlotPosition);
 
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      cleanupResizeEffects();
-    };
-  }, [resizingAppointment, appointments, isResizing]);
+    if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
+      // L'ora finale è quella dello slot successivo
+      const newEndSlotIndex = targetSlotIndex + 1;
+      
+      if (newEndSlotIndex <= TIME_SLOTS.length && newEndSlotIndex > 0) {
+        const newEndTime = newEndSlotIndex < TIME_SLOTS.length
+          ? TIME_SLOTS[newEndSlotIndex].label
+          : '18:00';
+        const startTime = resizingAppointment.ora_inizio.substring(0, 5);
+
+        // Verifica che la nuova durata sia valida (almeno 30 minuti)
+        const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
+        if (newEndSlotIndex <= startIndex) {
+          alert('La durata minima dell\'appuntamento è 30 minuti');
+          setResizingAppointment(null);
+          setTimeout(() => {
+            setIsResizing(false);
+          }, 100);
+          return;
+        }
+
+        if (newEndTime > startTime) {
+          const hasConflict = appointments.some((apt) => {
+            if (apt.id === resizingAppointment.id) return false;
+            if (apt.persona_id !== resizingAppointment.persona_id) return false;
+            if (apt.sede_id !== resizingAppointment.sede_id) return false;
+            if (apt.data !== resizingAppointment.data) return false;
+
+            const aptStart = apt.ora_inizio.substring(0, 5);
+            const aptEnd = apt.ora_fine.substring(0, 5);
+
+            return startTime < aptEnd && newEndTime > aptStart;
+          });
+
+          if (hasConflict) {
+            alert('Impossibile ridimensionare: fascia oraria già occupata');
+            setResizingAppointment(null);
+            setTimeout(() => {
+              setIsResizing(false);
+            }, 100);
+            return;
+          } else {
+            try {
+              const { error } = await supabase
+                .from('appuntamenti')
+                .update({
+                  ora_fine: newEndTime,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', resizingAppointment.id);
+
+              if (error) {
+                console.error('❌ Errore resize:', error);
+                alert('Errore durante il ridimensionamento: ' + error.message);
+              } else {
+                console.log('✅ Appuntamento ridimensionato da', resizingAppointment.ora_fine, 'a', newEndTime);
+                cleanupResizeEffects();
+                await loadData();
+              }
+            } catch (err) {
+              console.error('❌ Errore:', err);
+            }
+          }
+        }
+      }
+    }
+
+    setResizingAppointment(null);
+    setTimeout(() => {
+      setIsResizing(false);
+    }, 100);
+  };
+
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+
+  return () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    cleanupResizeEffects();
+  };
+}, [resizingAppointment, appointments, isResizing]);
+
+
 
   const loadData = async () => {
     const { data: sediData } = await supabase.from('sedi').select('*');
@@ -529,10 +556,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === selectedSedeId)
   );
 
-  return (
-    <div className="min-h-screen p-2 md:p-4 animate-fade-in">
-      <div className="max-w-[1800px] mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-4 mb-4 animate-slide-in border-t-4 border-[#005CA9]">
+    return (
+  <div className="min-h-screen p-1 md:p-2 animate-fade-in">
+    <div className="max-w-[1800px] mx-auto">
+      {/* Contenitore unico unificato */}
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
+        
+        {/* Header superiore con sede inclusa */}
+        <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
@@ -572,143 +603,137 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               >
                 Oggi
               </button>
+              
+              {/* Selettore sede spostato qui */}
+              <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
+                <Building2 className="w-5 h-5 text-[#005CA9]" />
+                <div className="relative">
+                  <select
+                    value={selectedSedeId}
+                    onChange={(e) => {
+                      setSelectedSedeId(e.target.value);
+                    }}
+                    className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
+                  >
+                    {sedi.map((sede) => (
+                      <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
+                        {sede.nome}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Tabella calendario - Barra blu rimossa */}
         {selectedSede && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-l-4 border-[#005CA9]">
-            <div className="bg-[#005CA9] text-white p-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold tracking-wide">
-                  Scroll per vedere più giorni
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5" />
-                  <div className="relative">
-                    <select
-                      value={selectedSedeId}
-                      onChange={(e) => {
-                        setSelectedSedeId(e.target.value);
-                      }}
-                      className="px-3 py-1.5 pr-8 text-sm bg-white/20 text-white border-2 border-white/30 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-white/50 transition-all cursor-pointer hover:bg-white/30 appearance-none"
+          <div 
+            ref={scrollContainerRef}
+            className="overflow-y-auto" 
+            style={{ maxHeight: 'calc(100vh - 107px)' }}
+          >
+            <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+              <thead className="sticky top-0 z-20">
+                <tr className="border-b-2 border-[#005CA9]/20">
+                  <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                    <span className="text-[#005CA9]">Orario</span>
+                  </th>
+                  {sedePersone.map((persona) => (
+                    <th
+                      key={persona.id}
+                      className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]"
                     >
-                      {sedi.map((sede) => (
-                        <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
-                          {sede.nome}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div 
-              ref={scrollContainerRef}
-              className="overflow-y-auto" 
-              style={{ maxHeight: 'calc(100vh - 280px)' }}
-            >
-              <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead className="sticky top-0 z-20">
-                  <tr className="border-b-2 border-[#005CA9]/20">
-                    <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                      <span className="text-[#005CA9]">Orario</span>
-                    </th>
-                    {sedePersone.map((persona) => (
-                      <th
-                        key={persona.id}
-                        className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]"
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center">
-                            <User size={14} className="text-white" />
-                          </div>
-                          <span className="text-[#005CA9]">{persona.nome}</span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center">
+                          <User size={14} className="text-white" />
                         </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleDays.map((day) => {
-                    const dateStr = formatDate(day);
-                    const isToday = formatDate(new Date()) === dateStr;
-                    
-                    return (
-                      <React.Fragment key={dateStr}>
-                        {/* Separatore giorno */}
-                        <tr>
-                          <td 
-                            colSpan={sedePersone.length + 1}
-                            className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                              isToday 
-                                ? 'bg-[#005CA9] text-white' 
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                          </td>
-                        </tr>
-                        
-                        {/* Slot orari per questo giorno */}
-                        {TIME_SLOTS.map((slot) => {
-                          return (
-                            <tr key={`${dateStr}-${slot.label}`}>
-                              <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                                <div className="px-1 py-2 text-xs font-semibold text-gray-700">
-                                  {slot.label}
-                                </div>
-                              </td>
-                              {sedePersone.map((persona) => {
-                                const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label, persona.id);
-
-                                const allDayAppointments = appointments.filter((apt) =>
-                                  apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
-                                );
-
-                                const hasAppointment = appointmentsInSlot.length > 0;
-
-                                return (
-                                  <td
-                                    key={`${persona.id}-${slot.label}`}
-                                    className={`relative p-0 border-r border-gray-100 ${!hasAppointment ? 'border-b border-gray-100' : ''}`}
-                                    style={{ height: '45px' }}
-                                  >
-                                    <TimeSlot
-                                      time={slot.label}
-                                      appointments={appointmentsInSlot}
-                                      allDayAppointments={allDayAppointments}
-                                      onClick={(appointment) => handleSlotClick(dateStr, slot.label, persona.id, appointment)}
-                                      onDragStart={handleDragStart}
-                                      onDrop={(time) => handleDrop(dateStr, time, persona.id)}
-                                      onDragOver={handleDragOver}
-                                      onResizeStart={handleResizeStart}
-                                    />
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
+                        <span className="text-[#005CA9]">{persona.nome}</span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleDays.map((day) => {
+                  const dateStr = formatDate(day);
+                  const isToday = formatDate(new Date()) === dateStr;
                   
-                  {isLoadingMore && (
-                    <tr>
-                      <td colSpan={sedePersone.length + 1} className="p-4 text-center text-gray-500">
-                        Caricamento...
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <React.Fragment key={dateStr}>
+                      {/* Separatore giorno */}
+                      <tr>
+                        <td 
+                          colSpan={sedePersone.length + 1}
+                          className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
+                            isToday 
+                              ? 'bg-[#005CA9] text-white' 
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                        </td>
+                      </tr>
+                      
+                      {/* Slot orari per questo giorno */}
+                      {TIME_SLOTS.map((slot) => {
+                        return (
+                          <tr key={`${dateStr}-${slot.label}`}>
+                            <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                              <div className="px-1 py-2 text-xs font-semibold text-gray-700">
+                                {slot.label}
+                              </div>
+                            </td>
+                            {sedePersone.map((persona) => {
+                              const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label, persona.id);
+
+                              const allDayAppointments = appointments.filter((apt) =>
+                                apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
+                              );
+
+                              const hasAppointment = appointmentsInSlot.length > 0;
+
+                              return (
+                                <td
+                                  key={`${persona.id}-${slot.label}`}
+                                  className={`relative p-0 border-r border-gray-100 ${!hasAppointment ? 'border-b border-gray-100' : ''}`}
+                                  style={{ height: '45px' }}
+                                >
+                                  <TimeSlot
+                                    time={slot.label}
+                                    appointments={appointmentsInSlot}
+                                    allDayAppointments={allDayAppointments}
+                                    onClick={(appointment) => handleSlotClick(dateStr, slot.label, persona.id, appointment)}
+                                    onDragStart={handleDragStart}
+                                    onDrop={(time) => handleDrop(dateStr, time, persona.id)}
+                                    onDragOver={handleDragOver}
+                                    onResizeStart={handleResizeStart}
+                                  />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+                
+                {isLoadingMore && (
+                  <tr>
+                    <td colSpan={sedePersone.length + 1} className="p-4 text-center text-gray-500">
+                      Caricamento...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
+    </div>
 
       {/* Date Picker Modal */}
       {showDatePicker && (
@@ -830,3 +855,5 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     </div>
   );
 }
+
+

@@ -1,7 +1,6 @@
 'use client';
 
 import { Appuntamento } from '@/lib/types';
-import { User } from 'lucide-react';
 import { TIME_SLOTS } from '@/utils/dateUtils';
 
 interface TimeSlotProps {
@@ -95,7 +94,6 @@ export default function TimeSlot({
     const slotCount = endIndex - startIndex;
     const slotHeight = 45;
 
-    // NON aggiungere nulla - altezza esatta
     return slotCount * slotHeight;
   };
 
@@ -188,12 +186,10 @@ export default function TimeSlot({
             right: 0,
             zIndex: 5,
           }}
-          className="appointment-cell bg-[#E6F2FF] border-l-4 border-[#005CA9] p-2 cursor-move transition-colors hover:bg-[#D1E7FF] group"
+          className="appointment-cell bg-[#E6F2FF] border-l-4 border-[#005CA9] p-2 cursor-move transition-colors hover:bg-[#D1E7FF] group mb-1"
         >
           <div className="flex items-start gap-2 pointer-events-none">
-            <div className="bg-[#005CA9] text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
-              <User size={14} />
-            </div>
+            <div className="rounded-full w-3 h-3 flex-shrink-0 mt-0.5 bg-[#005CA9]" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-[#005CA9] truncate">
                 {appointment.cliente || 'Appuntamento'}
@@ -252,15 +248,18 @@ export default function TimeSlot({
                 height: `${height}px`,
                 zIndex: 5,
               }}
-              className="appointment-cell bg-[#E6F2FF] border-l-4 border-[#005CA9] p-1.5 cursor-move transition-all hover:bg-[#D1E7FF] group"
+              className="appointment-cell bg-[#E6F2FF] border-l-4 border-[#005CA9] p-1.5 cursor-move transition-all hover:bg-[#D1E7FF] group mb-1"
             >
-              <div className="pointer-events-none">
-                <p className="text-xs font-bold text-[#005CA9] truncate leading-tight">
-                  {appointment.cliente || 'App.'}
-                </p>
-                <p className="text-[10px] text-gray-600 truncate leading-tight mt-0.5">
-                  {appointment.ora_inizio?.substring(0, 5)} - {appointment.ora_fine?.substring(0, 5)}
-                </p>
+              <div className="flex items-start gap-1 pointer-events-none">
+                <div className="rounded-full w-2 h-2 flex-shrink-0 mt-0.5 bg-[#005CA9]" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-[#005CA9] truncate leading-tight">
+                    {appointment.cliente || 'App.'}
+                  </p>
+                  <p className="text-[10px] text-gray-600 truncate leading-tight mt-0.5">
+                    {appointment.ora_inizio?.substring(0, 5)} - {appointment.ora_fine?.substring(0, 5)}
+                  </p>
+                </div>
               </div>
               
               <div
@@ -300,3 +299,4 @@ export default function TimeSlot({
     </div>
   );
 }
+

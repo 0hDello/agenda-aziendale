@@ -1,8 +1,6 @@
 'use client';
 
 import Calendar from '@/components/Calendar';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 
 interface PageProps {
   params: { id: string };
@@ -10,13 +8,9 @@ interface PageProps {
 
 export default function AgendaPage({ params }: PageProps) {
   const { id } = params;
-  const router = useRouter();
 
   return (
-    <div className="min-h-screen">
-      
-
-      {/* Calendario */}
+    <div className="min-h-screen bg-gray-50">
       <Calendar agendaId={id} />
     </div>
   );
