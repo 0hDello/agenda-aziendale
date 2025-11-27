@@ -66,8 +66,8 @@ export default function ImpostazioniPage() {
                 <Calendar className="w-6 h-6 text-[#005CA9]" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-800">Gestione Agende</h3>
-                <p className="text-sm text-gray-600">Crea e modifica agende</p>
+                <h3 className="font-bold text-gray-800">Gestione Persone-Sedi</h3>
+                <p className="text-sm text-gray-600">Crea e modifica associazioni</p>
               </div>
               <div className="text-gray-400">→</div>
             </div>

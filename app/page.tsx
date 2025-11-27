@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Settings, Plus, Users, Building2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Agenda {
@@ -12,39 +12,21 @@ interface Agenda {
   colore?: string;
   icona?: string;
   created_at: string;
+  attiva: boolean;
 }
 
 export default function HomePage() {
   const router = useRouter();
   const [agende, setAgende] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statsOperatori, setStatsOperatori] = useState(0);
-  const [statsSedi, setStatsSedi] = useState(0);
 
   useEffect(() => {
     loadAgende();
-    loadStats();
   }, []);
-
-  const loadStats = async () => {
-    try {
-      const { count: personeCount } = await supabase
-        .from('persone')
-        .select('*', { count: 'exact', head: true });
-      
-      const { count: sediCount } = await supabase
-        .from('sedi')
-        .select('*', { count: 'exact', head: true });
-
-      setStatsOperatori(personeCount || 0);
-      setStatsSedi(sediCount || 0);
-    } catch (error) {
-      console.error('Errore caricamento statistiche:', error);
-    }
-  };
 
   const loadAgende = async () => {
     try {
+      // Per ora uso un array statico, poi lo prenderò dal database
       const staticAgende: Agenda[] = [
         {
           id: '730',
@@ -52,7 +34,8 @@ export default function HomePage() {
           descrizione: 'Gestione appuntamenti',
           colore: '#005CA9',
           icona: 'calendar',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          attiva: true  // Cambio in false per testare lo stato disattivato
         }
       ];
       
@@ -61,6 +44,12 @@ export default function HomePage() {
     } catch (error) {
       console.error('Errore caricamento agende:', error);
       setLoading(false);
+    }
+  };
+
+  const handleAgendaClick = (agenda: Agenda) => {
+    if (agenda.attiva) {
+      router.push(`/agenda/${agenda.id}`);
     }
   };
 
@@ -78,7 +67,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header - SENZA pulsante Impostazioni */}
+        {/* Header */}
         <div className="mb-12">
           <div className="flex items-center gap-4">
             <div className="bg-[#005CA9] p-4 rounded-2xl shadow-lg">
@@ -91,96 +80,78 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Statistiche rapide */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-[#005CA9]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Agende Attive</p>
-                <p className="text-3xl font-bold text-[#005CA9] mt-2">{agende.length}</p>
-              </div>
-              <div className="bg-[#E6F2FF] p-3 rounded-xl">
-                <CalendarIcon className="w-8 h-8 text-[#005CA9]" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-[#005CA9]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Operatori</p>
-                <p className="text-3xl font-bold text-[#005CA9] mt-2">{statsOperatori}</p>
-              </div>
-              <div className="bg-[#E6F2FF] p-3 rounded-xl">
-                <Users className="w-8 h-8 text-[#005CA9]" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-[#005CA9]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Sedi</p>
-                <p className="text-3xl font-bold text-[#005CA9] mt-2">{statsSedi}</p>
-              </div>
-              <div className="bg-[#E6F2FF] p-3 rounded-xl">
-                <Building2 className="w-8 h-8 text-[#005CA9]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Griglia Agende */}
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Le tue Agende</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-all shadow-md hover:shadow-lg font-medium">
-              <Plus size={20} />
-              Nuova Agenda
-            </button>
+            
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {agende.map((agenda) => (
               <div
                 key={agenda.id}
-                onClick={() => router.push(`/agenda/${agenda.id}`)}
-                className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-[#005CA9] group"
+                onClick={() => handleAgendaClick(agenda)}
+                className={`rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-transparent ${
+                  agenda.attiva
+                    ? 'bg-white hover:shadow-2xl cursor-pointer hover:border-[#005CA9] group'
+                    : 'bg-gray-100 cursor-not-allowed opacity-75'
+                }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div 
-                    className="p-4 rounded-xl transition-all group-hover:scale-110"
+                    className={`p-4 rounded-xl transition-all ${
+                      agenda.attiva ? 'group-hover:scale-110' : ''
+                    }`}
                     style={{ backgroundColor: `${agenda.colore}20` }}
                   >
                     <CalendarIcon 
                       className="w-8 h-8 transition-all" 
-                      style={{ color: agenda.colore }}
+                      style={{ color: agenda.attiva ? agenda.colore : '#9CA3AF' }}
                     />
                   </div>
-                  <div className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
-                    Attiva
+                  <div className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    agenda.attiva 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {agenda.attiva ? 'Attiva' : 'Disattivata'}
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{agenda.nome}</h3>
-                <p className="text-gray-600 text-sm mb-4">{agenda.descrizione || 'Nessuna descrizione'}</p>
+                <h3 className={`text-xl font-bold mb-2 ${
+                  agenda.attiva ? 'text-gray-800' : 'text-gray-500'
+                }`}>
+                  {agenda.nome}
+                </h3>
+                <p className={`text-sm mb-4 ${
+                  agenda.attiva ? 'text-gray-600' : 'text-gray-400'
+                }`}>
+                  {agenda.descrizione || 'Nessuna descrizione'}
+                </p>
 
-                {/* NUOVA SEZIONE: Rotellina impostazioni in basso a sinistra, SENZA data */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                       router.push('/impostazioni');
                     }}
-                    className="bg-gray-100 hover:bg-gray-200 rounded-full p-2.5 transition-all hover:scale-110"
+                    className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
                     title="Impostazioni agenda"
                   >
                     <Settings size={18} className="text-[#005CA9]" />
                   </button>
-                  <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
-                    →
-                  </div>
+                  {agenda.attiva && (
+                    <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
+                      →
+                    </div>
+                  )}
+                  {!agenda.attiva && (
+                    <div className="text-gray-400 text-xl">
+                      →
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
