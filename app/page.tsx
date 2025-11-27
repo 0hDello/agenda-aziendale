@@ -35,7 +35,34 @@ export default function HomePage() {
           colore: '#005CA9',
           icona: 'calendar',
           created_at: new Date().toISOString(),
-          attiva: true  // Cambio in false per testare lo stato disattivato
+          attiva: true
+        },
+        {
+          id: 'sala-riunioni-imola',
+          nome: 'Sala Riunioni Imola',
+          descrizione: 'Prenotazioni sala riunioni - Anno 2026',
+          colore: '#16A34A',
+          icona: 'calendar',
+          created_at: new Date().toISOString(),
+          attiva: true
+        },
+        {
+          id: 'sala-riunioni-cspt',
+          nome: 'Sala Riunioni CSPT',
+          descrizione: 'Prenotazioni sala riunioni CSPT - Anno 2026',
+          colore: '#DC2626',
+          icona: 'calendar',
+          created_at: new Date().toISOString(),
+          attiva: true
+        },
+        {
+          id: 'saletta-primo-piano',
+          nome: 'Saletta Primo Piano',
+          descrizione: 'Prenotazioni saletta primo piano Imola - Anno 2026',
+          colore: '#9333EA',
+          icona: 'calendar',
+          created_at: new Date().toISOString(),
+          attiva: true
         }
       ];
       
