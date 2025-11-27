@@ -7,6 +7,14 @@ interface RoomCalendarProps {
   agendaId: string;
 }
 
+interface Appointment {
+  room: string;
+  date: string;
+  time: string;
+  title: string;
+  month: string;
+}
+
 interface RoomData {
   [date: string]: {
     [time: string]: string | null;
@@ -27,7 +35,7 @@ const MONTHS = [
 const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'
 ];
 
 export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
@@ -35,37 +43,76 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(0); // 0 = Gennaio
   const [currentYear] = useState(2026);
   const [roomData, setRoomData] = useState<RoomData>({});
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Carica i dati dal JSON al mount del componente
   useEffect(() => {
-    loadRoomData();
-  }, [selectedRoom, currentMonth]);
+    loadAppointmentsData();
+  }, []);
 
-  const loadRoomData = async () => {
+  // Aggiorna la visualizzazione quando cambia sala o mese
+  useEffect(() => {
+    if (allAppointments.length > 0) {
+      processRoomData();
+    }
+  }, [selectedRoom, currentMonth, allAppointments]);
+
+  const loadAppointmentsData = async () => {
     setLoading(true);
     try {
-      // Qui caricheremo i dati dagli Excel
-      // Per ora uso dati mock
-      const mockData: RoomData = {};
-      
-      // Esempio di dati occupati (da sostituire con parsing Excel)
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        mockData[dateKey] = {};
-        
-        TIME_SLOTS.forEach(time => {
-          mockData[dateKey][time] = null;
-        });
+      const response = await fetch('/data/room_appointments.json');
+      if (!response.ok) {
+        throw new Error('Failed to load appointments data');
       }
+      const data = await response.json();
       
-      setRoomData(mockData);
+      // Combina tutti gli appuntamenti di tutte le sale
+      const allApps: Appointment[] = [];
+      Object.keys(data.rooms).forEach(roomId => {
+        allApps.push(...data.rooms[roomId]);
+      });
+      
+      setAllAppointments(allApps);
       setLoading(false);
     } catch (error) {
-      console.error('Errore caricamento dati sala:', error);
+      console.error('Errore caricamento dati appuntamenti:', error);
+      setAllAppointments([]);
       setLoading(false);
     }
+  };
+
+  const processRoomData = () => {
+    const newRoomData: RoomData = {};
+    
+    // Inizializza tutti i giorni del mese corrente
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      newRoomData[dateKey] = {};
+      
+      TIME_SLOTS.forEach(time => {
+        newRoomData[dateKey][time] = null;
+      });
+    }
+    
+    // Filtra gli appuntamenti per la sala e il mese correnti
+    const filteredAppointments = allAppointments.filter(app => {
+      if (app.room !== selectedRoom.id) return false;
+      
+      const appDate = new Date(app.date);
+      return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
+    });
+    
+    // Popola i dati con gli appuntamenti
+    filteredAppointments.forEach(app => {
+      if (newRoomData[app.date] && TIME_SLOTS.includes(app.time)) {
+        newRoomData[app.date][app.time] = app.title;
+      }
+    });
+    
+    setRoomData(newRoomData);
   };
 
   const getDaysInMonth = () => {
@@ -87,7 +134,10 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium">Caricamento dati sale riunioni...</p>
+        </div>
       </div>
     );
   }
@@ -98,28 +148,41 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-3xl font-bold text-gray-800">Sala Riunioni 2026</h1>
+          <div className="text-sm text-gray-600">
+            {allAppointments.filter(a => a.room === selectedRoom.id).length} prenotazioni totali
+          </div>
         </div>
         
         {/* Selettore Sale */}
         <div className="flex gap-3 mb-6">
-          {ROOMS.map(room => (
-            <button
-              key={room.id}
-              onClick={() => setSelectedRoom(room)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
-                selectedRoom.id === room.id
-                  ? 'shadow-lg scale-105'
-                  : 'bg-white hover:shadow-md'
-              }`}
-              style={{
-                backgroundColor: selectedRoom.id === room.id ? room.color : 'white',
-                color: selectedRoom.id === room.id ? 'white' : '#374151'
-              }}
-            >
-              <Building2 size={20} />
-              {room.name}
-            </button>
-          ))}
+          {ROOMS.map(room => {
+            const roomAppointmentsCount = allAppointments.filter(a => a.room === room.id).length;
+            return (
+              <button
+                key={room.id}
+                onClick={() => setSelectedRoom(room)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+                  selectedRoom.id === room.id
+                    ? 'shadow-lg scale-105'
+                    : 'bg-white hover:shadow-md'
+                }`}
+                style={{
+                  backgroundColor: selectedRoom.id === room.id ? room.color : 'white',
+                  color: selectedRoom.id === room.id ? 'white' : '#374151'
+                }}
+              >
+                <Building2 size={20} />
+                <div className="flex flex-col items-start">
+                  <span>{room.name}</span>
+                  <span className={`text-xs ${
+                    selectedRoom.id === room.id ? 'text-white/80' : 'text-gray-500'
+                  }`}>
+                    {roomAppointmentsCount} prenotazioni
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Navigazione mesi */}
@@ -127,7 +190,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           <button
             onClick={previousMonth}
             disabled={currentMonth === 0}
-            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             <ChevronLeft size={24} />
           </button>
@@ -137,7 +200,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           <button
             onClick={nextMonth}
             disabled={currentMonth === 11}
-            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             <ChevronRight size={24} />
           </button>
@@ -195,13 +258,14 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                       >
                         {appointment ? (
                           <div
-                            className="p-2 rounded text-xs font-medium text-center cursor-pointer hover:opacity-80"
+                            className="p-2 rounded text-xs font-medium text-center cursor-pointer hover:opacity-80 transition-all"
                             style={{ backgroundColor: `${selectedRoom.color}20`, color: selectedRoom.color }}
+                            title={`${appointment} - ${time}`}
                           >
                             {appointment}
                           </div>
                         ) : (
-                          <div className="p-2 text-center cursor-pointer hover:bg-gray-100 rounded">
+                          <div className="p-2 text-center cursor-pointer hover:bg-gray-100 rounded transition-all">
                             <span className="text-gray-400 text-xs">-</span>
                           </div>
                         )}
@@ -218,7 +282,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
       {/* Legenda */}
       <div className="mt-6 bg-white p-4 rounded-lg shadow-md">
         <h3 className="font-semibold mb-2">Legenda</h3>
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: `${selectedRoom.color}40` }}></div>
             <span className="text-sm">Occupato</span>
