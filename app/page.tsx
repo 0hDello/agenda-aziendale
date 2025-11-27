@@ -28,12 +28,10 @@ export default function HomePage() {
 
   const loadStats = async () => {
     try {
-      // Conta operatori/persone
       const { count: personeCount } = await supabase
         .from('persone')
         .select('*', { count: 'exact', head: true });
       
-      // Conta sedi
       const { count: sediCount } = await supabase
         .from('sedi')
         .select('*', { count: 'exact', head: true });
@@ -47,7 +45,6 @@ export default function HomePage() {
 
   const loadAgende = async () => {
     try {
-      // Per ora usa un array statico, poi lo prenderai dal database
       const staticAgende: Agenda[] = [
         {
           id: '730',
@@ -67,10 +64,6 @@ export default function HomePage() {
     }
   };
 
-  const handleSelectAgenda = (agendaId: string) => {
-    router.push(`/agenda/${agendaId}`);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA]">
@@ -85,28 +78,16 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header - SENZA pulsante Impostazioni */}
         <div className="mb-12">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="bg-[#005CA9] p-4 rounded-2xl shadow-lg">
-                <CalendarIcon className="w-10 h-10 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-[#005CA9]">
-                  Agenda CNA
-                </h1>
-                <p className="text-gray-600 mt-1">Seleziona un'agenda per iniziare</p>
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="bg-[#005CA9] p-4 rounded-2xl shadow-lg">
+              <CalendarIcon className="w-10 h-10 text-white" />
             </div>
-            
-            <button
-              onClick={() => router.push('/impostazioni')}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-[#005CA9] rounded-xl hover:bg-gray-50 transition-all shadow-md hover:shadow-lg font-semibold"
-            >
-              <Settings size={20} />
-              Impostazioni
-            </button>
+            <div>
+              <h1 className="text-4xl font-bold text-[#005CA9]">Agende CNA</h1>
+              <p className="text-gray-600 mt-1">Seleziona un'agenda per iniziare</p>
+            </div>
           </div>
         </div>
 
@@ -163,7 +144,7 @@ export default function HomePage() {
             {agende.map((agenda) => (
               <div
                 key={agenda.id}
-                onClick={() => handleSelectAgenda(agenda.id)}
+                onClick={() => router.push(`/agenda/${agenda.id}`)}
                 className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-[#005CA9] group"
               >
                 <div className="flex items-start justify-between mb-4">
@@ -181,18 +162,23 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  {agenda.nome}
-                </h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  {agenda.descrizione || 'Nessuna descrizione'}
-                </p>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{agenda.nome}</h3>
+                <p className="text-gray-600 text-sm mb-4">{agenda.descrizione || 'Nessuna descrizione'}</p>
 
+                {/* NUOVA SEZIONE: Rotellina impostazioni in basso a sinistra, SENZA data */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <span className="text-xs text-gray-500">
-                    Creata il {new Date(agenda.created_at).toLocaleDateString('it-IT')}
-                  </span>
-                  <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      router.push('/impostazioni');
+                    }}
+                    className="bg-gray-100 hover:bg-gray-200 rounded-full p-2.5 transition-all hover:scale-110"
+                    title="Impostazioni agenda"
+                  >
+                    <Settings size={18} className="text-[#005CA9]" />
+                  </button>
+                  <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
                     →
                   </div>
                 </div>
