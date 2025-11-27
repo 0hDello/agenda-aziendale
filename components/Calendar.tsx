@@ -161,7 +161,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }
 
         // Calcola l'indice finale basandosi su dove si trova il cursore
-        const newEndSlotIndex = targetSlotIndex + 1;
+        const newEndSlotIndex = targetSlotIndex;
         
         // Controlla se stiamo estendendo o riducendo
         const currentEndTime = resizingAppointment.ora_fine.substring(0, 5);
@@ -249,7 +249,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
       // L'ora finale è quella dello slot successivo
-      const newEndSlotIndex = targetSlotIndex + 1;
+      const newEndSlotIndex = targetSlotIndex;
       
       if (newEndSlotIndex <= TIME_SLOTS.length && newEndSlotIndex > 0) {
         const newEndTime = newEndSlotIndex < TIME_SLOTS.length
