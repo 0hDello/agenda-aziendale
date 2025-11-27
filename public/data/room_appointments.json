@@ -1,0 +1,45 @@
+{
+  "rooms": {
+    "imola": [
+      {
+        "room": "imola",
+        "date": "2026-01-07",
+        "time": "09:30",
+        "title": "VISITE PATENTI",
+        "month": "Gennaio"
+      },
+      {
+        "room": "imola",
+        "date": "2026-01-14",
+        "time": "09:30",
+        "title": "VISITE PATENTI",
+        "month": "Gennaio"
+      },
+      {
+        "room": "imola",
+        "date": "2026-01-28",
+        "time": "09:30",
+        "title": "VISITE PATENTI",
+        "month": "Gennaio"
+      },
+      {
+        "room": "imola",
+        "date": "2026-01-20",
+        "time": "17:00",
+        "title": "VISITE PATENTI",
+        "month": "Gennaio"
+      },
+      {
+        "room": "imola",
+        "date": "2026-02-11",
+        "time": "09:30",
+        "title": "VISITE PATENTI",
+        "month": "Febbraio"
+      },
+      ... (truncated for brevity; il file completo contiene tutti i dati) ...
+    ],
+    "cspt": [],
+    "saletta": []
+  },
+  "lastUpdated": "2025-11-27T14:12:46.853027"
+}
