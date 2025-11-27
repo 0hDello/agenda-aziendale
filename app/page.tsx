@@ -26,7 +26,6 @@ export default function HomePage() {
 
   const loadAgende = async () => {
     try {
-      // Per ora uso un array statico, poi lo prenderò dal database
       const staticAgende: Agenda[] = [
         {
           id: '730',
@@ -38,28 +37,10 @@ export default function HomePage() {
           attiva: true
         },
         {
-          id: 'sala-riunioni-imola',
-          nome: 'Sala Riunioni Imola',
-          descrizione: 'Prenotazioni sala riunioni - Anno 2026',
+          id: 'sala-riunioni-2026',
+          nome: 'Sala Riunioni 2026',
+          descrizione: 'Prenotazioni sale riunioni - Imola, CSPT e Saletta Primo Piano',
           colore: '#16A34A',
-          icona: 'calendar',
-          created_at: new Date().toISOString(),
-          attiva: true
-        },
-        {
-          id: 'sala-riunioni-cspt',
-          nome: 'Sala Riunioni CSPT',
-          descrizione: 'Prenotazioni sala riunioni CSPT - Anno 2026',
-          colore: '#DC2626',
-          icona: 'calendar',
-          created_at: new Date().toISOString(),
-          attiva: true
-        },
-        {
-          id: 'saletta-primo-piano',
-          nome: 'Saletta Primo Piano',
-          descrizione: 'Prenotazioni saletta primo piano Imola - Anno 2026',
-          colore: '#9333EA',
           icona: 'calendar',
           created_at: new Date().toISOString(),
           attiva: true
@@ -111,7 +92,6 @@ export default function HomePage() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Le tue Agende</h2>
-            
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
