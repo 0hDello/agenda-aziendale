@@ -1,32 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, ChevronDown, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-interface RoomCalendarProps {
+interface EpasaCalendarProps {
   agendaId: string;
 }
 
 interface Appointment {
-  room: string;
+  sede: string;
   date: string;
   time: string;
-  title: string;
+  client: string;
   month: string;
 }
 
-interface RoomData {
+interface SedeData {
   [date: string]: {
     [time: string]: string | null;
   };
 }
 
-const ROOMS = [
-  { id: 'imola', name: 'Sala Riunioni Imola', file: 'Sala-riunioni-2026-Imola.xlsx', color: '#16A34A' },
-  { id: 'cspt', name: 'Sala Riunioni CSPT', file: 'Sala-riunioni-2026-CSPT.xlsx', color: '#DC2626' },
-  { id: 'saletta', name: 'Saletta Primo Piano', file: 'Saletta-primo-piano-2026-Imola.xlsx', color: '#9333EA' }
+const SEDI = [
+  { id: 'imola', name: 'Imola', color: '#005CA9' },
+  { id: 'cspt', name: 'CSPT', color: '#DC2626' },
+  { id: 'borgo', name: 'Borgo', color: '#16A34A' }
 ];
 
 const MONTHS = [
@@ -40,38 +40,13 @@ const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'
 ];
 
-// Mappa colori per diversi tipi di appuntamenti
-const APPOINTMENT_COLORS: { [key: string]: string } = {
-  'VISITE PATENTI': '#DC2626',
-  'CORSO CQC': '#2563EB',
-  'RIUNIONE': '#16A34A',
-  'FORMAZIONE': '#9333EA',
-  'COLLOQUIO': '#EA580C',
-  'DEFAULT': '#6B7280'
-};
-
-function getColorForAppointment(title: string): string {
-  if (APPOINTMENT_COLORS[title]) {
-    return APPOINTMENT_COLORS[title];
-  }
-
-  for (const key in APPOINTMENT_COLORS) {
-    if (title.includes(key)) {
-      return APPOINTMENT_COLORS[key];
-    }
-  }
-
-  return APPOINTMENT_COLORS['DEFAULT'];
-}
-
-export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
-  const [selectedRoom, setSelectedRoom] = useState(ROOMS[0]);
+export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
+  const [selectedSede, setSelectedSede] = useState(SEDI[0]);
   const [currentMonth, setCurrentMonth] = useState(0);
   const [currentYear] = useState(2026);
-  const [roomData, setRoomData] = useState<RoomData>({});
+  const [sedeData, setSedeData] = useState<SedeData>({});
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [legend, setLegend] = useState<{ [color: string]: string }>({});
 
   useEffect(() => {
     loadAppointmentsData();
@@ -79,22 +54,22 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
   useEffect(() => {
     if (allAppointments.length > 0) {
-      processRoomData();
+      processSedeData();
     }
-  }, [selectedRoom, currentMonth, allAppointments]);
+  }, [selectedSede, currentMonth, allAppointments]);
 
   const loadAppointmentsData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/data/room_appointments.json');
+      const response = await fetch('/data/epasa_appointments.json');
       if (!response.ok) {
         throw new Error('Failed to load appointments data');
       }
       const data = await response.json();
 
       const allApps: Appointment[] = [];
-      Object.keys(data.rooms).forEach(roomId => {
-        allApps.push(...data.rooms[roomId]);
+      Object.keys(data.sedi).forEach(sedeId => {
+        allApps.push(...data.sedi[sedeId]);
       });
 
       setAllAppointments(allApps);
@@ -106,39 +81,34 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   };
 
-  const processRoomData = () => {
-    const newRoomData: RoomData = {};
-    const newLegend: { [color: string]: string } = {};
+  const processSedeData = () => {
+    const newSedeData: SedeData = {};
 
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      newRoomData[dateKey] = {};
+      newSedeData[dateKey] = {};
 
       TIME_SLOTS.forEach(time => {
-        newRoomData[dateKey][time] = null;
+        newSedeData[dateKey][time] = null;
       });
     }
 
     const filteredAppointments = allAppointments.filter(app => {
-      if (app.room !== selectedRoom.id) return false;
+      if (app.sede !== selectedSede.id) return false;
 
       const appDate = new Date(app.date);
       return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
     });
 
     filteredAppointments.forEach(app => {
-      if (newRoomData[app.date] && TIME_SLOTS.includes(app.time)) {
-        newRoomData[app.date][app.time] = app.title;
-
-        const color = getColorForAppointment(app.title);
-        newLegend[color] = app.title;
+      if (newSedeData[app.date] && TIME_SLOTS.includes(app.time)) {
+        newSedeData[app.date][app.time] = app.client;
       }
     });
 
-    setRoomData(newRoomData);
-    setLegend(newLegend);
+    setSedeData(newSedeData);
   };
 
   const getDaysInMonth = () => {
@@ -157,9 +127,9 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   };
 
-  // Calcola prenotazioni del mese corrente per la sala selezionata
+  // Calcola appuntamenti del mese corrente per la sede selezionata
   const monthAppointmentsCount = allAppointments.filter(
-    a => a.room === selectedRoom.id && new Date(a.date).getMonth() === currentMonth
+    a => a.sede === selectedSede.id && new Date(a.date).getMonth() === currentMonth
   ).length;
 
   if (loading) {
@@ -167,7 +137,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#005CA9] mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Caricamento dati sale riunioni...</p>
+          <p className="mt-4 text-gray-600 font-medium">Caricamento agenda EPASA...</p>
         </div>
       </div>
     );
@@ -179,20 +149,20 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         {/* Contenitore principale */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
 
-          {/* Header superiore UNICO con tutto */}
+          {/* Header superiore */}
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-              {/* Sinistra: Info sala e statistiche */}
+              {/* Sinistra: Info sede e statistiche */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <Building2 className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-[#005CA9]">
-                    {selectedRoom.name}
+                    EPASA - {selectedSede.name}
                   </h1>
                   <p className="text-xs text-gray-600 mt-0.5">
-                    {monthAppointmentsCount} prenotazioni in {MONTHS[currentMonth]}
+                    {monthAppointmentsCount} appuntamenti in {MONTHS[currentMonth]}
                   </p>
                 </div>
               </div>
@@ -220,46 +190,26 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* Selettore sala */}
+                {/* Selettore sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <div className="relative">
                     <select
-                      value={selectedRoom.id}
+                      value={selectedSede.id}
                       onChange={(e) => {
-                        const room = ROOMS.find(r => r.id === e.target.value);
-                        if (room) setSelectedRoom(room);
+                        const sede = SEDI.find(s => s.id === e.target.value);
+                        if (sede) setSelectedSede(sede);
                       }}
                       className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
                     >
-                      {ROOMS.map((room) => (
-                        <option key={room.id} value={room.id} className="text-gray-800 bg-white">
-                          {room.name}
+                      {SEDI.map((sede) => (
+                        <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
+                          {sede.name}
                         </option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
                   </div>
                 </div>
-
-                {/* Legenda */}
-                {Object.keys(legend).length > 0 && (
-                  <div className="bg-white px-3 py-2 rounded-lg border-2 border-[#005CA9]/20 ml-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-semibold text-[#005CA9]">Legenda:</span>
-                      <div className="flex gap-3">
-                        {Object.entries(legend).map(([color, title]) => (
-                          <div key={color} className="flex items-center gap-1.5">
-                            <div 
-                              className="w-4 h-4 rounded"
-                              style={{ backgroundColor: color }}
-                            ></div>
-                            <span className="text-xs font-medium text-gray-700">{title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -281,7 +231,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                     return (
                       <th
                         key={day}
-                        className={`p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[45px] ${
+                        className={`p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[120px] ${
                           isWeekend ? 'bg-gray-100' : ''
                         }`}
                       >
@@ -305,7 +255,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                     {Array.from({ length: getDaysInMonth() }, (_, i) => {
                       const day = i + 1;
                       const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const appointment = roomData[dateKey]?.[time];
+                      const appointment = sedeData[dateKey]?.[time];
                       const date = new Date(currentYear, currentMonth, day);
                       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
@@ -319,12 +269,15 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                         >
                           {appointment ? (
                             <div
-                              className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center"
-                              style={{ 
-                                backgroundColor: getColorForAppointment(appointment)
-                              }}
+                              className="w-full h-full px-2 py-1 cursor-pointer hover:bg-[#005CA9]/10 transition-all flex items-center bg-[#005CA9]/5"
                               title={`${appointment} - ${time}`}
                             >
+                              <div className="flex items-center gap-1.5 w-full">
+                                <User size={12} className="text-[#005CA9] flex-shrink-0" />
+                                <span className="text-[10px] text-gray-700 font-medium truncate">
+                                  {appointment}
+                                </span>
+                              </div>
                             </div>
                           ) : (
                             <div className="w-full h-full hover:bg-blue-50/30 transition-colors"></div>

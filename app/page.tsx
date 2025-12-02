@@ -39,14 +39,23 @@ export default function HomePage() {
         {
           id: 'sala-riunioni-2026',
           nome: 'Sala Riunioni 2026',
-          descrizione: 'Prenotazioni sale riunioni - Imola, CSPT e Saletta Primo Piano',
+          descrizione: 'Prenotazioni Imola, CSPT e Saletta Primo Piano',
           colore: '#16A34A',
+          icona: 'calendar',
+          created_at: new Date().toISOString(),
+          attiva: true
+        },
+        {
+          id: 'epasa',
+          nome: 'EPASA',
+          descrizione: 'Appuntamenti clienti - Imola, CSPT e Borgo',
+          colore: '#9333EA',
           icona: 'calendar',
           created_at: new Date().toISOString(),
           attiva: true
         }
       ];
-      
+
       setAgende(staticAgende);
       setLoading(false);
     } catch (error) {
@@ -138,17 +147,23 @@ export default function HomePage() {
                 </p>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      router.push('/impostazioni');
-                    }}
-                    className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
-                    title="Impostazioni agenda"
-                  >
-                    <Settings size={18} className="text-[#005CA9]" />
-                  </button>
+                  {/* Bottone Settings SOLO per Agenda 730 */}
+                  {agenda.id === '730' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        router.push('/impostazioni');
+                      }}
+                      className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
+                      title="Impostazioni agenda"
+                    >
+                      <Settings size={18} className="text-[#005CA9]" />
+                    </button>
+                  )}
+                  {/* Spazio vuoto per altre agende */}
+                  {agenda.id !== '730' && <div></div>}
+
                   {agenda.attiva && (
                     <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
                       →
@@ -163,18 +178,7 @@ export default function HomePage() {
               </div>
             ))}
 
-            {/* Card per creare nuova agenda */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border-2 border-dashed border-gray-300 hover:border-[#005CA9] transition-all cursor-pointer flex flex-col items-center justify-center min-h-[240px] group">
-              <div className="bg-white p-4 rounded-xl shadow-md group-hover:shadow-lg transition-all mb-4">
-                <Plus className="w-8 h-8 text-gray-400 group-hover:text-[#005CA9] transition-colors" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-600 group-hover:text-[#005CA9] transition-colors">
-                Crea Nuova Agenda
-              </h3>
-              <p className="text-sm text-gray-500 text-center mt-2">
-                Aggiungi un'agenda per organizzare i tuoi appuntamenti
-              </p>
-            </div>
+            
           </div>
         </div>
       </div>
