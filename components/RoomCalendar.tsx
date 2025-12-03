@@ -292,20 +292,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                           style={{ height: '45px' }}
                         >
                           {appointment ? (
-<<<<<<< HEAD
-  <div
-    className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center text-white text-[10px] font-semibold px-1"
-    style={{ 
-      backgroundColor: getColorForAppointment(appointment)
-    }}
-    title={`${appointment} - ${time}`}
-  >
-    <span className="text-center leading-tight overflow-hidden text-ellipsis line-clamp-2">
-      {appointment}
-    </span>
-  </div>
-
-=======
                             <div
                               className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center text-white text-[10px] font-semibold px-1"
                               style={{ 
@@ -317,7 +303,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                                 {appointment}
                               </span>
                             </div>
->>>>>>> 1f744369ca37f406ed07706b9e665944a1106b85
                           ) : (
                             <div className="w-full h-full hover:bg-blue-50/30 transition-colors"></div>
                           )}
