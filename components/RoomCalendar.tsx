@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import RoomAppointmentModal from './RoomAppointmentModal';
 
 interface RoomCalendarProps {
   agendaId: string;
@@ -71,6 +72,8 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [roomData, setRoomData] = useState<RoomData>({});
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
 
   useEffect(() => {
     loadAppointmentsData();
@@ -135,6 +138,48 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     setRoomData(newRoomData);
   };
 
+  const handleCellClick = (date: string, time: string) => {
+    setSelectedSlot({ date, time });
+    setIsModalOpen(true);
+  };
+
+  const handleSaveAppointment = async (data: { date: string; time: string; title: string }) => {
+    // Aggiorna l'array degli appuntamenti
+    const newAppointment: Appointment = {
+      room: selectedRoom.id,
+      date: data.date,
+      time: data.time,
+      title: data.title,
+      month: MONTHS[new Date(data.date).getMonth()],
+    };
+
+    // Rimuovi eventuale appuntamento esistente nello stesso slot
+    const updatedAppointments = allAppointments.filter(
+      app => !(app.room === selectedRoom.id && app.date === data.date && app.time === data.time)
+    );
+
+    // Aggiungi il nuovo appuntamento
+    updatedAppointments.push(newAppointment);
+    setAllAppointments(updatedAppointments);
+
+    // TODO: Qui dovresti salvare i dati su un backend o file
+    console.log('Appuntamento salvato:', newAppointment);
+  };
+
+  const handleDeleteAppointment = () => {
+    if (!selectedSlot) return;
+
+    // Rimuovi l'appuntamento dall'array
+    const updatedAppointments = allAppointments.filter(
+      app => !(app.room === selectedRoom.id && app.date === selectedSlot.date && app.time === selectedSlot.time)
+    );
+
+    setAllAppointments(updatedAppointments);
+
+    // TODO: Qui dovresti salvare i dati su un backend o file
+    console.log('Appuntamento eliminato:', selectedSlot);
+  };
+
   const getDaysInMonth = () => {
     return new Date(currentYear, currentMonth + 1, 0).getDate();
   };
@@ -155,6 +200,10 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const monthAppointmentsCount = allAppointments.filter(
     a => a.room === selectedRoom.id && new Date(a.date).getMonth() === currentMonth
   ).length;
+
+  const currentAppointment = selectedSlot 
+    ? roomData[selectedSlot.date]?.[selectedSlot.time] 
+    : null;
 
   if (loading) {
     return (
@@ -298,13 +347,17 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                                 backgroundColor: getColorForAppointment(appointment)
                               }}
                               title={`${appointment} - ${time}`}
+                              onClick={() => handleCellClick(dateKey, time)}
                             >
                               <span className="text-center leading-tight overflow-hidden text-ellipsis line-clamp-2">
                                 {appointment}
                               </span>
                             </div>
                           ) : (
-                            <div className="w-full h-full hover:bg-blue-50/30 transition-colors"></div>
+                            <div 
+                              className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer"
+                              onClick={() => handleCellClick(dateKey, time)}
+                            ></div>
                           )}
                         </td>
                       );
@@ -316,6 +369,23 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           </div>
         </div>
       </div>
+
+      {/* Modal per aggiungere/modificare appuntamenti */}
+      {selectedSlot && (
+        <RoomAppointmentModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedSlot(null);
+          }}
+          onSave={handleSaveAppointment}
+          onDelete={currentAppointment ? handleDeleteAppointment : undefined}
+          selectedDate={selectedSlot.date}
+          selectedTime={selectedSlot.time}
+          existingAppointment={currentAppointment}
+          roomName={selectedRoom.name}
+        />
+      )}
     </div>
   );
 }
