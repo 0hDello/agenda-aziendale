@@ -2,6 +2,7 @@
 
 import Calendar from '@/components/Calendar';
 import RoomCalendar from '@/components/RoomCalendar';
+import EpasaCalendar from '@/components/EpasaCalendar';
 
 interface PageProps {
   params: { id: string };
@@ -19,7 +20,16 @@ export default function AgendaPage({ params }: PageProps) {
     );
   }
 
-  // Altrimenti usa il Calendar standard
+  // Se l'agenda è epasa, usa l'EpasaCalendar
+  if (id === 'epasa') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <EpasaCalendar agendaId={id} />
+      </div>
+    );
+  }
+
+  // Altrimenti usa il Calendar standard (Agenda 730)
   return (
     <div className="min-h-screen bg-gray-50">
       <Calendar agendaId={id} />
