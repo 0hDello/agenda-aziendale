@@ -71,7 +71,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [roomData, setRoomData] = useState<RoomData>({});
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [legend, setLegend] = useState<{ [color: string]: string }>({});
 
   useEffect(() => {
     loadAppointmentsData();
@@ -108,7 +107,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
   const processRoomData = () => {
     const newRoomData: RoomData = {};
-    const newLegend: { [color: string]: string } = {};
 
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
@@ -131,14 +129,10 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     filteredAppointments.forEach(app => {
       if (newRoomData[app.date] && TIME_SLOTS.includes(app.time)) {
         newRoomData[app.date][app.time] = app.title;
-
-        const color = getColorForAppointment(app.title);
-        newLegend[color] = app.title;
       }
     });
 
     setRoomData(newRoomData);
-    setLegend(newLegend);
   };
 
   const getDaysInMonth = () => {
@@ -240,26 +234,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
                   </div>
                 </div>
-
-                {/* Legenda */}
-                {Object.keys(legend).length > 0 && (
-                  <div className="bg-white px-3 py-2 rounded-lg border-2 border-[#005CA9]/20 ml-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-semibold text-[#005CA9]">Legenda:</span>
-                      <div className="flex gap-3">
-                        {Object.entries(legend).map(([color, title]) => (
-                          <div key={color} className="flex items-center gap-1.5">
-                            <div 
-                              className="w-4 h-4 rounded"
-                              style={{ backgroundColor: color }}
-                            ></div>
-                            <span className="text-xs font-medium text-gray-700">{title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -318,6 +292,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                           style={{ height: '45px' }}
                         >
                           {appointment ? (
+<<<<<<< HEAD
   <div
     className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center text-white text-[10px] font-semibold px-1"
     style={{ 
@@ -330,6 +305,19 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     </span>
   </div>
 
+=======
+                            <div
+                              className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center text-white text-[10px] font-semibold px-1"
+                              style={{ 
+                                backgroundColor: getColorForAppointment(appointment)
+                              }}
+                              title={`${appointment} - ${time}`}
+                            >
+                              <span className="text-center leading-tight overflow-hidden text-ellipsis line-clamp-2">
+                                {appointment}
+                              </span>
+                            </div>
+>>>>>>> 1f744369ca37f406ed07706b9e665944a1106b85
                           ) : (
                             <div className="w-full h-full hover:bg-blue-50/30 transition-colors"></div>
                           )}
