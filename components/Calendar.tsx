@@ -34,13 +34,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
   // Inizializza con 7 giorni a partire dalla data selezionata
   useEffect(() => {
     const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
+    setHasInitialLoad(false);
   }, [selectedDate]);
 
   // Scroll infinito: carica più giorni quando si arriva in fondo
@@ -65,6 +67,38 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, [visibleDays, isLoadingMore]);
+
+  // Forza il refresh iniziale simulando il click su "Oggi"
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSelectedDate(new Date());
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+    // Auto-caricamento quando il contenuto è troppo corto
+  useEffect(() => {
+    if (visibleDays.length === 0 || isLoadingMore) return;
+    
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const { scrollHeight, clientHeight } = container;
+        
+        if (scrollHeight <= clientHeight + 20 && visibleDays.length < 60) {
+          const lastDay = visibleDays[visibleDays.length - 1];
+          const newDays = Array.from({ length: 5 }, (_, i) => addDays(lastDay, i + 1));
+          setVisibleDays((prev) => [...prev, ...newDays]);
+        } else if (!hasInitialLoad) {
+          setHasInitialLoad(true);
+        }
+      });
+    });
+  }, [visibleDays.length, isLoadingMore, hasInitialLoad]);
+
+
 
   useEffect(() => {
     loadData();
@@ -144,7 +178,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const relativeY = e.clientY - rect.top;
     const rowHeight = 45;
     
-    // Calcola esattamente in quale slot si trova il cursore
     const exactSlotPosition = relativeY / rowHeight;
     const targetSlotIndex = Math.floor(exactSlotPosition);
 
@@ -160,10 +193,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           oldOverlay.remove();
         }
 
-        // Calcola l'indice finale basandosi su dove si trova il cursore
         const newEndSlotIndex = targetSlotIndex;
         
-        // Controlla se stiamo estendendo o riducendo
         const currentEndTime = resizingAppointment.ora_fine.substring(0, 5);
         let currentEndIndex = TIME_SLOTS.findIndex(slot => slot.label === currentEndTime);
         if (currentEndIndex === -1 && currentEndTime === '18:00') {
@@ -171,7 +202,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }
 
         if (newEndSlotIndex > currentEndIndex) {
-          // Estensione (verde)
           const newSlotCount = newEndSlotIndex - startIndex;
           const newHeight = newSlotCount * rowHeight;
 
@@ -190,7 +220,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           appointmentElement.appendChild(overlay);
           appointmentElement.style.opacity = '0.7';
         } else if (newEndSlotIndex < currentEndIndex && newEndSlotIndex > startIndex) {
-          // Riduzione (rosso)
           const newSlotCount = newEndSlotIndex - startIndex;
           const newHeight = newSlotCount * rowHeight;
 
@@ -243,12 +272,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const relativeY = e.clientY - rect.top;
     const rowHeight = 45;
     
-    // Calcola esattamente in quale slot si trova il cursore
     const exactSlotPosition = relativeY / rowHeight;
     const targetSlotIndex = Math.floor(exactSlotPosition);
 
     if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
-      // L'ora finale è quella dello slot successivo
       const newEndSlotIndex = targetSlotIndex;
       
       if (newEndSlotIndex <= TIME_SLOTS.length && newEndSlotIndex > 0) {
@@ -257,7 +284,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           : '18:00';
         const startTime = resizingAppointment.ora_inizio.substring(0, 5);
 
-        // Verifica che la nuova durata sia valida (almeno 30 minuti)
         const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
         if (newEndSlotIndex <= startIndex) {
           alert('La durata minima dell\'appuntamento è 30 minuti');
@@ -329,8 +355,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     cleanupResizeEffects();
   };
 }, [resizingAppointment, appointments, isResizing]);
-
-
 
   const loadData = async () => {
     const { data: sediData } = await supabase.from('sedi').select('*');
@@ -556,13 +580,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some((ps) => ps.persona_id === persona.id && ps.sede_id === selectedSedeId)
   );
 
-    return (
+  return (
   <div className="min-h-screen p-1 md:p-2 animate-fade-in">
     <div className="max-w-[1800px] mx-auto">
-      {/* Contenitore unico unificato */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
         
-        {/* Header superiore con sede inclusa */}
         <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -604,7 +626,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 Oggi
               </button>
               
-              {/* Selettore sede spostato qui */}
               <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                 <Building2 className="w-5 h-5 text-[#005CA9]" />
                 <div className="relative">
@@ -628,7 +649,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           </div>
         </div>
 
-        {/* Tabella calendario - Barra blu rimossa */}
         {selectedSede && (
           <div 
             ref={scrollContainerRef}
@@ -663,7 +683,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   
                   return (
                     <React.Fragment key={dateStr}>
-                      {/* Separatore giorno */}
                       <tr>
                         <td 
                           colSpan={sedePersone.length + 1}
@@ -677,7 +696,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         </td>
                       </tr>
                       
-                      {/* Slot orari per questo giorno */}
                       {TIME_SLOTS.map((slot) => {
                         return (
                           <tr key={`${dateStr}-${slot.label}`}>
@@ -735,7 +753,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       </div>
     </div>
 
-      {/* Date Picker Modal */}
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
@@ -855,5 +872,3 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     </div>
   );
 }
-
-
