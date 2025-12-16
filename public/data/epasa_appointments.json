@@ -1,6307 +1,1728 @@
 {
-  "metadata": {
-    "generated_at": "2025-12-02T15:41:52.879516",
-    "total_appointments": 897,
-    "year": 2026,
-    "sedi": {
-      "cspt": {
-        "name": "CSPT",
-        "count": 31
-      },
-      "borgo": {
-        "name": "Borgo",
-        "count": 11
-      },
-      "imola": {
-        "name": "Imola",
-        "count": 855
-      }
-    }
-  },
   "sedi": {
-    "cspt": [
-      {
-        "sede": "cspt",
-        "date": "2026-01-12",
-        "time": "14:30",
-        "client": "PATRIZIA ZUFFI ISE 338/7565853",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-12",
-        "time": "15:00",
-        "client": "savoia nadia ise 335/7081043",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-12",
-        "time": "15:30",
-        "client": "manganiello vincenzo x verific. Contributi 334/9134877",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-12",
-        "time": "16:00",
-        "client": "manganiello vincenzo x verific. Contributi 334/9134877",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-12",
-        "time": "16:30",
-        "client": "CAVALIERI ROBERTA ISE340/4827056",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-19",
-        "time": "14:00",
-        "client": "BILLI MONICA X PENSIONE ANTICIPATA 348/6009653",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-19",
-        "time": "14:30",
-        "client": "ZANOTTI MIRCA X  ISEE 338/2800634",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-19",
-        "time": "15:00",
-        "client": "assirelli manila isee 347/9788032",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-19",
-        "time": "15:30",
-        "client": "MACCHIAVELLI FRANCESCA ISE347/0535580",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-19",
-        "time": "16:00",
-        "client": "ALVISI MARINA ISE 333/5974817",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-01-19",
-        "time": "16:30",
-        "client": "landi veronica isee 338/3269880",
-        "month": "January"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-02",
-        "time": "14:30",
-        "client": "ferrari ilves red 348/5632575",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-02",
-        "time": "15:00",
-        "client": "zazzaroni alessandro isee 338/6454429",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-02",
-        "time": "15:30",
-        "client": "DE DOMINICIS ANTONELLA ISEE 388/9220689",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-02",
-        "time": "16:00",
-        "client": "GIACOMETTI MIRCO ISEE 347/6331277",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-02",
-        "time": "16:30",
-        "client": "ZARDI ELISA ISEE 328/6348081",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-09",
-        "time": "14:00",
-        "client": "minarelli x isee genitori 3486830007",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-09",
-        "time": "14:30",
-        "client": "minarelli x isee genitori 3486830007",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-09",
-        "time": "15:00",
-        "client": "PATELLI MARIA TERESA PER ISEE 051943611 teresa.patelli@alice.it",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-09",
-        "time": "15:30",
-        "client": "ANGELI SONIA ISEE 338/7236296",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-09",
-        "time": "16:00",
-        "client": "GNAZZO ANTONIO ISEE 339/4036408",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-09",
-        "time": "16:30",
-        "client": "CARDONE SERGIO PER PENSIONE 3347391728",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-16",
-        "time": "14:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-16",
-        "time": "15:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-16",
-        "time": "15:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-16",
-        "time": "16:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-02-16",
-        "time": "16:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-03-02",
-        "time": "14:30",
-        "client": "ghini monica isee 347/6238181",
-        "month": "March"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-03-02",
-        "time": "15:00",
-        "client": "sgobbo simona iess 346/2136767",
-        "month": "March"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-05-11",
-        "time": "14:30",
-        "client": "RAVAGLIA STEFANO  DOMANDA DI PENSIUONE 333/4731526",
-        "month": "May"
-      },
-      {
-        "sede": "cspt",
-        "date": "2026-05-11",
-        "time": "15:00",
-        "client": "RAVAGLIA STEFANO  DOMANDA DI PENSIUONE 333/4731526",
-        "month": "May"
-      }
-    ],
-    "borgo": [
-      {
-        "sede": "borgo",
-        "date": "2026-01-13",
-        "time": "09:00",
-        "client": "SPADA MARISA X DISOC. AGRICOLA  366/9598991",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-13",
-        "time": "09:30",
-        "client": "NINA DOMCHE ISEE 328/8147854",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-13",
-        "time": "10:00",
-        "client": "SOLA GIUSEPPINA RED?? 338/3526332",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-13",
-        "time": "10:30",
-        "client": "LOZZI ANTONELLA PER PERMESSI 104  351/6998933",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-20",
-        "time": "09:00",
-        "client": "galessi paola isee 349/8737196 + arr ass unico",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-20",
-        "time": "09:30",
-        "client": "galessi paola isee 349/8737196 + arr ass unico",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-20",
-        "time": "10:00",
-        "client": "POGGI AGNESE ISEE 338/6246717",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-01-20",
-        "time": "10:30",
-        "client": "3891192778  LORIS  nipote di ettore per isee",
-        "month": "January"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-02-10",
-        "time": "09:00",
-        "client": "ANDOLFI MARIO RINNOVO ISEE 3476478018",
-        "month": "February"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-02-10",
-        "time": "09:30",
-        "client": "gramantieri m. rosa ved per pensione 335/8489483",
-        "month": "February"
-      },
-      {
-        "sede": "borgo",
-        "date": "2026-02-10",
-        "time": "10:00",
-        "client": "gramantieri m. rosa ved per pensione 335/8489483",
-        "month": "February"
-      }
-    ],
     "imola": [
-      {
-        "sede": "imola",
-        "date": "2026-01-07",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
-      },
       {
         "sede": "imola",
         "date": "2026-01-07",
         "time": "08:30",
         "client": "iacomino luisa per isee 3202670266",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-07",
         "time": "09:00",
         "client": "SUZZI G.LUCA 338/7988611",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "11:00",
+        "client": "di marzo isee 3482225445 - oric67@gmail.com",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "11:30",
+        "client": "ROSSI VERONICA ISEE  348/3784402",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "12:00",
+        "client": "manieri sentimenti elisa  isee 339/7908811",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "08:30",
+        "client": "di maria lorenzo naspi 345/7826477 autorizz. Lory",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "09:00",
+        "client": "MARTELLI MAURIZIO X NASPI 3386305193",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "09:30",
+        "client": "Marco Tiragallo x naspi  3270430216",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-07",
+        "time": "10:00",
+        "client": "SPADA EROS NASPI MAIL DI LORY DEL 03/12",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "08:30",
         "client": "DE CAO ANGELO X DISOCC. AGRICOLA 0545/82972",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "09:00",
         "client": "BONAVENTURA ORIELLA RED  338/6104749",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "09:30",
         "client": "borsari giulia maternita'349/8719393",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "10:00",
         "client": "BERTOLINI DANIELE 348/9351513",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "10:30",
         "client": "LESTE CHRISTIANE RIF PAOLA FAVA  VERIFICA CONTRIBUTI VOLNTARI  347/3239207",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "11:00",
         "client": "LESTE CHRISTIANE RIF PAOLA FAVA  VERIFICA CONTRIBUTI VOLNTARI  347/3239207",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "11:30",
         "client": "POMPEI CLAUDIA VED PER RED 349/3822409",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-08",
         "time": "12:00",
         "client": "NERI VALENTINA X NASPI 3478481400",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-09",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "08:30",
         "client": "MORINI STEFANIA ISE   335/5359300",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "09:00",
         "client": "PADOVANI CATIUSCIA ISEE 344/2637414",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "09:30",
         "client": "quispe giannina   345/8397859 ISEE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "10:00",
         "client": "FEDERICA SERRA ISEE 328/6260931",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "10:30",
         "client": "KAROLCZYK ISEE 333/2145962",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "11:00",
         "client": "Orefice beatrice  3394369392 x isee",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "11:30",
         "client": "MONDUCCI EVA ISEE 349/5870702",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-09",
         "time": "12:00",
         "client": "SERRELI STEFANIA ISEE 371/3207234",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-09",
+        "time": "08:00",
+        "client": "Di Maria Debora Disoccupazione Agricola 3490937296",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-09",
+        "time": "08:30",
+        "client": "BEVILACQUA ROBERTA ISE 366/4755621 VUOLE SOLO LOREDANA",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-09",
+        "time": "09:00",
+        "client": "GENTILINI SABRINA 10/02/69  339/8790678",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-09",
+        "time": "09:30",
+        "client": "GENTILINI SABRINA 10/02/69  339/8790678",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-09",
+        "time": "10:00",
+        "client": "CANTERGIANI G.FRANCO 13/12/68 339/4243444",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-09",
+        "time": "10:30",
+        "client": "CANTERGIANI G.FRANCO 13/12/68 339/4243444",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-12",
         "time": "08:30",
         "client": "SELICE ANTONIO VERIFIC IMPORTO PENSIONE 333/5064476",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-12",
         "time": "09:00",
         "client": "BIRRINI AURORA VED PER PENSIONE 340/1550429",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-12",
         "time": "09:30",
         "client": "BIRRINI AURORA VED PER PENSIONE 340/1550429",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-12",
+        "time": "10:00",
+        "client": "mohamed yunes x permessi 104 320/0139776",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-12",
         "time": "10:30",
         "client": "SERRELI STEFANIA MODIFIC ASS UNICO  371/3207234",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-12",
         "time": "11:00",
         "client": "tomba giada per rinnovo permessi 104 347/0753824",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-13",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "08:30",
         "client": "GALANTI ERICA ISEE 3397819267",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "09:00",
         "client": "MANSERVISI FRANCESCA ISEE X AUTOBUS 340/7626168",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "09:30",
         "client": "saboui gavril 351/5126836",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "10:00",
         "client": "sangiorgi  filippo ise 329/9782154",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "10:30",
         "client": "grandi monica isee / cicci salvatore nr 2 isee 347/0136171",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "11:00",
         "client": "grandi monica isee / cicci salvatore nr 2 isee 347/0136171",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "11:30",
         "client": "BENAFIA AZIZ ISEE 347/7884171",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-13",
         "time": "12:00",
         "client": "calderoni ilenia . 3338390666",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-14",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "08:30",
         "client": "TASSONI ALBERTO ISEE 349/6033012",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "09:00",
         "client": "petruzzelli ilaria ise x universita' 347/1387673",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "09:30",
         "client": "olga otcenash 347/6901783",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "10:00",
         "client": "dida albert isee 377/2277945",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "10:30",
         "client": "BORGATTI Sabina isee 347/7817863",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "11:00",
         "client": "GRADINARU TATIANA ISEE 320/5312048",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "11:30",
         "client": "MIRANDOLA DONATELLA ISEE 339/457535",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-14",
         "time": "12:00",
         "client": "LEONORA HARACIU ISEE 366/8051764",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-14",
+        "time": "08:30",
+        "client": "GIOVANNINI DANIELE SACMI 335/7634577 AUTORIZZ LORY",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-14",
+        "time": "09:00",
+        "client": "GIOVANNINI DANIELE SACMI 335/7634577 AUTORIZZ LORY",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-15",
         "time": "08:30",
         "client": "mazzini annalisa  347/8950535 per reversibilita",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-15",
         "time": "09:00",
         "client": "mazzini annalisa  347/8950535 per reversibilita",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-15",
         "time": "09:30",
         "client": "TENI MORENO 30/05/68 329/9029554 PENSIONE  + RISCATTO MILITARE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-15",
         "time": "10:00",
         "client": "TENI MORENO 30/05/68 329/9029554 PENSIONE  + RISCATTO MILITARE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-15",
         "time": "10:30",
         "client": "FANELLI ANDREA VED PER PENSIONE 349/2384278",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-15",
         "time": "11:00",
         "client": "FANELLI ANDREA VED PER PENSIONE 349/2384278",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "08:00",
+        "client": "Gabriele Bandini 3384859414 x domanda di NASPI",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-16",
         "time": "08:30",
         "client": "GOLFI LARA X 104  370/3068334",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-16",
         "time": "09:00",
         "client": "CECCHETTI CHIARABONUS NIDO 33/9503985",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-16",
         "time": "09:30",
         "client": "cantagalli claudio ved per pensione 338/6820067",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-16",
         "time": "10:00",
         "client": "cantagalli claudio ved per pensione 338/6820067",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-16",
         "time": "10:30",
         "client": "mauro mirella ved per pensione3408745502 - 0542-682869",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-16",
         "time": "11:00",
         "client": "mauro mirella ved per pensione3408745502 - 0542-682869",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "11:30",
+        "client": "foschini grazia revisione invalidita' 334/9594800",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "08:00",
+        "client": "GRILLI ALEX ISEE 3480301402",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "08:30",
+        "client": "CECCHETTI CHIARA ISEE 33/9503985 DOPO DA LOREDANA",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "09:00",
+        "client": "VARGAS ANTONIO ISEE 338/8295936",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "09:30",
+        "client": "FIUMI FABRIZIO ISEE 334/3307455",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "10:00",
+        "client": "D'AMERIO ANGELO ISEE 335/403432",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "10:30",
+        "client": "RAVALDI SOFIA ISEE  X AS UNICO ETC347/4021526",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "11:00",
+        "client": "SALAMANCA GIOVANNA ISE 347/9331571",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "11:30",
+        "client": "SASSO SARA ISEE 333/3829066",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-16",
+        "time": "12:00",
+        "client": "VITTOSO ELVIRA ISEE 349/2342111",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-19",
         "time": "08:30",
         "client": "tattini marzia red? 338/2065713",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-19",
         "time": "09:00",
         "client": "VARIGNANA X SUPPLEMENTO PENSIONE 3355217367",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-19",
         "time": "09:30",
         "client": "ANTINUCCI EMANUELE VED PER PENSIONE 335/5397085",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-19",
         "time": "10:00",
         "client": "ANTINUCCI EMANUELE VED PER PENSIONE 335/5397085",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-19",
         "time": "10:30",
         "client": "FRAGALà ANGELA 338/5990259",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-19",
         "time": "11:00",
         "client": "OBICI ANDREA PER PERMESSI 104 TEL 347/5597309",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-20",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "08:30",
         "client": "MINARDI FABIO   ISEE 347/1474993",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "09:00",
         "client": "GASPARRO BENITO ISEE 379/1734617",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "09:30",
         "client": "BORZATTI VALENTINA ISEE 333/1989607",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "10:00",
         "client": "BARZAGLI FABIO 339/4602442",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "10:30",
         "client": "GIRLANDO LIDIA  348/5464642",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "11:00",
         "client": "GIRLANDO ATTILIO ISEE 348/5464642",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "11:30",
         "client": "RANERI FRANCESCA ISEE 338/8513166",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-20",
         "time": "12:00",
         "client": "IOLE RATTU ISEE 329/1812941",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-21",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "08:30",
         "client": "GIOVANNINI SIMONA ISEE 392/0255135",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "09:00",
         "client": "CIMATTI SILVIA 338/3993033 ISEE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "09:30",
         "client": "SCHIAVONE MARZIA ISEE 338/3557009",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "10:00",
         "client": "D'ANGELO CARLOTTA MODIFICA ISSE 338/3224457",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "10:30",
         "client": "BORTOLUZZI GIULIANA 349/2864492 ISEE",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "11:00",
         "client": "spagnolo danilo isee 340/1084839",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "11:30",
         "client": "VOLGARINO RICCARDO ISEE 320/6468873",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-21",
         "time": "12:00",
         "client": "CIRRUTO MICHLE ISEE 347/8489955",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
-        "date": "2026-01-22",
-        "time": "08:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "09:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "09:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "10:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "10:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "11:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "11:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-22",
-        "time": "12:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "08:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "09:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "09:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "10:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "10:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "11:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "11:30",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-23",
-        "time": "12:00",
-        "client": "no app loredana assente",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-26",
-        "time": "12:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-27",
+        "date": "2026-01-21",
         "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "client": "BARONCINI MANUELA 347/8227735",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "08:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "09:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "09:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "10:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "10:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "11:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "11:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-22",
+        "time": "12:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "08:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "09:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "09:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "10:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "10:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "11:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "11:30",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "12:00",
+        "client": "no app loredana assente",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "08:30",
+        "client": "BIAGI GIACOMO RINNOVO ISEE 3273071294",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "09:00",
+        "client": "granese liodoro 389/0558004",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "09:30",
+        "client": "CONCI SABRINA ISEE 351/9756048",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "10:00",
+        "client": "bellosi stefano ise 347/9441505",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "10:30",
+        "client": "alessandro bunica isee 389/1610829",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "11:00",
+        "client": "ribetto claudia isee 347/8307524",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "11:30",
+        "client": "DISENSI MARZIA ISEE 393/7573428",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-23",
+        "time": "12:00",
+        "client": "TROTTA MARIA ISEE' 329/0684710",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-27",
         "time": "08:30",
         "client": "COTRONEI VERONICA ISEE 3397819267",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-27",
-        "time": "12:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
+        "time": "09:00",
+        "client": "SELLERI ELISA ISEE 340/7797796",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
-        "date": "2026-01-28",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "January"
+        "date": "2026-01-27",
+        "time": "09:30",
+        "client": "bittini daniela isee 339/6491374",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-27",
+        "time": "10:00",
+        "client": "manfredonia antonio/ lagella letizia isee 339/1735517",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-27",
+        "time": "10:30",
+        "client": "manfredonia antonio/ lagella letizia isee 339/1735517",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-27",
+        "time": "11:00",
+        "client": "aprili walter isee 388/6361981",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-27",
+        "time": "11:30",
+        "client": "VLADUT VASILE SORIT 389/6297777",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-27",
+        "time": "12:00",
+        "client": "marica manara 3497746974",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-28",
         "time": "08:30",
         "client": "ghini roberta isee  349/5045036",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-28",
         "time": "09:00",
+        "client": "PIRONDI ALESSANDRO  ISEE 347/0691102",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-28",
+        "time": "09:30",
+        "client": "SPAGNUOLO GIUSEPINA ISEE  347/3024843",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-28",
+        "time": "10:00",
+        "client": "SALONI DANIELA ISEE 339/8009396",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-28",
+        "time": "10:30",
+        "client": "lamesta tommaso isee 328/5674772",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-28",
+        "time": "11:00",
+        "client": "grasso fabio isee 338/9779236",
+        "month": "Gennaio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-01-28",
+        "time": "11:30",
         "client": "PERRI DEBORAH ISE 389/2861546",
-        "month": "January"
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
-        "date": "2026-01-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-29",
+        "date": "2026-01-28",
         "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
+        "client": "mengozzi marinella isee   347/9358413",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
-        "date": "2026-01-29",
-        "time": "12:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
+        "date": "2026-01-30",
+        "time": "08:30",
+        "client": "LANZONI MARTINA ISEE 349/4323276",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-30",
         "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
+        "client": "MASI STEFANO ISEE 3396397065",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-01-30",
         "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-30",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "January"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-01-30",
-        "time": "12:30",
-        "client": "UFF CHIUSO",
-        "month": "January"
+        "client": "DE SIMONEROSANNA (RIF CLAUDI ACONE)",
+        "month": "Gennaio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-02",
         "time": "08:30",
         "client": "gerani denis red  348/4725922",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-02",
         "time": "09:00",
         "client": "MELLONI BARBARA RED 349/2594245",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-02",
         "time": "09:30",
         "client": "martelli domenica red 0542/50263",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-02",
-        "time": "10:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-02",
-        "time": "10:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-02",
-        "time": "11:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-02",
-        "time": "11:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-02",
-        "time": "12:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-03",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-03",
         "time": "08:30",
         "client": "PARADISI GIUSEPPINA ISEE 333/2943007",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
-        "date": "2026-02-04",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "date": "2026-02-03",
+        "time": "09:00",
+        "client": "CAPRA SARA ISEE 339/5306760",
+        "month": "Febbraio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-03",
+        "time": "09:30",
+        "client": "grimaldi generoso isee 348/6101432",
+        "month": "Febbraio",
+        "operator": "MILECE"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-03",
+        "time": "08:30",
+        "client": "margherita red 348/5726335",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-03",
+        "time": "09:00",
+        "client": "grimaldi generoso red 348/6101432",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-04",
         "time": "08:30",
         "client": "CALDERONI ALESSIA ISEE 333/7292297",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "08:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "09:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "09:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "10:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "10:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "11:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "11:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-05",
-        "time": "12:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "08:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "09:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "09:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "10:00",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "10:30",
-        "client": "red",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "11:00",
-        "client": "CUTI",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "11:30",
-        "client": "CUTI",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-06",
-        "time": "12:00",
-        "client": "CUTI",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-09",
         "time": "08:30",
         "client": "GASPARRI MARTINA PER PERMESSI 104 334/3645472",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-09",
+        "time": "09:00",
+        "client": "SELLERI ELISA MODIF ASS UNICO  340/7797796",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-09",
         "time": "09:30",
         "client": "stefanini marco e donatella toselli  3398393437 x PENSIO",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-09",
         "time": "10:00",
         "client": "stefanini marco e donatella toselli  3398393437 x PENSIO",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-09",
         "time": "10:30",
         "client": "stefanini marco e donatella toselli  3398393437 x PENSIO",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-09",
         "time": "11:00",
         "client": "chiorboli bruna ved per pensione 12/08/66  335/373262",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-09",
         "time": "11:30",
         "client": "chiorboli bruna ved per pensione 12/08/66  335/373262",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-10",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-10",
         "time": "08:30",
         "client": "HALPIN CLAIRE VICTORIA ISE 339/4256160",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-10",
         "time": "09:00",
         "client": "TINELLO LOREDANA ISEE 339/5387049",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-10",
         "time": "09:30",
         "client": "GRILLI ALEX PER ISEE 3480301402",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-11",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "time": "08:30",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-11",
+        "time": "09:00",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-11",
+        "time": "09:30",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-11",
+        "time": "10:00",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-11",
+        "time": "10:30",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-11",
+        "time": "11:00",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-11",
+        "time": "11:30",
+        "client": "UFF CHIUSO X CHIUSURA PRATICHE",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "08:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "09:00",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "09:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "10:00",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "10:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "11:00",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-12",
         "time": "11:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "08:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "09:00",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "09:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "10:00",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "10:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "11:00",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-13",
         "time": "11:30",
         "client": "UFF CHIUSO X CHIUSURA PRATICHE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-16",
         "time": "08:30",
         "client": "FOLLI DANIELA RICOST. PENSIONE MUCCINELLI INES 347/6144520",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-16",
         "time": "09:00",
         "client": "FOLLI DANIELA RICOST. PENSIONE MUCCINELLI INES 347/6144520",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
-        "date": "2026-02-17",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "date": "2026-02-16",
+        "time": "09:30",
+        "client": "salomooni g.luca ved per pensione 345/1367741",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-16",
+        "time": "10:00",
+        "client": "salomooni g.luca ved per pensione 345/1367741",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-16",
+        "time": "10:30",
+        "client": "manfredonia antonio per redd inclusione  339/1735517",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-16",
+        "time": "11:00",
+        "client": "venturelli barbara per rarei 340/3732041",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-17",
         "time": "08:30",
         "client": "FOLLI DANIELA ISEE  347/6144520",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-17",
         "time": "09:30",
         "client": "CONTE FRANCA ISEE 347/0997203",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-18",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-19",
         "time": "08:30",
         "client": "pirazzoli claidia disocc. Agricola 347/6491819",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-19",
         "time": "09:00",
         "client": "girlandoattilio / zini maria rosa per aggr invalidita'  348/5464642",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-19",
         "time": "09:30",
         "client": "girlandoattilio / zini maria rosa per aggr invalidita'  348/5464642",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-19",
         "time": "10:00",
         "client": "gilrlandi lidia ved per pensione   348/5464642",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-19",
         "time": "10:30",
         "client": "gilrlandi lidia ved per pensione   348/5464642",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
-        "date": "2026-02-20",
-        "time": "08:30",
-        "client": "TELLOLI ITALO VED PER PENSIONE 17/07/64  MILANI ELIA VED PER PENSIONE 03/06/65",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-20",
-        "time": "09:00",
-        "client": "TELLOLI ITALO VED PER PENSIONE 17/07/64  MILANI ELIA VED PER PENSIONE 03/06/65",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-20",
-        "time": "09:30",
-        "client": "TELLOLI ITALO VED PER PENSIONE 17/07/64  MILANI ELIA VED PER PENSIONE 03/06/65",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-23",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-23",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-23",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-23",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-23",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-23",
+        "date": "2026-02-19",
         "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "February"
+        "client": "agnelli samantha per pensione e 104  333/6049782",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
-        "date": "2026-02-23",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
+        "date": "2026-02-20",
+        "time": "08:30",
+        "client": "TELLOLI ITALO VED PER PENSIONE 17/07/64  MILANI ELIA VED PER PENSIONE 03/06/65",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
-        "date": "2026-02-24",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "date": "2026-02-20",
+        "time": "09:00",
+        "client": "TELLOLI ITALO VED PER PENSIONE 17/07/64  MILANI ELIA VED PER PENSIONE 03/06/65",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
-        "date": "2026-02-25",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "date": "2026-02-20",
+        "time": "09:30",
+        "client": "TELLOLI ITALO VED PER PENSIONE 17/07/64  MILANI ELIA VED PER PENSIONE 03/06/65",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-20",
+        "time": "10:00",
+        "client": "appuntamento mercurio giorgia disoccupazione agricola - 3455027267. giorgia.sandro4@gmail.com",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-20",
+        "time": "10:30",
+        "client": "MONTI FABIO REVERSIBILITA'338/1272794",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "imola",
+        "date": "2026-02-20",
+        "time": "11:00",
+        "client": "paolo muccinelli ved per pensione  (lita) 335/5439519",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-02-25",
         "time": "09:00",
         "client": "TERRANOVA FRANCESCA ISE PER ASS UNICO  338/4379868",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-26",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "February"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-02-27",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-02-27",
         "time": "09:30",
         "client": "GRILLI ALEX PER ISEE  corrente3480301402",
-        "month": "February"
+        "month": "Febbraio",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
-        "date": "2026-03-04",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-05",
+        "date": "2026-03-16",
         "time": "08:30",
-        "client": "app. presso inps",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-05",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-05",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-05",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-06",
-        "time": "11:00",
-        "client": "CUTI",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-06",
-        "time": "11:30",
-        "client": "CUTI",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-10",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-11",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "08:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "09:00",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "09:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "10:00",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "10:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "11:00",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-12",
-        "time": "11:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "08:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "09:00",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "09:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "10:00",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "10:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "11:00",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-13",
-        "time": "11:30",
-        "client": "chusura pratiche",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-17",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-18",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-24",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-25",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
+        "client": "trombetti aldo modific. Ass unico 347/3586638",
+        "month": "Marzo",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-03-25",
         "time": "12:00",
         "client": "TRAVERSARI SARA ISEE 347/8502220",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-26",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-27",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-03-31",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "March"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-01",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-03",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-08",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-09",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-09",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-09",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-09",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-14",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-15",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-16",
-        "time": "08:30",
-        "client": "app. presso inps",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-16",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-16",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-16",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-21",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-22",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "08:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-27",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-28",
-        "time": "08:00",
-        "client": "SOLO ISEE MILECE",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-29",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "08:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-04-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "April"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-05",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-06",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-08",
-        "time": "11:00",
-        "client": "CUTI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-08",
-        "time": "11:30",
-        "client": "CUTI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-08",
-        "time": "12:00",
-        "client": "CUTI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "08:30",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "09:00",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "09:30",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "10:00",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "10:30",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "11:00",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "11:30",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "12:00",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "12:30",
-        "client": "BORGO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-12",
-        "time": "14:30",
-        "client": "BIANCHI STEFANIA CONVALIDA DIMISSIONI DOMANDA DI PENSIONE",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-13",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-14",
-        "time": "08:30",
-        "client": "app. presso inps",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-14",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-14",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-14",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-19",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-20",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-22",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-25",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-26",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-27",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-28",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-05-29",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "May"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-03",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
+        "month": "Marzo",
+        "operator": "MILECE"
       },
       {
         "sede": "imola",
         "date": "2026-06-05",
         "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "June"
+        "client": "fini m gabriella ved per pensione  28/02/64  335/7460239",
+        "month": "Giugno",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
-        "date": "2026-06-09",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
+        "date": "2026-06-05",
         "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-10",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-11",
-        "time": "08:30",
-        "client": "app. presso inps",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-11",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-11",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-11",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-16",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-17",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-23",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-24",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-25",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-26",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-29",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-06-30",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "June"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-01",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-03",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-07",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-08",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-09",
-        "time": "08:30",
-        "client": "app. presso inps",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-09",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-09",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-09",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-14",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-15",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-22",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
+        "client": "fini m gabriella ved per pensione  28/02/64  335/7460239",
+        "month": "Giugno",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-07-23",
         "time": "08:30",
         "client": "DALL'OLIO DAVIDE VED PENSIONE 347/8308342",
-        "month": "July"
+        "month": "Luglio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-07-23",
         "time": "09:00",
         "client": "DALL'OLIO DAVIDE VED PENSIONE 347/8308342",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-24",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-27",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-28",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-29",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-30",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-07-31",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "July"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-02",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
+        "month": "Luglio",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-09-03",
         "time": "08:30",
         "client": "bianchi monica domanda di pensoione?  333/8146047 rif Stefy B:",
-        "month": "September"
+        "month": "Settembre",
+        "operator": "LOREDANA"
       },
       {
         "sede": "imola",
         "date": "2026-09-03",
         "time": "09:00",
         "client": "bianchi monica domanda di pensoione?  333/8146047 rif Stefy B:",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-04",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-08",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-09",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-10",
-        "time": "08:00",
-        "client": "app. presso inps",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-10",
-        "time": "08:30",
-        "client": "app. presso inps",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-10",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-10",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-10",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-11",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-15",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-16",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-18",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-22",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-23",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "08:30",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "09:00",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "09:30",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "10:00",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "10:30",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "11:00",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "11:30",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "12:00",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-24",
-        "time": "12:30",
-        "client": "NO LORY",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-25",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-28",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-29",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-09-30",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "September"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-02",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-06",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-07",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-09",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "08:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "08:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "09:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "09:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "10:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "10:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "11:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "11:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-12",
-        "time": "12:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-13",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "08:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "08:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "09:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "09:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "10:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "10:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "11:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "11:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-14",
-        "time": "12:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "08:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "08:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "09:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "09:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "10:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "10:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "11:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "11:30",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-15",
-        "time": "12:00",
-        "client": "no app",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-16",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-20",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-21",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-23",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-27",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-28",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-29",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-30",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-10-31",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "October"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-04",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-06",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-10",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-11",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-12",
-        "time": "08:30",
-        "client": "app. presso inps",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-12",
-        "time": "09:00",
-        "client": "app. presso inps",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-12",
-        "time": "09:30",
-        "client": "app. presso inps",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-12",
-        "time": "10:00",
-        "client": "app. presso inps",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-13",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-17",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-18",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-20",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-24",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-25",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-26",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-27",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-11-30",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "November"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-01",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-02",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-04",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-07",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-09",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-11",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-15",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-16",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-18",
-        "time": "08:00",
-        "client": "SOLO ISEE LUCA LANDI",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-21",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-22",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-23",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-24",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-28",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-29",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-30",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "08:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "09:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "09:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "10:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "10:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "11:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "11:30",
-        "client": "UFF CHIUSO",
-        "month": "December"
-      },
-      {
-        "sede": "imola",
-        "date": "2026-12-31",
-        "time": "12:00",
-        "client": "UFF CHIUSO",
-        "month": "December"
+        "month": "Settembre",
+        "operator": "LOREDANA"
+      }
+    ],
+    "cspt": [],
+    "borgo": [
+      {
+        "sede": "imola",
+        "date": "2026-05-12",
+        "time": "14:30",
+        "client": "BIANCHI STEFANIA CONVALIDA DIMISSIONI DOMANDA DI PENSIONE",
+        "month": "Maggio",
+        "operator": "LOREDANA"
       }
     ]
   }

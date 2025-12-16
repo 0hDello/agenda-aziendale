@@ -598,7 +598,7 @@ const scrollContainerRef = useRef<HTMLDivElement>(null);
                 <p className="text-xs text-gray-600 mt-0.5">Gestione appuntamenti</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setSelectedDate(subDays(selectedDate, 1))}
                 className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
@@ -620,11 +620,20 @@ const scrollContainerRef = useRef<HTMLDivElement>(null);
                 <ChevronRight className="w-4 h-4 text-gray-600" />
               </button>
               <button
-                onClick={() => setSelectedDate(new Date())}
+                onClick={() => {
+                  setSelectedDate(new Date());
+                  setTimeout(() => {
+                    const todayElement = document.getElementById('today-row');
+                    if (todayElement && scrollContainerRef.current) {
+                      todayElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }, 100);
+                }}
                 className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
               >
                 Oggi
               </button>
+
               
               <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                 <Building2 className="w-5 h-5 text-[#005CA9]" />
@@ -682,8 +691,8 @@ const scrollContainerRef = useRef<HTMLDivElement>(null);
                   const isToday = formatDate(new Date()) === dateStr;
                   
                   return (
-                    <React.Fragment key={dateStr}>
-                      <tr>
+                                        <React.Fragment key={dateStr}>
+                      <tr id={isToday ? 'today-row' : undefined}>
                         <td 
                           colSpan={sedePersone.length + 1}
                           className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
@@ -695,6 +704,7 @@ const scrollContainerRef = useRef<HTMLDivElement>(null);
                           {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
                         </td>
                       </tr>
+
                       
                       {TIME_SLOTS.map((slot) => {
                         return (

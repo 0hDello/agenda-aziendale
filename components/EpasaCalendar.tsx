@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, ChevronDown, User } from 'lucide-react';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, Building2, ChevronDown, User, Filter } from 'lucide-react';
 
 interface EpasaCalendarProps {
   agendaId: string;
@@ -15,11 +13,12 @@ interface Appointment {
   time: string;
   client: string;
   month: string;
+  operator: string; // "MILECE" o "LOREDANA"
 }
 
 interface SedeData {
   [date: string]: {
-    [time: string]: string | null;
+    [time: string]: Appointment | null;
   };
 }
 
@@ -40,8 +39,15 @@ const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'
 ];
 
+const OPERATORS = [
+  { id: 'all', name: 'Tutti', color: '#005CA9' },
+  { id: 'MILECE', name: 'MILECE', color: '#DC2626' },
+  { id: 'LOREDANA', name: 'LOREDANA', color: '#16A34A' }
+];
+
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedSede, setSelectedSede] = useState(SEDI[0]);
+  const [selectedOperator, setSelectedOperator] = useState('all');
   const [currentMonth, setCurrentMonth] = useState(0);
   const [currentYear] = useState(2026);
   const [sedeData, setSedeData] = useState<SedeData>({});
@@ -56,7 +62,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (allAppointments.length > 0) {
       processSedeData();
     }
-  }, [selectedSede, currentMonth, allAppointments]);
+  }, [selectedSede, selectedOperator, currentMonth, allAppointments]);
 
   const loadAppointmentsData = async () => {
     setLoading(true);
@@ -98,13 +104,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const filteredAppointments = allAppointments.filter(app => {
       if (app.sede !== selectedSede.id) return false;
 
+      // Filtra per operatore se selezionato
+      if (selectedOperator !== 'all' && app.operator !== selectedOperator) return false;
+
       const appDate = new Date(app.date);
       return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
     });
 
     filteredAppointments.forEach(app => {
       if (newSedeData[app.date] && TIME_SLOTS.includes(app.time)) {
-        newSedeData[app.date][app.time] = app.client;
+        newSedeData[app.date][app.time] = app;
       }
     });
 
@@ -127,10 +136,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // Calcola appuntamenti del mese corrente per la sede selezionata
-  const monthAppointmentsCount = allAppointments.filter(
-    a => a.sede === selectedSede.id && new Date(a.date).getMonth() === currentMonth
-  ).length;
+  // Calcola statistiche per il mese corrente
+  const monthStats = allAppointments.reduce((acc, app) => {
+    if (app.sede === selectedSede.id && new Date(app.date).getMonth() === currentMonth) {
+      if (!acc[app.operator]) acc[app.operator] = 0;
+      acc[app.operator]++;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalMonthAppointments = Object.values(monthStats).reduce((sum, count) => sum + count, 0);
 
   if (loading) {
     return (
@@ -162,7 +177,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                     EPASA - {selectedSede.name}
                   </h1>
                   <p className="text-xs text-gray-600 mt-0.5">
-                    {monthAppointmentsCount} appuntamenti in {MONTHS[currentMonth]}
+                    {totalMonthAppointments} appuntamenti in {MONTHS[currentMonth]}
+                    {monthStats.MILECE && ` (MILECE: ${monthStats.MILECE})`}
+                    {monthStats.LOREDANA && ` (LOREDANA: ${monthStats.LOREDANA})`}
                   </p>
                 </div>
               </div>
@@ -190,8 +207,27 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* Selettore sede */}
+                {/* Selettore operatore */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
+                  <Filter className="w-4 h-4 text-gray-500" />
+                  <div className="relative">
+                    <select
+                      value={selectedOperator}
+                      onChange={(e) => setSelectedOperator(e.target.value)}
+                      className="px-3 py-2 pr-8 text-sm bg-white text-gray-700 border-2 border-gray-200 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-gray-50 appearance-none"
+                    >
+                      {OPERATORS.map((op) => (
+                        <option key={op.id} value={op.id} className="text-gray-800 bg-white">
+                          {op.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Selettore sede */}
+                <div className="flex items-center gap-2 border-l border-gray-300 pl-2">
                   <div className="relative">
                     <select
                       value={selectedSede.id}
@@ -231,7 +267,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                     return (
                       <th
                         key={day}
-                        className={`p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[120px] ${
+                        className={`p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[140px] ${ 
                           isWeekend ? 'bg-gray-100' : ''
                         }`}
                       >
@@ -259,6 +295,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       const date = new Date(currentYear, currentMonth, day);
                       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
+                      // Colori per operatore
+                      const operatorColors = {
+                        MILECE: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', badge: 'bg-red-100' },
+                        LOREDANA: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', badge: 'bg-green-100' }
+                      };
+
+                      const colors = appointment ? operatorColors[appointment.operator as keyof typeof operatorColors] : null;
+
                       return (
                         <td
                           key={day}
@@ -269,13 +313,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                         >
                           {appointment ? (
                             <div
-                              className="w-full h-full px-2 py-1 cursor-pointer hover:bg-[#005CA9]/10 transition-all flex items-center bg-[#005CA9]/5"
-                              title={`${appointment} - ${time}`}
+                              className={`w-full h-full px-2 py-1 cursor-pointer transition-all flex flex-col justify-center ${colors?.bg} hover:opacity-80 border-l-2 ${colors?.border}`}
+                              title={`${appointment.client} - ${time} (${appointment.operator})`}
                             >
-                              <div className="flex items-center gap-1.5 w-full">
-                                <User size={12} className="text-[#005CA9] flex-shrink-0" />
-                                <span className="text-[10px] text-gray-700 font-medium truncate">
-                                  {appointment}
+                              <div className="flex items-center gap-1.5 w-full mb-0.5">
+                                <User size={10} className={colors?.text + " flex-shrink-0"} />
+                                <span className={`text-[9px] font-medium truncate ${colors?.text}`}>
+                                  {appointment.client}
+                                </span>
+                              </div>
+                              <div className="flex justify-end">
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded ${colors?.badge} ${colors?.text} font-bold`}>
+                                  {appointment.operator}
                                 </span>
                               </div>
                             </div>
