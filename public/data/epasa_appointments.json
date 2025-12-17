@@ -181,7 +181,7 @@
         "sede": "imola",
         "date": "2026-01-09",
         "time": "11:00",
-        "client": "Orefice beatrice  3394369392 x isee",
+        "client": "Orefice beatrice  3394369392 x isee",
         "month": "Gennaio",
         "operator": "MILECE"
       },
@@ -1714,13 +1714,406 @@
         "operator": "LOREDANA"
       }
     ],
-    "cspt": [],
     "borgo": [
       {
-        "sede": "imola",
-        "date": "2026-05-12",
+        "sede": "borgo",
+        "date": "2026-01-13",
+        "time": "09:00",
+        "client": "SPADA MARISA X DISOC. AGRICOLA  366/9598991",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-13",
+        "time": "09:30",
+        "client": "NINA DOMCHE ISEE 328/8147854",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-13",
+        "time": "10:00",
+        "client": "SOLA GIUSEPPINA RED?? 338/3526332",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-13",
+        "time": "10:30",
+        "client": "LOZZI ANTONELLA PER PERMESSI 104  351/6998933",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-13",
+        "time": "11:00",
+        "client": "susy  piancaldini x ricost pensione figlia 339/6533855",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-13",
+        "time": "11:30",
+        "client": "susy  piancaldini x ricost pensione figlia 339/6533855",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-20",
+        "time": "09:00",
+        "client": "galessi paola isee 349/8737196 + arr ass unico",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-20",
+        "time": "09:30",
+        "client": "galessi paola isee 349/8737196 + arr ass unico",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-20",
+        "time": "10:00",
+        "client": "simeoni robertaISEE 338/6246717",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-20",
+        "time": "10:30",
+        "client": "3891192778  LORIS  nipote di ettore per isee",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-20",
+        "time": "11:00",
+        "client": "MARTIN CRISTINA ISEE  348/3544603",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-01-20",
+        "time": "11:30",
+        "client": "simeoni roberta permessi + isee",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-10",
+        "time": "09:00",
+        "client": "ANDOLFI MARIO RINNOVO ISEE 3476478018",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-10",
+        "time": "09:30",
+        "client": "gramantieri m. rosa ved per pensione 335/8489483",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-10",
+        "time": "10:00",
+        "client": "gramantieri m. rosa ved per pensione 335/8489483",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-10",
+        "time": "10:30",
+        "client": "salomoni sara isee + naspi salomoni matteo  345/1367741",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-10",
+        "time": "11:00",
+        "client": "salomoni sara isee + naspi salomoni matteo  345/1367741",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-10",
+        "time": "11:30",
+        "client": "sentimenti burno red 338 1455320",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-17",
+        "time": "09:00",
+        "client": "romano sanio isee 339/3664065",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-17",
+        "time": "09:30",
+        "client": "CANDITA CATIA VED PER PENSIONE 333/2427289",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "borgo",
+        "date": "2026-02-17",
+        "time": "10:00",
+        "client": "CANDITA CATIA VED PER PENSIONE 333/2427289",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      }
+    ],
+    "cspt": [
+      {
+        "sede": "cspt",
+        "date": "2026-01-12",
         "time": "14:30",
-        "client": "BIANCHI STEFANIA CONVALIDA DIMISSIONI DOMANDA DI PENSIONE",
+        "client": "PATRIZIA ZUFFI ISE 338/7565853",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-12",
+        "time": "15:00",
+        "client": "savoia nadia ise 335/7081043",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-12",
+        "time": "15:30",
+        "client": "manganiello vincenzo x verific. Contributi 334/9134877",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-12",
+        "time": "16:00",
+        "client": "manganiello vincenzo x verific. Contributi 334/9134877",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-12",
+        "time": "16:30",
+        "client": "CAVALIERI ROBERTA ISE340/4827056",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-19",
+        "time": "14:00",
+        "client": "BILLI MONICA X PENSIONE ANTICIPATA 348/6009653",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-19",
+        "time": "14:30",
+        "client": "ZANOTTI MIRCA X  ISEE 338/2800634",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-19",
+        "time": "15:00",
+        "client": "assirelli manila isee 347/9788032",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-19",
+        "time": "15:30",
+        "client": "MACCHIAVELLI FRANCESCA ISE347/0535580",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-19",
+        "time": "16:00",
+        "client": "ALVISI MARINA ISE 333/5974817",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-01-19",
+        "time": "16:30",
+        "client": "landi veronica isee 338/3269880",
+        "month": "Gennaio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-02",
+        "time": "14:30",
+        "client": "ferrari ilves red 348/5632575",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-02",
+        "time": "15:00",
+        "client": "zazzaroni alessandro isee 338/6454429",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-02",
+        "time": "15:30",
+        "client": "DE DOMINICIS ANTONELLA ISEE 388/9220689",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-02",
+        "time": "16:00",
+        "client": "GIACOMETTI MIRCO ISEE 347/6331277",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-02",
+        "time": "16:30",
+        "client": "ZARDI ELISA ISEE 328/6348081",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-09",
+        "time": "14:00",
+        "client": "minarelli x isee genitori 3486830007",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-09",
+        "time": "14:30",
+        "client": "minarelli x isee genitori 3486830007",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-09",
+        "time": "15:00",
+        "client": "PATELLI MARIA TERESA PER ISEE 051943611 teresa.patelli@alice.it",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-09",
+        "time": "15:30",
+        "client": "ANGELI SONIA ISEE 338/7236296",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-09",
+        "time": "16:00",
+        "client": "GNAZZO ANTONIO ISEE 339/4036408",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-02-09",
+        "time": "16:30",
+        "client": "CARDONE SERGIO PER PENSIONE 3347391728",
+        "month": "Febbraio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-03-02",
+        "time": "14:30",
+        "client": "ghini monica isee 347/6238181",
+        "month": "Marzo",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-03-02",
+        "time": "15:00",
+        "client": "sgobbo simona iess 346/2136767",
+        "month": "Marzo",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-03-02",
+        "time": "15:30",
+        "client": "STRALCE A.RITA ISEE 327/4585188",
+        "month": "Marzo",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-03-02",
+        "time": "16:00",
+        "client": "nitti marianna isee 349/8365383",
+        "month": "Marzo",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-03-02",
+        "time": "16:30",
+        "client": "giammalva rosalia isee 338/1611193",
+        "month": "Marzo",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-05-11",
+        "time": "14:30",
+        "client": "RAVAGLIA STEFANO  DOMANDA DI PENSIUONE 333/4731526",
+        "month": "Maggio",
+        "operator": "LOREDANA"
+      },
+      {
+        "sede": "cspt",
+        "date": "2026-05-11",
+        "time": "15:00",
+        "client": "RAVAGLIA STEFANO  DOMANDA DI PENSIUONE 333/4731526",
         "month": "Maggio",
         "operator": "LOREDANA"
       }
