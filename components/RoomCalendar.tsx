@@ -1,34 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, ChevronDown } from 'lucide-react';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, Building2, ChevronDown } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import RoomAppointmentModal from './RoomAppointmentModal';
 
 interface RoomCalendarProps {
   agendaId: string;
 }
 
+interface Room {
+  id: string;
+  nome: string;
+  colore: string;
+}
+
 interface Appointment {
-  room: string;
-  date: string;
-  time: string;
-  title: string;
-  month: string;
+  id: string;
+  sala_id: string;
+  data: string;
+  ora: string;
+  titolo: string;
+  mese: string;
 }
 
 interface RoomData {
   [date: string]: {
-    [time: string]: string | null;
+    [time: string]: { id: string; title: string } | null;
   };
 }
-
-const ROOMS = [
-  { id: 'imola', name: 'Sala Riunioni Imola', file: 'Sala-riunioni-2026-Imola.xlsx', color: '#16A34A' },
-  { id: 'cspt', name: 'Sala Riunioni CSPT', file: 'Sala-riunioni-2026-CSPT.xlsx', color: '#DC2626' },
-  { id: 'saletta', name: 'Saletta Primo Piano', file: 'Saletta-primo-piano-2026-Imola.xlsx', color: '#9333EA' }
-];
 
 const MONTHS = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -41,7 +41,6 @@ const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'
 ];
 
-// Mappa colori per diversi tipi di appuntamenti
 const APPOINTMENT_COLORS: { [key: string]: string } = {
   'VISITE PATENTI': '#DC2626',
   'CORSO CQC': '#2563EB',
@@ -52,21 +51,16 @@ const APPOINTMENT_COLORS: { [key: string]: string } = {
 };
 
 function getColorForAppointment(title: string): string {
-  if (APPOINTMENT_COLORS[title]) {
-    return APPOINTMENT_COLORS[title];
-  }
-
+  if (APPOINTMENT_COLORS[title]) return APPOINTMENT_COLORS[title];
   for (const key in APPOINTMENT_COLORS) {
-    if (title.includes(key)) {
-      return APPOINTMENT_COLORS[key];
-    }
+    if (title.includes(key)) return APPOINTMENT_COLORS[key];
   }
-
   return APPOINTMENT_COLORS['DEFAULT'];
 }
 
 export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
-  const [selectedRoom, setSelectedRoom] = useState(ROOMS[0]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [currentMonth, setCurrentMonth] = useState(0);
   const [currentYear] = useState(2026);
   const [roomData, setRoomData] = useState<RoomData>({});
@@ -76,62 +70,81 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
 
   useEffect(() => {
-    loadAppointmentsData();
+    loadData();
   }, []);
 
   useEffect(() => {
-    if (allAppointments.length > 0) {
+  if (rooms.length > 0 && !selectedRoom) {
+    // Cerca la sala di Imola come default
+    const imolaSala = rooms.find(r => r.id === 'imola');
+    setSelectedRoom(imolaSala || rooms[0]);
+  }
+}, [rooms, selectedRoom]);
+
+  useEffect(() => {
+    if (allAppointments.length > 0 && selectedRoom) {
       processRoomData();
     }
   }, [selectedRoom, currentMonth, allAppointments]);
 
-  const loadAppointmentsData = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/data/room_appointments.json');
-      if (!response.ok) {
-        throw new Error('Failed to load appointments data');
+      // Carica sale
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('room_sale')
+        .select('*')
+        .order('id');
+
+      if (roomsError) throw roomsError;
+      if (roomsData) setRooms(roomsData);
+
+      // Carica appuntamenti
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('room_appuntamenti')
+        .select('*')
+        .order('data', { ascending: true });
+
+      if (appointmentsError) throw appointmentsError;
+      if (appointmentsData) {
+        const normalized = appointmentsData.map(apt => ({
+          ...apt,
+          data: apt.data.split('T')[0],
+          ora: typeof apt.ora === 'string' ? apt.ora.substring(0, 5) : apt.ora
+        }));
+        setAllAppointments(normalized);
       }
-      const data = await response.json();
 
-      const allApps: Appointment[] = [];
-      Object.keys(data.rooms).forEach(roomId => {
-        allApps.push(...data.rooms[roomId]);
-      });
-
-      setAllAppointments(allApps);
       setLoading(false);
     } catch (error) {
-      console.error('Errore caricamento dati appuntamenti:', error);
-      setAllAppointments([]);
+      console.error('Errore caricamento dati:', error);
       setLoading(false);
     }
   };
 
   const processRoomData = () => {
-    const newRoomData: RoomData = {};
+    if (!selectedRoom) return;
 
+    const newRoomData: RoomData = {};
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       newRoomData[dateKey] = {};
-
       TIME_SLOTS.forEach(time => {
         newRoomData[dateKey][time] = null;
       });
     }
 
     const filteredAppointments = allAppointments.filter(app => {
-      if (app.room !== selectedRoom.id) return false;
-
-      const appDate = new Date(app.date);
+      if (app.sala_id !== selectedRoom.id) return false;
+      const appDate = new Date(app.data);
       return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
     });
 
     filteredAppointments.forEach(app => {
-      if (newRoomData[app.date] && TIME_SLOTS.includes(app.time)) {
-        newRoomData[app.date][app.time] = app.title;
+      if (newRoomData[app.data] && TIME_SLOTS.includes(app.ora)) {
+        newRoomData[app.data][app.ora] = { id: app.id, title: app.titolo };
       }
     });
 
@@ -144,40 +157,89 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   };
 
   const handleSaveAppointment = async (data: { date: string; time: string; title: string }) => {
-    // Aggiorna l'array degli appuntamenti
-    const newAppointment: Appointment = {
-      room: selectedRoom.id,
-      date: data.date,
-      time: data.time,
-      title: data.title,
-      month: MONTHS[new Date(data.date).getMonth()],
-    };
+    if (!selectedRoom) return;
 
-    // Rimuovi eventuale appuntamento esistente nello stesso slot
-    const updatedAppointments = allAppointments.filter(
-      app => !(app.room === selectedRoom.id && app.date === data.date && app.time === data.time)
-    );
+    try {
+      const date = new Date(data.date);
+      const mese = MONTHS[date.getMonth()];
 
-    // Aggiungi il nuovo appuntamento
-    updatedAppointments.push(newAppointment);
-    setAllAppointments(updatedAppointments);
+      // Controlla se esiste già un appuntamento in questo slot
+      const existing = allAppointments.find(
+        app => app.sala_id === selectedRoom.id && app.data === data.date && app.ora === data.time
+      );
 
-    // TODO: Qui dovresti salvare i dati su un backend o file
-    console.log('Appuntamento salvato:', newAppointment);
+      if (existing) {
+        // Aggiorna
+        const { data: updated, error } = await supabase
+          .from('room_appuntamenti')
+          .update({ titolo: data.title, mese, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (updated) {
+          const normalized = {
+            ...updated,
+            data: updated.data.split('T')[0],
+            ora: typeof updated.ora === 'string' ? updated.ora.substring(0, 5) : updated.ora
+          };
+          setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? normalized : apt));
+        }
+      } else {
+        // Crea nuovo
+        const { data: newApp, error } = await supabase
+          .from('room_appuntamenti')
+          .insert([{
+            sala_id: selectedRoom.id,
+            data: data.date,
+            ora: data.time,
+            titolo: data.title,
+            mese
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (newApp) {
+          const normalized = {
+            ...newApp,
+            data: newApp.data.split('T')[0],
+            ora: typeof newApp.ora === 'string' ? newApp.ora.substring(0, 5) : newApp.ora
+          };
+          setAllAppointments(prev => [...prev, normalized]);
+        }
+      }
+    } catch (error) {
+      console.error('Errore salvataggio appuntamento:', error);
+      alert('Errore durante il salvataggio dell\'appuntamento');
+    }
   };
 
-  const handleDeleteAppointment = () => {
-    if (!selectedSlot) return;
+  const handleDeleteAppointment = async () => {
+    if (!selectedSlot || !selectedRoom) return;
 
-    // Rimuovi l'appuntamento dall'array
-    const updatedAppointments = allAppointments.filter(
-      app => !(app.room === selectedRoom.id && app.date === selectedSlot.date && app.time === selectedSlot.time)
+    const appointment = allAppointments.find(
+      app => app.sala_id === selectedRoom.id && app.data === selectedSlot.date && app.ora === selectedSlot.time
     );
 
-    setAllAppointments(updatedAppointments);
+    if (!appointment) return;
 
-    // TODO: Qui dovresti salvare i dati su un backend o file
-    console.log('Appuntamento eliminato:', selectedSlot);
+    try {
+      const { error } = await supabase
+        .from('room_appuntamenti')
+        .delete()
+        .eq('id', appointment.id);
+
+      if (error) throw error;
+
+      setAllAppointments(prev => prev.filter(apt => apt.id !== appointment.id));
+    } catch (error) {
+      console.error('Errore eliminazione appuntamento:', error);
+      alert('Errore durante l\'eliminazione dell\'appuntamento');
+    }
   };
 
   const getDaysInMonth = () => {
@@ -185,54 +247,45 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   };
 
   const previousMonth = () => {
-    if (currentMonth > 0) {
-      setCurrentMonth(currentMonth - 1);
-    }
+    if (currentMonth > 0) setCurrentMonth(currentMonth - 1);
   };
 
   const nextMonth = () => {
-    if (currentMonth < 11) {
-      setCurrentMonth(currentMonth + 1);
-    }
+    if (currentMonth < 11) setCurrentMonth(currentMonth + 1);
   };
 
-  // Calcola prenotazioni del mese corrente per la sala selezionata
-  const monthAppointmentsCount = allAppointments.filter(
-    a => a.room === selectedRoom.id && new Date(a.date).getMonth() === currentMonth
-  ).length;
-
-  const currentAppointment = selectedSlot 
-    ? roomData[selectedSlot.date]?.[selectedSlot.time] 
-    : null;
-
-  if (loading) {
+  if (loading || !selectedRoom) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#005CA9] mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Caricamento dati sale riunioni...</p>
+          <p className="mt-4 text-gray-600 font-medium">Caricamento sale riunioni...</p>
         </div>
       </div>
     );
   }
 
+  const monthAppointmentsCount = allAppointments.filter(
+    a => a.sala_id === selectedRoom.id && new Date(a.data).getMonth() === currentMonth
+  ).length;
+
+  const currentAppointment = selectedSlot 
+    ? roomData[selectedSlot.date]?.[selectedSlot.time]
+    : null;
+
   return (
     <div className="min-h-screen p-1 md:p-2 animate-fade-in">
       <div className="max-w-[1800px] mx-auto">
-        {/* Contenitore principale */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
-
-          {/* Header superiore UNICO con tutto */}
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-              {/* Sinistra: Info sala e statistiche */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <Building2 className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-[#005CA9]">
-                    {selectedRoom.name}
+                    {selectedRoom.nome}
                   </h1>
                   <p className="text-xs text-gray-600 mt-0.5">
                     {monthAppointmentsCount} prenotazioni in {MONTHS[currentMonth]}
@@ -240,9 +293,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                 </div>
               </div>
 
-              {/* Destra: Controlli */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Navigazione mesi */}
                 <button
                   onClick={previousMonth}
                   disabled={currentMonth === 0}
@@ -263,20 +314,19 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* Selettore sala */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <div className="relative">
                     <select
                       value={selectedRoom.id}
                       onChange={(e) => {
-                        const room = ROOMS.find(r => r.id === e.target.value);
+                        const room = rooms.find(r => r.id === e.target.value);
                         if (room) setSelectedRoom(room);
                       }}
                       className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
                     >
-                      {ROOMS.map((room) => (
+                      {rooms.map((room) => (
                         <option key={room.id} value={room.id} className="text-gray-800 bg-white">
-                          {room.name}
+                          {room.nome}
                         </option>
                       ))}
                     </select>
@@ -287,7 +337,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
             </div>
           </div>
 
-          {/* Tabella calendario */}
           <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
             <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead className="sticky top-0 z-20">
@@ -344,13 +393,13 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                             <div
                               className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center text-white text-[10px] font-semibold px-1"
                               style={{ 
-                                backgroundColor: getColorForAppointment(appointment)
+                                backgroundColor: getColorForAppointment(appointment.title)
                               }}
-                              title={`${appointment} - ${time}`}
+                              title={`${appointment.title} - ${time}`}
                               onClick={() => handleCellClick(dateKey, time)}
                             >
                               <span className="text-center leading-tight overflow-hidden text-ellipsis line-clamp-2">
-                                {appointment}
+                                {appointment.title}
                               </span>
                             </div>
                           ) : (
@@ -370,7 +419,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         </div>
       </div>
 
-      {/* Modal per aggiungere/modificare appuntamenti */}
       {selectedSlot && (
         <RoomAppointmentModal
           isOpen={isModalOpen}
@@ -382,8 +430,8 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           onDelete={currentAppointment ? handleDeleteAppointment : undefined}
           selectedDate={selectedSlot.date}
           selectedTime={selectedSlot.time}
-          existingAppointment={currentAppointment}
-          roomName={selectedRoom.name}
+          existingAppointment={currentAppointment?.title}
+          roomName={selectedRoom.nome}
         />
       )}
     </div>

@@ -111,36 +111,36 @@ export default function EpasaAppointmentModal({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-[#005CA9]">
+            <h2 className="text-lg font-bold text-[#005CA9]">
               {existingAppointment ? 'Modifica Appuntamento' : 'Nuovo Appuntamento'}
             </h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-0.5">
               EPASA - {selectedSede?.nome}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
           {/* Cliente */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <User size={16} className="text-[#005CA9]" />
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+              <User size={14} className="text-[#005CA9]" />
               Cliente *
             </label>
             <input
               type="text"
               value={formData.cliente}
               onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
               placeholder="Nome cliente"
               required
             />
@@ -148,14 +148,14 @@ export default function EpasaAppointmentModal({
 
           {/* Sede */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <MapPin size={16} className="text-[#005CA9]" />
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+              <MapPin size={14} className="text-[#005CA9]" />
               Sede
             </label>
             <select
               value={formData.sede_id}
               onChange={(e) => setFormData({ ...formData, sede_id: e.target.value })}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
             >
               {sedi.map((sede) => (
                 <option key={sede.id} value={sede.id}>
@@ -167,14 +167,14 @@ export default function EpasaAppointmentModal({
 
           {/* Operatore */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <User size={16} className="text-[#005CA9]" />
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+              <User size={14} className="text-[#005CA9]" />
               Operatore
             </label>
             <select
               value={formData.operatore_id}
               onChange={(e) => setFormData({ ...formData, operatore_id: e.target.value })}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
             >
               {operatori.map((op) => (
                 <option key={op.id} value={op.id}>
@@ -185,10 +185,10 @@ export default function EpasaAppointmentModal({
           </div>
 
           {/* Data e Ora */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <Clock size={16} className="text-[#005CA9]" />
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+                <Clock size={14} className="text-[#005CA9]" />
                 Data
               </label>
               <input
@@ -196,20 +196,20 @@ export default function EpasaAppointmentModal({
                 value={formData.data}
                 onChange={(e) => setFormData({ ...formData, data: e.target.value })}
                 min="2026-01-01"
-                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
                 required
               />
             </div>
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <Clock size={16} className="text-[#005CA9]" />
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+                <Clock size={14} className="text-[#005CA9]" />
                 Ora
               </label>
               <input
                 type="time"
                 value={formData.ora}
                 onChange={(e) => setFormData({ ...formData, ora: e.target.value })}
-                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
                 required
               />
             </div>
@@ -217,23 +217,23 @@ export default function EpasaAppointmentModal({
 
           {/* Note */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <FileText size={16} className="text-[#005CA9]" />
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+              <FileText size={14} className="text-[#005CA9]" />
               Note
             </label>
             <textarea
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors resize-none"
-              rows={3}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors resize-none text-sm"
+              rows={2}
               placeholder="Note aggiuntive (opzionale)"
             />
           </div>
 
           {/* Riepilogo */}
-          <div className="bg-blue-50 border-l-4 border-[#005CA9] p-4 rounded-lg">
-            <p className="text-xs font-semibold text-gray-700 mb-2">Riepilogo:</p>
-            <div className="space-y-1 text-xs text-gray-600">
+          <div className="bg-blue-50 border-l-4 border-[#005CA9] p-2.5 rounded-lg">
+            <p className="text-xs font-semibold text-gray-700 mb-1">Riepilogo:</p>
+            <div className="space-y-0.5 text-xs text-gray-600">
               <p>
                 <span className="font-semibold" style={{ color: selectedOperatore?.colore }}>
                   {selectedOperatore?.nome}
@@ -252,27 +252,27 @@ export default function EpasaAppointmentModal({
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-2 pt-2">
             {existingAppointment && (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold"
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold text-sm"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
                 Elimina
               </button>
             )}
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
+              className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-colors font-semibold"
+              className="flex-1 px-3 py-2 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-colors font-semibold text-sm"
             >
               {existingAppointment ? 'Salva' : 'Crea'}
             </button>

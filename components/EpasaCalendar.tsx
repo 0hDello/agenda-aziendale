@@ -156,48 +156,79 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   const handleCreateAppointment = async (data: any) => {
-    try {
-      const { error } = await supabase
-        .from('epasa_appuntamenti')
-        .insert([data]);
+  try {
+    const { data: newAppointment, error } = await supabase
+      .from('epasa_appuntamenti')
+      .insert([data])
+      .select()
+      .single();
 
-      if (error) throw error;
-      await loadData();
-    } catch (error) {
-      console.error('Errore creazione appuntamento:', error);
-      alert('Errore durante la creazione dell\'appuntamento');
+    if (error) throw error;
+    
+    // Aggiorna lo stato locale senza ricaricare tutto
+    if (newAppointment) {
+      const normalized = {
+        ...newAppointment,
+        data: newAppointment.data.split('T')[0],
+        ora: typeof newAppointment.ora === 'string' 
+          ? newAppointment.ora.substring(0, 5) 
+          : newAppointment.ora
+      };
+      setAllAppointments(prev => [...prev, normalized]);
     }
-  };
+  } catch (error) {
+    console.error('Errore creazione appuntamento:', error);
+    alert('Errore durante la creazione dell\'appuntamento');
+  }
+};
 
-  const handleUpdateAppointment = async (id: string, data: any) => {
-    try {
-      const { error } = await supabase
-        .from('epasa_appuntamenti')
-        .update(data)
-        .eq('id', id);
+const handleUpdateAppointment = async (id: string, data: any) => {
+  try {
+    const { data: updatedAppointment, error } = await supabase
+      .from('epasa_appuntamenti')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
 
-      if (error) throw error;
-      await loadData();
-    } catch (error) {
-      console.error('Errore aggiornamento appuntamento:', error);
-      alert('Errore durante l\'aggiornamento dell\'appuntamento');
+    if (error) throw error;
+    
+    // Aggiorna lo stato locale
+    if (updatedAppointment) {
+      const normalized = {
+        ...updatedAppointment,
+        data: updatedAppointment.data.split('T')[0],
+        ora: typeof updatedAppointment.ora === 'string' 
+          ? updatedAppointment.ora.substring(0, 5) 
+          : updatedAppointment.ora
+      };
+      setAllAppointments(prev => 
+        prev.map(apt => apt.id === id ? normalized : apt)
+      );
     }
-  };
+  } catch (error) {
+    console.error('Errore aggiornamento appuntamento:', error);
+    alert('Errore durante l\'aggiornamento dell\'appuntamento');
+  }
+};
 
-  const handleDeleteAppointment = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('epasa_appuntamenti')
-        .delete()
-        .eq('id', id);
+const handleDeleteAppointment = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('epasa_appuntamenti')
+      .delete()
+      .eq('id', id);
 
-      if (error) throw error;
-      await loadData();
-    } catch (error) {
-      console.error('Errore eliminazione appuntamento:', error);
-      alert('Errore durante l\'eliminazione dell\'appuntamento');
-    }
-  };
+    if (error) throw error;
+    
+    // Rimuovi dall'array locale
+    setAllAppointments(prev => prev.filter(apt => apt.id !== id));
+  } catch (error) {
+    console.error('Errore eliminazione appuntamento:', error);
+    alert('Errore durante l\'eliminazione dell\'appuntamento');
+  }
+};
+
 
   const openModalForNewAppointment = (date: string, time: string, operator: string) => {
     setSelectedSlot({ date, time, operator });
