@@ -8,14 +8,14 @@ import { supabase } from '@/lib/supabase';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
 import { formatDate, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
-import AppointmentModal from './AppointmentModal';
+import AppointmentModal from './AppointmentModal'; 
 import React from 'react';
 
 interface CalendarProps {
   agendaId?: string;
 }
 
-export default function Calendar({ agendaId = '730' }: CalendarProps) {
+export default function Calendar({ agendaId = '730' }: CalendarProps) {  
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [visibleDays, setVisibleDays] = useState<Date[]>([]);
   const [appointments, setAppointments] = useState<Appuntamento[]>([]);
