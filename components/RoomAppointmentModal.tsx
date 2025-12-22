@@ -8,20 +8,26 @@ import { it } from 'date-fns/locale';
 interface RoomAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { date: string; time: string; title: string }) => void;
+  onSave: (data: { date: string; time: string; title: string; endTime: string }) => void; // ⬅️ AGGIUNTO endTime
   onDelete?: () => void;
   selectedDate: string;
   selectedTime: string;
   existingAppointment?: string | null;
+  existingEndTime?: string | null; // ⬅️ NUOVO
   roomName: string;
 }
 
 const APPOINTMENT_OPTIONS = [
   'VISITE PATENTI',
   'CORSO CQC',
-  'RIUNIONE',
-  'FORMAZIONE',
-  'COLLOQUIO',
+  'CORSO',
+];
+
+// ⬅️ NUOVO: TIME_SLOTS per il selettore di ora fine
+const TIME_SLOTS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'
 ];
 
 export default function RoomAppointmentModal({
@@ -32,11 +38,13 @@ export default function RoomAppointmentModal({
   selectedDate,
   selectedTime,
   existingAppointment,
+  existingEndTime, // ⬅️ NUOVO
   roomName,
 }: RoomAppointmentModalProps) {
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [customTitle, setCustomTitle] = useState<string>('');
   const [useCustom, setUseCustom] = useState<boolean>(false);
+  const [endTime, setEndTime] = useState<string>(''); // ⬅️ NUOVO
 
   useEffect(() => {
     if (isOpen) {
@@ -51,24 +59,45 @@ export default function RoomAppointmentModal({
           setCustomTitle(existingAppointment);
           setUseCustom(true);
         }
+        
+        // ⬅️ NUOVO: Imposta ora fine esistente
+        if (existingEndTime) {
+          setEndTime(existingEndTime);
+        }
       } else {
         setSelectedOption('');
         setCustomTitle('');
         setUseCustom(false);
+        
+        // ⬅️ NUOVO: Ora fine di default = +2 ore (4 slot da 30min)
+        const startIdx = TIME_SLOTS.indexOf(selectedTime);
+        if (startIdx !== -1 && startIdx + 4 < TIME_SLOTS.length) {
+          setEndTime(TIME_SLOTS[startIdx + 4]);
+        } else if (startIdx !== -1) {
+          setEndTime(TIME_SLOTS[TIME_SLOTS.length - 1]);
+        }
       }
     }
-  }, [isOpen, existingAppointment]);
+  }, [isOpen, existingAppointment, existingEndTime, selectedTime]);
+
+  // ⬅️ NUOVO: Filtra solo gli orari validi (dopo l'ora di inizio)
+  const getAvailableEndTimes = () => {
+    const startIdx = TIME_SLOTS.indexOf(selectedTime);
+    if (startIdx === -1) return TIME_SLOTS;
+    return TIME_SLOTS.slice(startIdx + 1); // Solo orari dopo l'inizio
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     const title = useCustom ? customTitle : selectedOption;
-    if (!title.trim()) return;
+    if (!title.trim() || !endTime) return;
 
     onSave({
       date: selectedDate,
       time: selectedTime,
       title: title.trim(),
+      endTime: endTime, // ⬅️ NUOVO
     });
 
     onClose();
@@ -85,10 +114,23 @@ export default function RoomAppointmentModal({
 
   const dateObj = parseISO(selectedDate);
   const formattedDate = format(dateObj, "EEEE dd MMMM yyyy", { locale: it });
+  
+  // ⬅️ NUOVO: Calcola durata in ore
+  const calculateDuration = () => {
+    const startIdx = TIME_SLOTS.indexOf(selectedTime);
+    const endIdx = TIME_SLOTS.indexOf(endTime);
+    if (startIdx === -1 || endIdx === -1) return '';
+    const slots = endIdx - startIdx;
+    const hours = Math.floor(slots / 2);
+    const mins = (slots % 2) * 30;
+    if (hours === 0) return `${mins} minuti`;
+    if (mins === 0) return `${hours} ${hours === 1 ? 'ora' : 'ore'}`;
+    return `${hours}h ${mins}m`;
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9] max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <div className="bg-[#005CA9] p-2 rounded-lg">
@@ -116,11 +158,35 @@ export default function RoomAppointmentModal({
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-700 mt-1">
             <Clock className="w-4 h-4 text-[#005CA9]" />
-            <span className="font-medium">{selectedTime}</span>
+            <span className="font-medium">
+              {selectedTime} - {endTime || '...'} 
+              {endTime && <span className="text-[#005CA9] ml-2">({calculateDuration()})</span>}
+            </span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ⬅️ NUOVO: Selettore ora fine */}
+          <div>
+            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+              <Clock className="w-4 h-4 text-[#005CA9]" />
+              Ora Fine
+            </label>
+            <select
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors font-medium"
+              required
+            >
+              <option value="">Seleziona ora fine...</option>
+              {getAvailableEndTimes().map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
               <FileText className="w-4 h-4 text-[#005CA9]" />
@@ -205,7 +271,7 @@ export default function RoomAppointmentModal({
             </button>
             <button
               type="submit"
-              disabled={!useCustom && !selectedOption || useCustom && !customTitle.trim()}
+              disabled={(!useCustom && !selectedOption || useCustom && !customTitle.trim()) || !endTime}
               className="flex-1 px-4 py-2.5 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {existingAppointment ? 'Aggiorna' : 'Salva'}

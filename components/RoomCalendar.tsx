@@ -19,14 +19,15 @@ interface Appointment {
   id: string;
   sala_id: string;
   data: string;
-  ora: string;
+  ora_inizio: string;  // ⬅️ MODIFICATO
+  ora_fine: string;    // ⬅️ NUOVO
   titolo: string;
   mese: string;
 }
 
 interface RoomData {
   [date: string]: {
-    [time: string]: { id: string; title: string } | null;
+    [time: string]: { id: string; title: string; ora_fine: string } | null; // ⬅️ AGGIUNTO ora_fine
   };
 }
 
@@ -38,24 +39,33 @@ const MONTHS = [
 const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'
 ];
 
 const APPOINTMENT_COLORS: { [key: string]: string } = {
   'VISITE PATENTI': '#DC2626',
   'CORSO CQC': '#2563EB',
-  'RIUNIONE': '#16A34A',
-  'FORMAZIONE': '#9333EA',
-  'COLLOQUIO': '#EA580C',
+  'CORSO': '#16A34A',
+  'CORSO AMB': '#16A34A',
+  'RIUNIONE': '#9333EA',
+  'VIDEO FISCALE': '#EA580C',
   'DEFAULT': '#6B7280'
 };
 
 function getColorForAppointment(title: string): string {
-  if (APPOINTMENT_COLORS[title]) return APPOINTMENT_COLORS[title];
+  const upperTitle = title.toUpperCase();
   for (const key in APPOINTMENT_COLORS) {
-    if (title.includes(key)) return APPOINTMENT_COLORS[key];
+    if (upperTitle.includes(key)) return APPOINTMENT_COLORS[key];
   }
   return APPOINTMENT_COLORS['DEFAULT'];
+}
+
+// ⬅️ NUOVA FUNZIONE: Calcola quanti slot occupa un appuntamento
+function getSlotSpan(startTime: string, endTime: string): number {
+  const startIdx = TIME_SLOTS.indexOf(startTime);
+  const endIdx = TIME_SLOTS.indexOf(endTime);
+  if (startIdx === -1 || endIdx === -1) return 1;
+  return endIdx - startIdx;
 }
 
 export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
@@ -74,12 +84,11 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   }, []);
 
   useEffect(() => {
-  if (rooms.length > 0 && !selectedRoom) {
-    // Cerca la sala di Imola come default
-    const imolaSala = rooms.find(r => r.id === 'imola');
-    setSelectedRoom(imolaSala || rooms[0]);
-  }
-}, [rooms, selectedRoom]);
+    if (rooms.length > 0 && !selectedRoom) {
+      const imolaSala = rooms.find(r => r.id === 'imola');
+      setSelectedRoom(imolaSala || rooms[0]);
+    }
+  }, [rooms, selectedRoom]);
 
   useEffect(() => {
     if (allAppointments.length > 0 && selectedRoom) {
@@ -110,7 +119,8 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         const normalized = appointmentsData.map(apt => ({
           ...apt,
           data: apt.data.split('T')[0],
-          ora: typeof apt.ora === 'string' ? apt.ora.substring(0, 5) : apt.ora
+          ora_inizio: typeof apt.ora_inizio === 'string' ? apt.ora_inizio.substring(0, 5) : apt.ora_inizio,
+          ora_fine: typeof apt.ora_fine === 'string' ? apt.ora_fine.substring(0, 5) : apt.ora_fine
         }));
         setAllAppointments(normalized);
       }
@@ -122,12 +132,14 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   };
 
+  // ⬅️ MODIFICATA: Processa appuntamenti come blocchi
   const processRoomData = () => {
     if (!selectedRoom) return;
 
     const newRoomData: RoomData = {};
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
+    // Inizializza tutti i giorni
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       newRoomData[dateKey] = {};
@@ -136,15 +148,21 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
       });
     }
 
+    // Filtra appuntamenti per sala e mese corrente
     const filteredAppointments = allAppointments.filter(app => {
       if (app.sala_id !== selectedRoom.id) return false;
       const appDate = new Date(app.data);
       return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
     });
 
+    // ⬅️ MODIFICATO: Riempi solo lo slot iniziale con i dati completi
     filteredAppointments.forEach(app => {
-      if (newRoomData[app.data] && TIME_SLOTS.includes(app.ora)) {
-        newRoomData[app.data][app.ora] = { id: app.id, title: app.titolo };
+      if (newRoomData[app.data] && TIME_SLOTS.includes(app.ora_inizio)) {
+        newRoomData[app.data][app.ora_inizio] = { 
+          id: app.id, 
+          title: app.titolo,
+          ora_fine: app.ora_fine
+        };
       }
     });
 
@@ -156,23 +174,33 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     setIsModalOpen(true);
   };
 
-  const handleSaveAppointment = async (data: { date: string; time: string; title: string }) => {
+  const handleSaveAppointment = async (data: { date: string; time: string; title: string; endTime?: string }) => {
     if (!selectedRoom) return;
 
     try {
       const date = new Date(data.date);
       const mese = MONTHS[date.getMonth()];
+      
+      // Calcola ora_fine (default: +30 minuti)
+      const startIdx = TIME_SLOTS.indexOf(data.time);
+      const defaultEndTime = TIME_SLOTS[startIdx + 1] || '20:00';
+      const ora_fine = data.endTime || defaultEndTime;
 
       // Controlla se esiste già un appuntamento in questo slot
       const existing = allAppointments.find(
-        app => app.sala_id === selectedRoom.id && app.data === data.date && app.ora === data.time
+        app => app.sala_id === selectedRoom.id && app.data === data.date && app.ora_inizio === data.time
       );
 
       if (existing) {
         // Aggiorna
         const { data: updated, error } = await supabase
           .from('room_appuntamenti')
-          .update({ titolo: data.title, mese, updated_at: new Date().toISOString() })
+          .update({ 
+            titolo: data.title, 
+            ora_fine: ora_fine,
+            mese, 
+            updated_at: new Date().toISOString() 
+          })
           .eq('id', existing.id)
           .select()
           .single();
@@ -183,7 +211,8 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           const normalized = {
             ...updated,
             data: updated.data.split('T')[0],
-            ora: typeof updated.ora === 'string' ? updated.ora.substring(0, 5) : updated.ora
+            ora_inizio: typeof updated.ora_inizio === 'string' ? updated.ora_inizio.substring(0, 5) : updated.ora_inizio,
+            ora_fine: typeof updated.ora_fine === 'string' ? updated.ora_fine.substring(0, 5) : updated.ora_fine
           };
           setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? normalized : apt));
         }
@@ -194,7 +223,8 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           .insert([{
             sala_id: selectedRoom.id,
             data: data.date,
-            ora: data.time,
+            ora_inizio: data.time,
+            ora_fine: ora_fine,
             titolo: data.title,
             mese
           }])
@@ -207,7 +237,8 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           const normalized = {
             ...newApp,
             data: newApp.data.split('T')[0],
-            ora: typeof newApp.ora === 'string' ? newApp.ora.substring(0, 5) : newApp.ora
+            ora_inizio: typeof newApp.ora_inizio === 'string' ? newApp.ora_inizio.substring(0, 5) : newApp.ora_inizio,
+            ora_fine: typeof newApp.ora_fine === 'string' ? newApp.ora_fine.substring(0, 5) : newApp.ora_fine
           };
           setAllAppointments(prev => [...prev, normalized]);
         }
@@ -222,7 +253,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     if (!selectedSlot || !selectedRoom) return;
 
     const appointment = allAppointments.find(
-      app => app.sala_id === selectedRoom.id && app.data === selectedSlot.date && app.ora === selectedSlot.time
+      app => app.sala_id === selectedRoom.id && app.data === selectedSlot.date && app.ora_inizio === selectedSlot.time
     );
 
     if (!appointment) return;
@@ -252,6 +283,26 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
   const nextMonth = () => {
     if (currentMonth < 11) setCurrentMonth(currentMonth + 1);
+  };
+
+  // ⬅️ NUOVA FUNZIONE: Verifica se una cella è coperta da un appuntamento precedente
+  const isCellCovered = (dateKey: string, timeSlot: string): boolean => {
+    const timeIndex = TIME_SLOTS.indexOf(timeSlot);
+    
+    // Controlla tutti gli slot precedenti
+    for (let i = 0; i < timeIndex; i++) {
+      const prevTime = TIME_SLOTS[i];
+      const prevAppointment = roomData[dateKey]?.[prevTime];
+      
+      if (prevAppointment) {
+        const endIndex = TIME_SLOTS.indexOf(prevAppointment.ora_fine);
+        if (endIndex > timeIndex) {
+          return true; // Questa cella è coperta da un appuntamento precedente
+        }
+      }
+    }
+    
+    return false;
   };
 
   if (loading || !selectedRoom) {
@@ -380,7 +431,45 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                       const appointment = roomData[dateKey]?.[time];
                       const date = new Date(currentYear, currentMonth, day);
                       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                      
+                      // ⬅️ NUOVO: Verifica se questa cella è coperta da un appuntamento precedente
+                      const covered = isCellCovered(dateKey, time);
 
+                      // Se coperta, non renderizzare nulla
+                      if (covered) {
+                        return null;
+                      }
+
+                      // Se c'è un appuntamento, calcola rowSpan
+                      if (appointment) {
+                        const rowSpan = getSlotSpan(time, appointment.ora_fine);
+                        
+                        return (
+                          <td
+                            key={day}
+                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 ${
+                              isWeekend ? 'bg-gray-50' : ''
+                            }`}
+                            rowSpan={rowSpan}
+                            style={{ height: `${rowSpan * 45}px` }}
+                          >
+                            <div
+                              className="w-full h-full cursor-pointer hover:opacity-90 transition-all flex items-center justify-center text-white text-[11px] font-semibold px-2"
+                              style={{ 
+                                backgroundColor: getColorForAppointment(appointment.title)
+                              }}
+                              title={`${appointment.title}\n${time} - ${appointment.ora_fine}`}
+                              onClick={() => handleCellClick(dateKey, time)}
+                            >
+                              <span className="text-center leading-tight">
+                                {appointment.title}
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      // Cella vuota
                       return (
                         <td
                           key={day}
@@ -389,25 +478,10 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                           }`}
                           style={{ height: '45px' }}
                         >
-                          {appointment ? (
-                            <div
-                              className="w-full h-full cursor-pointer hover:opacity-80 transition-all flex items-center justify-center text-white text-[10px] font-semibold px-1"
-                              style={{ 
-                                backgroundColor: getColorForAppointment(appointment.title)
-                              }}
-                              title={`${appointment.title} - ${time}`}
-                              onClick={() => handleCellClick(dateKey, time)}
-                            >
-                              <span className="text-center leading-tight overflow-hidden text-ellipsis line-clamp-2">
-                                {appointment.title}
-                              </span>
-                            </div>
-                          ) : (
-                            <div 
-                              className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer"
-                              onClick={() => handleCellClick(dateKey, time)}
-                            ></div>
-                          )}
+                          <div 
+                            className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer"
+                            onClick={() => handleCellClick(dateKey, time)}
+                          ></div>
                         </td>
                       );
                     })}
@@ -431,6 +505,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           selectedDate={selectedSlot.date}
           selectedTime={selectedSlot.time}
           existingAppointment={currentAppointment?.title}
+          existingEndTime={currentAppointment?.ora_fine}
           roomName={selectedRoom.nome}
         />
       )}
