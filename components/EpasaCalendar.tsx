@@ -1,8 +1,29 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Building2, User, ChevronDown, X, Plus } from 'lucide-react';
-import { format, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Building2,
+  User,
+  ChevronDown,
+  X,
+  Plus,
+} from 'lucide-react';
+import {
+  format,
+  addDays,
+  subDays,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  addMonths,
+  subMonths,
+  startOfWeek,
+  endOfWeek,
+} from 'date-fns';
 import { it } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import React from 'react';
@@ -18,7 +39,7 @@ interface Sede {
   colore: string;
 }
 
-interface Operatore { 
+interface Operatore {
   id: string;
   nome: string;
   colore: string;
@@ -36,9 +57,27 @@ interface Appointment {
 }
 
 const TIME_SLOTS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00'
+  '08:00',
+  '08:30',
+  '09:00',
+  '09:30',
+  '10:00',
+  '10:30',
+  '11:00',
+  '11:30',
+  '12:00',
+  '12:30',
+  '13:00',
+  '13:30',
+  '14:00',
+  '14:30',
+  '15:00',
+  '15:30',
+  '16:00',
+  '16:30',
+  '17:00',
+  '17:30',
+  '18:00',
 ];
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -51,14 +90,33 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [loading, setLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{date: string, time: string, operator?: string} | null>(null);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    date: string;
+    time: string;
+    operator?: string;
+  } | null>(null);
+  const [editingAppointment, setEditingAppointment] =
+    useState<Appointment | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // funzione per scrollare alla data EPASA selezionata
+  const scrollToSelectedDate = () => {
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+    const dateElement = document.querySelector<HTMLElement>(
+      `[data-epasa-date="${selectedDateStr}"]`,
+    );
+    if (dateElement && scrollContainerRef.current) {
+      dateElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   useEffect(() => {
     const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
+
+    // ogni volta che cambi selectedDate porta il calendario su quel giorno
+    setTimeout(scrollToSelectedDate, 100);
   }, [selectedDate]);
 
   useEffect(() => {
@@ -72,8 +130,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (scrollPercentage > 0.9 && !isLoadingMore) {
         setIsLoadingMore(true);
         const lastDay = visibleDays[visibleDays.length - 1];
-        const newDays = Array.from({ length: 3 }, (_, i) => addDays(lastDay, i + 1));
-        setVisibleDays((prev) => [...prev, ...newDays]);
+        const newDays = Array.from({ length: 3 }, (_, i) =>
+          addDays(lastDay, i + 1),
+        );
+        setVisibleDays(prev => [...prev, ...newDays]);
         setTimeout(() => setIsLoadingMore(false), 500);
       }
     };
@@ -114,10 +174,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (operatoriError) throw operatoriError;
       if (operatoriData) setOperatori(operatoriData);
 
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('epasa_appuntamenti')
-        .select('*')
-        .order('data', { ascending: true });
+      const { data: appointmentsData, error: appointmentsError } =
+        await supabase
+          .from('epasa_appuntamenti')
+          .select('*')
+          .order('data', { ascending: true });
 
       if (appointmentsError) throw appointmentsError;
 
@@ -125,9 +186,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         const normalized = appointmentsData.map(apt => ({
           ...apt,
           data: apt.data.split('T')[0],
-          ora: typeof apt.ora === 'string' 
-            ? apt.ora.substring(0, 5) 
-            : apt.ora
+          ora:
+            typeof apt.ora === 'string'
+              ? apt.ora.substring(0, 5)
+              : apt.ora,
         }));
 
         setAllAppointments(normalized);
@@ -146,7 +208,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'epasa_appuntamenti' },
-        () => loadData()
+        () => loadData(),
       )
       .subscribe();
 
@@ -156,81 +218,83 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   const handleCreateAppointment = async (data: any) => {
-  try {
-    const { data: newAppointment, error } = await supabase
-      .from('epasa_appuntamenti')
-      .insert([data])
-      .select()
-      .single();
+    try {
+      const { data: newAppointment, error } = await supabase
+        .from('epasa_appuntamenti')
+        .insert([data])
+        .select()
+        .single();
 
-    if (error) throw error;
-    
-    // Aggiorna lo stato locale senza ricaricare tutto
-    if (newAppointment) {
-      const normalized = {
-        ...newAppointment,
-        data: newAppointment.data.split('T')[0],
-        ora: typeof newAppointment.ora === 'string' 
-          ? newAppointment.ora.substring(0, 5) 
-          : newAppointment.ora
-      };
-      setAllAppointments(prev => [...prev, normalized]);
+      if (error) throw error;
+
+      if (newAppointment) {
+        const normalized = {
+          ...newAppointment,
+          data: newAppointment.data.split('T')[0],
+          ora:
+            typeof newAppointment.ora === 'string'
+              ? newAppointment.ora.substring(0, 5)
+              : newAppointment.ora,
+        };
+        setAllAppointments(prev => [...prev, normalized]);
+      }
+    } catch (error) {
+      console.error('Errore creazione appuntamento:', error);
+      alert("Errore durante la creazione dell'appuntamento");
     }
-  } catch (error) {
-    console.error('Errore creazione appuntamento:', error);
-    alert('Errore durante la creazione dell\'appuntamento');
-  }
-};
+  };
 
-const handleUpdateAppointment = async (id: string, data: any) => {
-  try {
-    const { data: updatedAppointment, error } = await supabase
-      .from('epasa_appuntamenti')
-      .update(data)
-      .eq('id', id)
-      .select()
-      .single();
+  const handleUpdateAppointment = async (id: string, data: any) => {
+    try {
+      const { data: updatedAppointment, error } = await supabase
+        .from('epasa_appuntamenti')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) throw error;
-    
-    // Aggiorna lo stato locale
-    if (updatedAppointment) {
-      const normalized = {
-        ...updatedAppointment,
-        data: updatedAppointment.data.split('T')[0],
-        ora: typeof updatedAppointment.ora === 'string' 
-          ? updatedAppointment.ora.substring(0, 5) 
-          : updatedAppointment.ora
-      };
-      setAllAppointments(prev => 
-        prev.map(apt => apt.id === id ? normalized : apt)
-      );
+      if (error) throw error;
+
+      if (updatedAppointment) {
+        const normalized = {
+          ...updatedAppointment,
+          data: updatedAppointment.data.split('T')[0],
+          ora:
+            typeof updatedAppointment.ora === 'string'
+              ? updatedAppointment.ora.substring(0, 5)
+              : updatedAppointment.ora,
+        };
+        setAllAppointments(prev =>
+          prev.map(apt => (apt.id === id ? normalized : apt)),
+        );
+      }
+    } catch (error) {
+      console.error('Errore aggiornamento appuntamento:', error);
+      alert("Errore durante l'aggiornamento dell'appuntamento");
     }
-  } catch (error) {
-    console.error('Errore aggiornamento appuntamento:', error);
-    alert('Errore durante l\'aggiornamento dell\'appuntamento');
-  }
-};
+  };
 
-const handleDeleteAppointment = async (id: string) => {
-  try {
-    const { error } = await supabase
-      .from('epasa_appuntamenti')
-      .delete()
-      .eq('id', id);
+  const handleDeleteAppointment = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('epasa_appuntamenti')
+        .delete()
+        .eq('id', id);
 
-    if (error) throw error;
-    
-    // Rimuovi dall'array locale
-    setAllAppointments(prev => prev.filter(apt => apt.id !== id));
-  } catch (error) {
-    console.error('Errore eliminazione appuntamento:', error);
-    alert('Errore durante l\'eliminazione dell\'appuntamento');
-  }
-};
+      if (error) throw error;
 
+      setAllAppointments(prev => prev.filter(apt => apt.id !== id));
+    } catch (error) {
+      console.error('Errore eliminazione appuntamento:', error);
+      alert("Errore durante l'eliminazione dell'appuntamento");
+    }
+  };
 
-  const openModalForNewAppointment = (date: string, time: string, operator: string) => {
+  const openModalForNewAppointment = (
+    date: string,
+    time: string,
+    operator: string,
+  ) => {
     setSelectedSlot({ date, time, operator });
     setEditingAppointment(null);
     setShowModal(true);
@@ -238,7 +302,11 @@ const handleDeleteAppointment = async (id: string) => {
 
   const openModalForEditAppointment = (appointment: Appointment) => {
     setEditingAppointment(appointment);
-    setSelectedSlot({ date: appointment.data, time: appointment.ora, operator: appointment.operatore_id });
+    setSelectedSlot({
+      date: appointment.data,
+      time: appointment.ora,
+      operator: appointment.operatore_id,
+    });
     setShowModal(true);
   };
 
@@ -246,14 +314,20 @@ const handleDeleteAppointment = async (id: string) => {
     return format(date, 'yyyy-MM-dd');
   };
 
-  const getAppointmentsForSlot = (date: string, time: string, operator: string) => {
+  const getAppointmentsForSlot = (
+    date: string,
+    time: string,
+    operator: string,
+  ) => {
     if (!selectedSede) return [];
 
-    return allAppointments.filter((apt) => {
-      return apt.sede_id === selectedSede.id &&
-             apt.data === date &&
-             apt.ora === time &&
-             apt.operatore_id === operator;
+    return allAppointments.filter(apt => {
+      return (
+        apt.sede_id === selectedSede.id &&
+        apt.data === date &&
+        apt.ora === time &&
+        apt.operatore_id === operator
+      );
     });
   };
 
@@ -290,8 +364,10 @@ const handleDeleteAppointment = async (id: string) => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#005CA9] mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Caricamento agenda EPASA...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#005CA9] mx-auto" />
+          <p className="mt-4 text-gray-600 font-medium">
+            Caricamento agenda EPASA...
+          </p>
         </div>
       </div>
     );
@@ -309,7 +385,6 @@ const handleDeleteAppointment = async (id: string) => {
     <div className="min-h-screen p-1 md:p-2 animate-fade-in">
       <div className="max-w-[1800px] mx-auto">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
-
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -352,14 +427,18 @@ const handleDeleteAppointment = async (id: string) => {
                   <div className="relative">
                     <select
                       value={selectedSede.id}
-                      onChange={(e) => {
+                      onChange={e => {
                         const sede = sedi.find(s => s.id === e.target.value);
                         if (sede) setSelectedSede(sede);
                       }}
                       className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
                     >
-                      {sedi.map((sede) => (
-                        <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
+                      {sedi.map(sede => (
+                        <option
+                          key={sede.id}
+                          value={sede.id}
+                          className="text-gray-800 bg-white"
+                        >
                           {sede.nome}
                         </option>
                       ))}
@@ -371,33 +450,42 @@ const handleDeleteAppointment = async (id: string) => {
             </div>
           </div>
 
-          <div 
+          <div
             ref={scrollContainerRef}
-            className="overflow-y-auto" 
+            className="overflow-y-auto"
             style={{ maxHeight: 'calc(100vh - 107px)' }}
           >
-            <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+            <table
+              className="w-full"
+              style={{ borderCollapse: 'separate', borderSpacing: 0 }}
+            >
               <thead className="sticky top-0 z-20">
                 <tr className="border-b-2 border-[#005CA9]/20">
                   <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
                     <span className="text-[#005CA9]">Orario</span>
                   </th>
                   {operatorsInSede.length > 0 ? (
-                    operatorsInSede.map((operator) => {
-                      const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+                    operatorsInSede.map(operator => {
+                      const operatorColor =
+                        operator === 'MILECE' ? '#DC2626' : '#16A34A';
                       return (
                         <th
                           key={operator}
                           className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[200px]"
                         >
                           <div className="flex items-center justify-center gap-1.5">
-                            <div 
+                            <div
                               className="w-6 h-6 rounded-full flex items-center justify-center"
                               style={{ backgroundColor: operatorColor }}
                             >
                               <User size={14} className="text-white" />
                             </div>
-                            <span style={{ color: operatorColor }} className="font-bold">{operator}</span>
+                            <span
+                              style={{ color: operatorColor }}
+                              className="font-bold"
+                            >
+                              {operator}
+                            </span>
                           </div>
                         </th>
                       );
@@ -410,19 +498,19 @@ const handleDeleteAppointment = async (id: string) => {
                 </tr>
               </thead>
               <tbody>
-                {visibleDays.map((day) => {
+                {visibleDays.map(day => {
                   const dateStr = formatDate(day);
                   const today = new Date();
                   const isToday = formatDate(today) === dateStr;
 
                   return (
                     <React.Fragment key={dateStr}>
-                      <tr>
-                        <td 
+                      <tr data-epasa-date={dateStr}>
+                        <td
                           colSpan={Math.max(operatorsInSede.length + 1, 2)}
                           className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                            isToday 
-                              ? 'bg-[#005CA9] text-white' 
+                            isToday
+                              ? 'bg-[#005CA9] text-white'
                               : 'bg-gray-100 text-gray-700'
                           }`}
                         >
@@ -430,7 +518,7 @@ const handleDeleteAppointment = async (id: string) => {
                         </td>
                       </tr>
 
-                      {TIME_SLOTS.map((time) => {
+                      {TIME_SLOTS.map(time => {
                         return (
                           <tr key={`${dateStr}-${time}`}>
                             <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
@@ -439,13 +527,32 @@ const handleDeleteAppointment = async (id: string) => {
                               </div>
                             </td>
                             {operatorsInSede.length > 0 ? (
-                              operatorsInSede.map((operator) => {
-                                const appointmentsInSlot = getAppointmentsForSlot(dateStr, time, operator);
+                              operatorsInSede.map(operator => {
+                                const appointmentsInSlot =
+                                  getAppointmentsForSlot(
+                                    dateStr,
+                                    time,
+                                    operator,
+                                  );
                                 const operatorColors = {
-                                  MILECE: { bg: 'bg-red-50', border: 'border-l-4 border-red-500', text: 'text-red-700', hover: 'hover:bg-red-100' },
-                                  LOREDANA: { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' }
-                                };
-                                const colors = operatorColors[operator as keyof typeof operatorColors];
+                                  MILECE: {
+                                    bg: 'bg-red-50',
+                                    border: 'border-l-4 border-red-500',
+                                    text: 'text-red-700',
+                                    hover: 'hover:bg-red-100',
+                                  },
+                                  LOREDANA: {
+                                    bg: 'bg-green-50',
+                                    border: 'border-l-4 border-green-500',
+                                    text: 'text-green-700',
+                                    hover: 'hover:bg-green-100',
+                                  },
+                                } as const;
+                                const colors =
+                                  operatorColors[
+                                    operator as keyof typeof operatorColors
+                                  ] ||
+                                  operatorColors.LOREDANA;
 
                                 return (
                                   <td
@@ -454,31 +561,53 @@ const handleDeleteAppointment = async (id: string) => {
                                     style={{ height: '45px' }}
                                   >
                                     {appointmentsInSlot.length > 0 ? (
-                                      <div 
-                                        onClick={() => openModalForEditAppointment(appointmentsInSlot[0])}
+                                      <div
+                                        onClick={() =>
+                                          openModalForEditAppointment(
+                                            appointmentsInSlot[0],
+                                          )
+                                        }
                                         className={`w-full h-full px-2 py-1 ${colors.bg} ${colors.border} ${colors.hover} transition-all cursor-pointer flex items-center`}
                                       >
                                         <div className="w-full">
-                                          {appointmentsInSlot.map((apt, idx) => (
-                                            <div 
-                                              key={apt.id} 
-                                              className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}
-                                              title={`${apt.cliente} - ${time} (${operator})\nClicca per modificare`}
-                                            >
-                                              <User size={10} className={`${colors.text} flex-shrink-0`} />
-                                              <span className={`text-[10px] font-medium truncate ${colors.text}`}>
-                                                {apt.cliente}
-                                              </span>
-                                            </div>
-                                          ))}
+                                          {appointmentsInSlot.map(
+                                            (apt, idx) => (
+                                              <div
+                                                key={apt.id}
+                                                className={`flex items-center gap-1.5 ${
+                                                  idx > 0 ? 'mt-1' : ''
+                                                }`}
+                                                title={`${apt.cliente} - ${time} (${operator})\nClicca per modificare`}
+                                              >
+                                                <User
+                                                  size={10}
+                                                  className={`${colors.text} flex-shrink-0`}
+                                                />
+                                                <span
+                                                  className={`text-[10px] font-medium truncate ${colors.text}`}
+                                                >
+                                                  {apt.cliente}
+                                                </span>
+                                              </div>
+                                            ),
+                                          )}
                                         </div>
                                       </div>
                                     ) : (
-                                      <div 
-                                        onClick={() => openModalForNewAppointment(dateStr, time, operator)}
+                                      <div
+                                        onClick={() =>
+                                          openModalForNewAppointment(
+                                            dateStr,
+                                            time,
+                                            operator,
+                                          )
+                                        }
                                         className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer flex items-center justify-center group-hover:bg-blue-50"
                                       >
-                                        <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <Plus
+                                          size={14}
+                                          className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        />
                                       </div>
                                     )}
                                   </td>
@@ -498,7 +627,10 @@ const handleDeleteAppointment = async (id: string) => {
 
                 {isLoadingMore && (
                   <tr>
-                    <td colSpan={Math.max(operatorsInSede.length + 1, 2)} className="p-4 text-center text-gray-500">
+                    <td
+                      colSpan={Math.max(operatorsInSede.length + 1, 2)}
+                      className="p-4 text-center text-gray-500"
+                    >
                       Caricamento...
                     </td>
                   </tr>
@@ -546,8 +678,11 @@ const handleDeleteAppointment = async (id: string) => {
             </div>
 
             <div className="grid grid-cols-7 gap-2 mb-2">
-              {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
-                <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
+              {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                <div
+                  key={day}
+                  className="text-center text-xs font-semibold text-gray-600 py-2"
+                >
                   {day}
                 </div>
               ))}
@@ -563,9 +698,13 @@ const handleDeleteAppointment = async (id: string) => {
 
                 return days.map((day, index) => {
                   const isCurrentMonth = isSameMonth(day, selectedDate);
-                  const isSelected = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                  const isSelected =
+                    format(day, 'yyyy-MM-dd') ===
+                    format(selectedDate, 'yyyy-MM-dd');
                   const today = new Date();
-                  const isToday = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+                  const isToday =
+                    format(day, 'yyyy-MM-dd') ===
+                    format(today, 'yyyy-MM-dd');
                   const isBefore2026 = day < new Date(2026, 0, 1);
 
                   return (
@@ -581,15 +720,16 @@ const handleDeleteAppointment = async (id: string) => {
                       disabled={isBefore2026}
                       className={`
                         aspect-square rounded-lg text-sm font-medium transition-all
-                        ${isBefore2026
-                          ? 'bg-transparent text-gray-300 cursor-not-allowed'
-                          : isSelected 
-                            ? 'bg-[#005CA9] text-white shadow-md scale-105' 
+                        ${
+                          isBefore2026
+                            ? 'bg-transparent text-gray-300 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-[#005CA9] text-white shadow-md scale-105'
                             : isToday
-                              ? 'bg-[#E6F2FF] text-[#005CA9] font-bold'
-                              : isCurrentMonth 
-                                ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' 
-                                : 'bg-transparent text-gray-300'
+                            ? 'bg-[#E6F2FF] text-[#005CA9] font-bold'
+                            : isCurrentMonth
+                            ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105'
+                            : 'bg-transparent text-gray-300'
                         }
                         ${!isBefore2026 ? 'cursor-pointer' : ''}
                       `}
