@@ -752,7 +752,7 @@ const handleDeleteAppointment = async (id: string) => {
                             ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105'
                             : 'bg-transparent text-gray-300'
                         }
-                        ${!isBefore2026 ? 'cursor-pointer' : ''}
+                        ${!isBefore2026 ? 'cursor-pointer' : ''} 
                       `}
                     >
                       {format(day, 'd')}
