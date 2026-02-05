@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Plus, Trash2, X, Save } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { PersonaSede, Persona, Sede } from '@/lib/types';
 
 interface PersonaSedeExtended extends PersonaSede {
@@ -22,36 +22,47 @@ export default function AgendeManager() {
     loadData();
   }, []);
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const loadData = async () => {
-    // Carica agende con relazioni
-    const { data: agendeData, error: agendeError } = await supabase
-      .from('persona_sede')
-      .select(`
-        *,
-        persona:persone(id, nome),
-        sede:sedi(id, nome)
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (agendeError) {
-      console.error('Errore caricamento agende:', agendeError);
-    } else {
-      setAgende(agendeData || []);
+    try {
+      // Carica agende con JOIN per ottenere nomi persone e sedi
+      const agendeResult = await query(`
+        SELECT 
+          ps.id,
+          ps.persona_id,
+          ps.sede_id,
+          ps.created_at,
+          p.nome as persona_nome,
+          s.nome as sede_nome
+        FROM persona_sede ps
+        LEFT JOIN persone p ON ps.persona_id = p.id
+        LEFT JOIN sedi s ON ps.sede_id = s.id
+        ORDER BY ps.created_at DESC
+      `);
+      
+      if (agendeResult.rows) {
+        // Trasforma i dati per matchare la struttura attesa
+        const agendeFormatted = agendeResult.rows.map(row => ({
+          id: row.id,
+          persona_id: row.persona_id,
+          sede_id: row.sede_id,
+          created_at: row.created_at,
+          persona: { id: row.persona_id, nome: row.persona_nome },
+          sede: { id: row.sede_id, nome: row.sede_nome }
+        }));
+        setAgende(agendeFormatted);
+      }
+
+      // Carica persone
+      const personeResult = await query('SELECT * FROM persone ORDER BY nome');
+      setPersone(personeResult.rows || []);
+
+      // Carica sedi
+      const sediResult = await query('SELECT * FROM sedi ORDER BY nome');
+      setSedi(sediResult.rows || []);
+    } catch (error) {
+      console.error('Errore caricamento dati:', error);
     }
-
-    // Carica persone
-    const { data: personeData } = await supabase
-      .from('persone')
-      .select('*')
-      .order('nome');
-    setPersone(personeData || []);
-
-    // Carica sedi
-    const { data: sediData } = await supabase
-      .from('sedi')
-      .select('*')
-      .order('nome');
-    setSedi(sediData || []);
   };
 
   const handleOpenModal = () => {
@@ -64,6 +75,7 @@ export default function AgendeManager() {
     setFormData({ persona_id: '', sede_id: '' });
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleSave = async () => {
     if (!formData.persona_id || !formData.sede_id) {
       alert('Seleziona sia la persona che la sede');
@@ -83,11 +95,10 @@ export default function AgendeManager() {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('persona_sede')
-        .insert([formData]);
-      
-      if (error) throw error;
+      await query(
+        'INSERT INTO persona_sede (persona_id, sede_id) VALUES ($1, $2)',
+        [formData.persona_id, formData.sede_id]
+      );
 
       await loadData();
       handleCloseModal();
@@ -99,21 +110,17 @@ export default function AgendeManager() {
     }
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa associazione?')) return;
 
-    const { error } = await supabase
-      .from('persona_sede')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
+    try {
+      await query('DELETE FROM persona_sede WHERE id = $1', [id]);
+      await loadData();
+    } catch (error) {
       console.error('Errore eliminazione agenda:', error);
       alert('Errore durante l\'eliminazione');
-      return;
     }
-
-    await loadData();
   };
 
   return (

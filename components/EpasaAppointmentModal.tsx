@@ -143,6 +143,7 @@ export default function EpasaAppointmentModal({
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
               placeholder="Nome cliente"
               required
+              autoFocus
             />
           </div>
 
@@ -155,7 +156,8 @@ export default function EpasaAppointmentModal({
             <select
               value={formData.sede_id}
               onChange={(e) => setFormData({ ...formData, sede_id: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm bg-gray-50"
+              disabled={!!existingAppointment}
             >
               {sedi.map((sede) => (
                 <option key={sede.id} value={sede.id}>
@@ -231,25 +233,32 @@ export default function EpasaAppointmentModal({
           </div>
 
           {/* Riepilogo */}
-          <div className="bg-blue-50 border-l-4 border-[#005CA9] p-2.5 rounded-lg">
-            <p className="text-xs font-semibold text-gray-700 mb-1">Riepilogo:</p>
-            <div className="space-y-0.5 text-xs text-gray-600">
-              <p>
-                <span className="font-semibold" style={{ color: selectedOperatore?.colore }}>
-                  {selectedOperatore?.nome}
-                </span>
-                {' '}• {selectedSede?.nome}
-              </p>
-              <p>
-                {new Date(formData.data).toLocaleDateString('it-IT', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })} alle {formData.ora}
-              </p>
+          {formData.cliente && (
+            <div className="bg-blue-50 border-l-4 border-[#005CA9] p-2.5 rounded-lg">
+              <p className="text-xs font-semibold text-gray-700 mb-1">Riepilogo:</p>
+              <div className="space-y-0.5 text-xs text-gray-600">
+                <p>
+                  <span className="font-semibold text-gray-800">{formData.cliente}</span>
+                  {' '}con{' '}
+                  <span className="font-semibold" style={{ color: selectedOperatore?.colore || '#16A34A' }}>
+                    {selectedOperatore?.nome}
+                  </span>
+                </p>
+                <p>
+                  {selectedSede?.nome} •{' '}
+                  {new Date(formData.data).toLocaleDateString('it-IT', { 
+                    weekday: 'long', 
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </p>
+                <p className="font-semibold text-[#005CA9]">
+                  Ore {formData.ora}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-2 pt-2">

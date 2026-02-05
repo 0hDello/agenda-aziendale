@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, MapPin, FileText, UserCircle, CalendarDays, Plus, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addDays, isValid, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { X, Calendar, Clock, User, MapPin, UserCircle, CalendarDays, Plus, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, parseISO, isValid, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Persona, Sede, PersonaSede, Appuntamento } from '@/lib/types';
 import { TIME_SLOTS } from '@/utils/dateUtils';
@@ -357,15 +357,15 @@ export default function AppointmentModal({
               />
             </div>
 
-            
-
             <div className="flex gap-2 pt-2">
               {existingAppointment && onDelete && (
                 <button
                   type="button"
                   onClick={() => {
-                    onDelete(existingAppointment.id);
-                    onClose();
+                    if (confirm('Sei sicuro di voler eliminare questo appuntamento?')) {
+                      onDelete(existingAppointment.id);
+                      onClose();
+                    }
                   }}
                   className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-semibold"
                 >

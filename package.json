@@ -9,15 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.38.0",
     "date-fns": "^2.30.0",
     "lucide-react": "^0.294.0",
-    "next": "^14.0.0",
+    "next": "^16.1.6",
+    "pg": "^8.18.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.16.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.22",

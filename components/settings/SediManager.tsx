@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Building2, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { Sede } from '@/lib/types';
 
 export default function SediManager() {
@@ -16,17 +16,14 @@ export default function SediManager() {
     loadSedi();
   }, []);
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const loadSedi = async () => {
-    const { data, error } = await supabase
-      .from('sedi')
-      .select('*')
-      .order('nome');
-    
-    if (error) {
+    try {
+      const result = await query('SELECT * FROM sedi ORDER BY nome');
+      setSedi(result.rows || []);
+    } catch (error) {
       console.error('Errore caricamento sedi:', error);
-      return;
     }
-    setSedi(data || []);
   };
 
   const handleOpenModal = (sede?: Sede) => {
@@ -46,6 +43,7 @@ export default function SediManager() {
     setFormData({ nome: '' });
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido per la sede');
@@ -56,18 +54,17 @@ export default function SediManager() {
 
     try {
       if (editingSede) {
-        const { error } = await supabase
-          .from('sedi')
-          .update({ nome: formData.nome.trim() })
-          .eq('id', editingSede.id);
-        
-        if (error) throw error;
+        // Update esistente
+        await query(
+          'UPDATE sedi SET nome = $1, updated_at = NOW() WHERE id = $2',
+          [formData.nome.trim(), editingSede.id]
+        );
       } else {
-        const { error } = await supabase
-          .from('sedi')
-          .insert([{ nome: formData.nome.trim() }]);
-        
-        if (error) throw error;
+        // Insert nuovo
+        await query(
+          'INSERT INTO sedi (nome) VALUES ($1)',
+          [formData.nome.trim()]
+        );
       }
 
       await loadSedi();
@@ -80,21 +77,17 @@ export default function SediManager() {
     }
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa sede?')) return;
 
-    const { error } = await supabase
-      .from('sedi')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
+    try {
+      await query('DELETE FROM sedi WHERE id = $1', [id]);
+      await loadSedi();
+    } catch (error) {
       console.error('Errore eliminazione sede:', error);
       alert('Impossibile eliminare: potrebbero esistere appuntamenti associati');
-      return;
     }
-
-    await loadSedi();
   };
 
   return (
@@ -186,8 +179,13 @@ export default function SediManager() {
                   type="text"
                   value={formData.nome}
                   onChange={(e) => setFormData({ nome: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !loading) {
+                      handleSave();
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CA9] focus:border-transparent"
-                  placeholder="Es. Sede Milano Centro"
+                  placeholder="Es. Sede Imola"
                   autoFocus
                 />
               </div>
@@ -203,7 +201,7 @@ export default function SediManager() {
                 <button
                   onClick={handleSave}
                   className="flex-1 px-4 py-2 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-colors flex items-center justify-center gap-2"
-                  disabled={loading}
+                  disabled={loading || !formData.nome.trim()}
                 >
                   <Save className="w-5 h-5" />
                   {loading ? 'Salvataggio...' : 'Salva'}

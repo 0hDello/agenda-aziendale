@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { Persona } from '@/lib/types';
 
 export default function PersoneManager() {
@@ -16,17 +16,14 @@ export default function PersoneManager() {
     loadPersone();
   }, []);
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const loadPersone = async () => {
-    const { data, error } = await supabase
-      .from('persone')
-      .select('*')
-      .order('nome');
-    
-    if (error) {
+    try {
+      const result = await query('SELECT * FROM persone ORDER BY nome');
+      setPersone(result.rows || []);
+    } catch (error) {
       console.error('Errore caricamento persone:', error);
-      return;
     }
-    setPersone(data || []);
   };
 
   const handleOpenModal = (persona?: Persona) => {
@@ -46,6 +43,7 @@ export default function PersoneManager() {
     setFormData({ nome: '' });
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido');
@@ -56,18 +54,17 @@ export default function PersoneManager() {
 
     try {
       if (editingPersona) {
-        const { error } = await supabase
-          .from('persone')
-          .update({ nome: formData.nome.trim() })
-          .eq('id', editingPersona.id);
-        
-        if (error) throw error;
+        // Update esistente
+        await query(
+          'UPDATE persone SET nome = $1, updated_at = NOW() WHERE id = $2',
+          [formData.nome.trim(), editingPersona.id]
+        );
       } else {
-        const { error } = await supabase
-          .from('persone')
-          .insert([{ nome: formData.nome.trim() }]);
-        
-        if (error) throw error;
+        // Insert nuovo
+        await query(
+          'INSERT INTO persone (nome) VALUES ($1)',
+          [formData.nome.trim()]
+        );
       }
 
       await loadPersone();
@@ -80,21 +77,17 @@ export default function PersoneManager() {
     }
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa persona?')) return;
 
-    const { error } = await supabase
-      .from('persone')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
+    try {
+      await query('DELETE FROM persone WHERE id = $1', [id]);
+      await loadPersone();
+    } catch (error) {
       console.error('Errore eliminazione persona:', error);
       alert('Impossibile eliminare: potrebbero esistere appuntamenti associati');
-      return;
     }
-
-    await loadPersone();
   };
 
   return (
@@ -186,6 +179,11 @@ export default function PersoneManager() {
                   type="text"
                   value={formData.nome}
                   onChange={(e) => setFormData({ nome: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !loading) {
+                      handleSave();
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CA9] focus:border-transparent"
                   placeholder="Es. Mario Rossi"
                   autoFocus
@@ -203,7 +201,7 @@ export default function PersoneManager() {
                 <button
                   onClick={handleSave}
                   className="flex-1 px-4 py-2 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-colors flex items-center justify-center gap-2"
-                  disabled={loading}
+                  disabled={loading || !formData.nome.trim()}
                 >
                   <Save className="w-5 h-5" />
                   {loading ? 'Salvataggio...' : 'Salva'}

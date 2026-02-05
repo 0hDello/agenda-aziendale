@@ -24,7 +24,7 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
 import { formatDate, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
@@ -64,7 +64,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
-  // funzione che porta in vista il giorno selezionato
   const scrollToSelectedDate = () => {
     const selectedDateStr = formatDate(selectedDate);
     const dateElement = document.querySelector<HTMLElement>(
@@ -75,17 +74,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // Inizializza con 7 giorni a partire dalla data selezionata
   useEffect(() => {
     const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
     setHasInitialLoad(false);
-
-    // ogni volta che cambia la data, porta il calendario su quel giorno
     setTimeout(scrollToSelectedDate, 100);
   }, [selectedDate]);
 
-  // Scroll infinito: carica più giorni quando si arriva in fondo
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -94,7 +89,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const { scrollTop, scrollHeight, clientHeight } = container;
       const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
 
-      // Quando si raggiunge il 90% dello scroll, carica altri 3 giorni
       if (scrollPercentage > 0.9 && !isLoadingMore) {
         setIsLoadingMore(true);
         const lastDay = visibleDays[visibleDays.length - 1];
@@ -110,7 +104,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [visibleDays, isLoadingMore]);
 
-  // Forza il refresh iniziale simulando il click su "Oggi"
   useEffect(() => {
     const timer = setTimeout(() => {
       setSelectedDate(new Date());
@@ -118,7 +111,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-caricamento quando il contenuto è troppo corto
   useEffect(() => {
     if (visibleDays.length === 0 || isLoadingMore) return;
 
@@ -144,8 +136,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => {
     loadData();
-    const unsubscribe = subscribeToChanges();
-    return unsubscribe;
+    // RIMOSSO: subscribeToChanges() - PostgreSQL non supporta real-time nativamente
+    // Per implementare aggiornamenti real-time, usa polling o WebSocket separato
   }, []);
 
   useEffect(() => {
@@ -380,24 +372,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               return;
             } else {
               try {
-                const { error } = await supabase
-                  .from('appuntamenti')
-                  .update({
-                    ora_fine: newEndTime,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('id', resizingAppointment.id);
-
-                if (error) {
-                  console.error('Errore resize:', error);
-                  alert(
-                    'Errore durante il ridimensionamento: ' + error.message,
-                  );
-                } else {
-                  await loadData();
-                }
+                // CAMBIATO: PostgreSQL invece di Supabase
+                await query(
+                  'UPDATE appuntamenti SET ora_fine = $1, updated_at = NOW() WHERE id = $2',
+                  [newEndTime, resizingAppointment.id]
+                );
+                await loadData();
               } catch (err) {
                 console.error('Errore:', err);
+                alert('Errore durante il ridimensionamento');
               }
             }
           }
@@ -420,39 +403,41 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, [resizingAppointment, appointments, isResizing]);
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const loadData = async () => {
-    const { data: sediData } = await supabase.from('sedi').select('*');
-    if (sediData) setSedi(sediData);
+    try {
+      const sediResult = await query('SELECT * FROM sedi ORDER BY nome');
+      if (sediResult.rows) setSedi(sediResult.rows);
 
-    const { data: personeData } = await supabase.from('persone').select('*');
-    if (personeData) setPersone(personeData);
+      const personeResult = await query('SELECT * FROM persone ORDER BY nome');
+      if (personeResult.rows) setPersone(personeResult.rows);
 
-    const { data: personaSedeData } = await supabase
-      .from('persona_sede')
-      .select('*');
-    if (personaSedeData) setPersonaSede(personaSedeData);
+      const personaSedeResult = await query('SELECT * FROM persona_sede');
+      if (personaSedeResult.rows) setPersonaSede(personaSedeResult.rows);
 
-    const { data: appointmentsData } = await supabase
-      .from('appuntamenti')
-      .select('*, persona:persone(*), sede:sedi(*)');
-    if (appointmentsData) setAppointments(appointmentsData);
+      const appointmentsResult = await query(`
+        SELECT 
+          a.*,
+          row_to_json(p.*) as persona,
+          row_to_json(s.*) as sede
+        FROM appuntamenti a
+        LEFT JOIN persone p ON a.persona_id = p.id
+        LEFT JOIN sedi s ON a.sede_id = s.id
+        ORDER BY a.data, a.ora_inizio
+      `);
+      if (appointmentsResult.rows) setAppointments(appointmentsResult.rows);
+    } catch (error) {
+      console.error('Errore caricamento dati:', error);
+    }
   };
 
-  const subscribeToChanges = () => {
-    const channel = supabase
-      .channel('appointments_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'appuntamenti' },
-        () => loadData(),
-      )
-      .subscribe();
+  // RIMOSSO: subscribeToChanges - non disponibile con PostgreSQL diretto
+  // Per implementare real-time updates, considera:
+  // 1. Polling periodico con setInterval
+  // 2. WebSocket separato
+  // 3. Server-Sent Events (SSE)
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleCreateAppointment = async (data: any) => {
     try {
       if (
@@ -465,69 +450,69 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         alert('Compila tutti i campi obbligatori');
         return;
       }
-      const { error } = await supabase.from('appuntamenti').insert([
-        {
-          persona_id: data.persona_id,
-          sede_id: data.sede_id,
-          data: data.data,
-          ora_inizio: data.ora_inizio,
-          ora_fine: data.ora_fine,
-          cliente: data.cliente || null,
-          note: data.note || null,
-        },
-      ]);
-      if (error) {
-        alert('Errore durante il salvataggio:\n' + error.message);
-        return;
-      }
+      
+      await query(
+        `INSERT INTO appuntamenti 
+         (persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          data.persona_id,
+          data.sede_id,
+          data.data,
+          data.ora_inizio,
+          data.ora_fine,
+          data.cliente || null,
+          data.note || null,
+        ]
+      );
+      
       setTimeout(async () => {
         await loadData();
       }, 300);
     } catch (err) {
+      console.error('Errore creazione:', err);
       alert('Errore imprevisto: ' + String(err));
     }
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
-      const { error } = await supabase
-        .from('appuntamenti')
-        .update({
-          persona_id: data.persona_id,
-          ora_inizio: data.ora_inizio,
-          ora_fine: data.ora_fine,
-          cliente: data.cliente || null,
-          note: data.note || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (error) {
-        alert("Errore durante l'aggiornamento: " + error.message);
-        return;
-      }
+      await query(
+        `UPDATE appuntamenti 
+         SET persona_id = $1, ora_inizio = $2, ora_fine = $3, 
+             cliente = $4, note = $5, updated_at = NOW()
+         WHERE id = $6`,
+        [
+          data.persona_id,
+          data.ora_inizio,
+          data.ora_fine,
+          data.cliente || null,
+          data.note || null,
+          id,
+        ]
+      );
+      
       setTimeout(async () => {
         await loadData();
       }, 300);
     } catch (err) {
+      console.error('Errore aggiornamento:', err);
       alert('Errore imprevisto: ' + String(err));
     }
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     try {
-      const { error } = await supabase
-        .from('appuntamenti')
-        .delete()
-        .eq('id', id);
-      if (error) {
-        alert("Errore durante l'eliminazione: " + error.message);
-        return;
-      }
+      await query('DELETE FROM appuntamenti WHERE id = $1', [id]);
+      
       setTimeout(async () => {
         await loadData();
       }, 300);
     } catch (err) {
+      console.error('Errore eliminazione:', err);
       alert('Errore imprevisto: ' + String(err));
     }
   };
@@ -574,6 +559,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment({ appointment, originalTime: time });
   };
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
 
@@ -636,23 +622,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
 
     try {
-      const { error } = await supabase
-        .from('appuntamenti')
-        .update({
-          data: date,
-          persona_id: personaId,
-          ora_inizio: newOraInizio,
-          ora_fine: newOraFine,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', appointment.id);
-
-      if (error) {
-        alert('Errore durante lo spostamento: ' + error.message);
-      } else {
-        await loadData();
-      }
+      await query(
+        `UPDATE appuntamenti 
+         SET data = $1, persona_id = $2, ora_inizio = $3, ora_fine = $4, updated_at = NOW()
+         WHERE id = $5`,
+        [date, personaId, newOraInizio, newOraFine, appointment.id]
+      );
+      await loadData();
     } catch (err) {
+      console.error('Errore spostamento:', err);
       alert('Errore imprevisto: ' + String(err));
     }
 

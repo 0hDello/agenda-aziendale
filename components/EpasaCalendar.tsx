@@ -25,7 +25,7 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import React from 'react';
 import EpasaAppointmentModal from './EpasaAppointmentModal';
 
@@ -123,71 +123,20 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   // Carica dati iniziali
   useEffect(() => {
     loadData();
-  }, []);
-
-  // ⬅️ NUOVO: Real-time subscription
-  useEffect(() => {
-    console.log('🔌 Setting up real-time subscription for epasa_appuntamenti...');
     
-    const channel = supabase
-      .channel('epasa_appuntamenti_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'epasa_appuntamenti'
-        },
-        (payload) => {
-          console.log('🔔 Real-time change received:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            console.log('➕ New appointment added:', payload.new);
-            const newApp = payload.new as any;
-            const normalized = {
-              ...newApp,
-              data: newApp.data.split('T')[0],
-              ora: typeof newApp.ora === 'string' ? newApp.ora.substring(0, 5) : newApp.ora
-            };
-            
-            setAllAppointments(prev => {
-              if (prev.some(apt => apt.id === normalized.id)) {
-                return prev;
-              }
-              return [...prev, normalized];
-            });
-          } 
-          else if (payload.eventType === 'UPDATE') {
-            console.log('✏️ Appointment updated:', payload.new);
-            const updated = payload.new as any;
-            const normalized = {
-              ...updated,
-              data: updated.data.split('T')[0],
-              ora: typeof updated.ora === 'string' ? updated.ora.substring(0, 5) : updated.ora
-            };
-            
-            setAllAppointments(prev => 
-              prev.map(apt => apt.id === normalized.id ? normalized : apt)
-            );
-          } 
-          else if (payload.eventType === 'DELETE') {
-            console.log('🗑️ Appointment deleted:', payload.old);
-            const deleted = payload.old as any;
-            setAllAppointments(prev => 
-              prev.filter(apt => apt.id !== deleted.id)
-            );
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Subscription status:', status);
-      });
-
-    return () => {
-      console.log('🔌 Unsubscribing from epasa_appuntamenti...');
-      supabase.removeChannel(channel);
-    };
+    // OPZIONALE: Polling per aggiornamenti automatici (sostituisce real-time di Supabase)
+    const intervalId = setInterval(() => {
+      loadData();
+    }, 30000); // Ricarica ogni 30 secondi
+    
+    return () => clearInterval(intervalId);
   }, []);
+
+  // RIMOSSO: Real-time subscription (non disponibile con PostgreSQL diretto)
+  // Per implementare real-time:
+  // 1. Polling (già implementato sopra)
+  // 2. WebSocket separato
+  // 3. Server-Sent Events (SSE)
 
   useEffect(() => {
     if (sedi.length > 0 && !selectedSede) {
@@ -196,34 +145,22 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data: sediData, error: sediError } = await supabase
-        .from('epasa_sedi')
-        .select('*')
-        .order('id');
+      const sediResult = await query('SELECT * FROM epasa_sedi ORDER BY id');
+      if (sediResult.rows) setSedi(sediResult.rows);
 
-      if (sediError) throw sediError;
-      if (sediData) setSedi(sediData);
+      const operatoriResult = await query('SELECT * FROM epasa_operatori ORDER BY id');
+      if (operatoriResult.rows) setOperatori(operatoriResult.rows);
 
-      const { data: operatoriData, error: operatoriError } = await supabase
-        .from('epasa_operatori')
-        .select('*')
-        .order('id');
+      const appointmentsResult = await query(
+        'SELECT * FROM epasa_appuntamenti ORDER BY data ASC'
+      );
 
-      if (operatoriError) throw operatoriError;
-      if (operatoriData) setOperatori(operatoriData);
-
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('epasa_appuntamenti')
-        .select('*')
-        .order('data', { ascending: true });
-
-      if (appointmentsError) throw appointmentsError;
-
-      if (appointmentsData) {
-        const normalized = appointmentsData.map(apt => ({
+      if (appointmentsResult.rows) {
+        const normalized = appointmentsResult.rows.map(apt => ({
           ...apt,
           data: apt.data.split('T')[0],
           ora: typeof apt.ora === 'string' ? apt.ora.substring(0, 5) : apt.ora,
@@ -239,77 +176,90 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // ⬅️ MODIFICATO: Rimosso aggiornamento manuale dello state
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const handleCreateAppointment = async (data: any) => {
-  try {
-    const { data: newAppointment, error } = await supabase
-      .from('epasa_appuntamenti')
-      .insert([data])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // ⬅️ AGGIORNAMENTO LOCALE IMMEDIATO
-    if (newAppointment) {
-      const normalized = {
-        ...newAppointment,
-        data: newAppointment.data.split('T')[0],
-        ora: typeof newAppointment.ora === 'string' ? newAppointment.ora.substring(0, 5) : newAppointment.ora,
-      };
-      setAllAppointments(prev => [...prev, normalized]);
-    }
-  } catch (error) {
-    console.error('Errore creazione appuntamento:', error);
-    alert("Errore durante la creazione dell'appuntamento");
-  }
-};
-
-const handleUpdateAppointment = async (id: string, data: any) => {
-  try {
-    const { data: updatedAppointment, error } = await supabase
-      .from('epasa_appuntamenti')
-      .update(data)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // ⬅️ AGGIORNAMENTO LOCALE IMMEDIATO
-    if (updatedAppointment) {
-      const normalized = {
-        ...updatedAppointment,
-        data: updatedAppointment.data.split('T')[0],
-        ora: typeof updatedAppointment.ora === 'string' ? updatedAppointment.ora.substring(0, 5) : updatedAppointment.ora,
-      };
-      setAllAppointments(prev =>
-        prev.map(apt => (apt.id === id ? normalized : apt)),
+    try {
+      const result = await query(
+        `INSERT INTO epasa_appuntamenti 
+         (sede_id, operatore_id, data, ora, cliente, mese, note) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          data.sede_id,
+          data.operatore_id,
+          data.data,
+          data.ora,
+          data.cliente,
+          data.mese,
+          data.note || null,
+        ]
       );
+
+      if (result.rows && result.rows[0]) {
+        const normalized = {
+          ...result.rows[0],
+          data: result.rows[0].data.split('T')[0],
+          ora: typeof result.rows[0].ora === 'string' 
+            ? result.rows[0].ora.substring(0, 5) 
+            : result.rows[0].ora,
+        };
+        setAllAppointments(prev => [...prev, normalized]);
+      }
+    } catch (error) {
+      console.error('Errore creazione appuntamento:', error);
+      alert("Errore durante la creazione dell'appuntamento");
     }
-  } catch (error) {
-    console.error('Errore aggiornamento appuntamento:', error);
-    alert("Errore durante l'aggiornamento dell'appuntamento");
-  }
-};
+  };
 
-const handleDeleteAppointment = async (id: string) => {
-  try {
-    const { error } = await supabase
-      .from('epasa_appuntamenti')
-      .delete()
-      .eq('id', id);
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  const handleUpdateAppointment = async (id: string, data: any) => {
+    try {
+      const result = await query(
+        `UPDATE epasa_appuntamenti 
+         SET sede_id = $1, operatore_id = $2, data = $3, ora = $4, 
+             cliente = $5, mese = $6, note = $7, updated_at = NOW()
+         WHERE id = $8
+         RETURNING *`,
+        [
+          data.sede_id,
+          data.operatore_id,
+          data.data,
+          data.ora,
+          data.cliente,
+          data.mese,
+          data.note || null,
+          id,
+        ]
+      );
 
-    if (error) throw error;
+      if (result.rows && result.rows[0]) {
+        const normalized = {
+          ...result.rows[0],
+          data: result.rows[0].data.split('T')[0],
+          ora: typeof result.rows[0].ora === 'string' 
+            ? result.rows[0].ora.substring(0, 5) 
+            : result.rows[0].ora,
+        };
+        setAllAppointments(prev =>
+          prev.map(apt => (apt.id === id ? normalized : apt)),
+        );
+      }
+    } catch (error) {
+      console.error('Errore aggiornamento appuntamento:', error);
+      alert("Errore durante l'aggiornamento dell'appuntamento");
+    }
+  };
 
-    // ⬅️ AGGIORNAMENTO LOCALE IMMEDIATO
-    setAllAppointments(prev => prev.filter(apt => apt.id !== id));
-  } catch (error) {
-    console.error('Errore eliminazione appuntamento:', error);
-    alert("Errore durante l'eliminazione dell'appuntamento");
-  }
-};
-
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  const handleDeleteAppointment = async (id: string) => {
+    try {
+      await query('DELETE FROM epasa_appuntamenti WHERE id = $1', [id]);
+      setAllAppointments(prev => prev.filter(apt => apt.id !== id));
+    } catch (error) {
+      console.error('Errore eliminazione appuntamento:', error);
+      alert("Errore durante l'eliminazione dell'appuntamento");
+    }
+  };
 
   const openModalForNewAppointment = (
     date: string,

@@ -8,12 +8,12 @@ import { it } from 'date-fns/locale';
 interface RoomAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { date: string; time: string; title: string; endTime: string }) => void; // ⬅️ AGGIUNTO endTime
+  onSave: (data: { date: string; time: string; title: string; endTime: string }) => void;
   onDelete?: () => void;
   selectedDate: string;
   selectedTime: string;
   existingAppointment?: string | null;
-  existingEndTime?: string | null; // ⬅️ NUOVO
+  existingEndTime?: string | null;
   roomName: string;
 }
 
@@ -21,13 +21,16 @@ const APPOINTMENT_OPTIONS = [
   'VISITE PATENTI',
   'CORSO CQC',
   'CORSO',
+  'CORSO AMB',
+  'RIUNIONE',
+  'VIDEO FISCALE',
 ];
 
-// ⬅️ NUOVO: TIME_SLOTS per il selettore di ora fine
 const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', 
+  '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'
 ];
 
 export default function RoomAppointmentModal({
@@ -38,13 +41,13 @@ export default function RoomAppointmentModal({
   selectedDate,
   selectedTime,
   existingAppointment,
-  existingEndTime, // ⬅️ NUOVO
+  existingEndTime,
   roomName,
 }: RoomAppointmentModalProps) {
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [customTitle, setCustomTitle] = useState<string>('');
   const [useCustom, setUseCustom] = useState<boolean>(false);
-  const [endTime, setEndTime] = useState<string>(''); // ⬅️ NUOVO
+  const [endTime, setEndTime] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -60,7 +63,7 @@ export default function RoomAppointmentModal({
           setUseCustom(true);
         }
         
-        // ⬅️ NUOVO: Imposta ora fine esistente
+        // Imposta ora fine esistente
         if (existingEndTime) {
           setEndTime(existingEndTime);
         }
@@ -69,7 +72,7 @@ export default function RoomAppointmentModal({
         setCustomTitle('');
         setUseCustom(false);
         
-        // ⬅️ NUOVO: Ora fine di default = +2 ore (4 slot da 30min)
+        // Ora fine di default = +2 ore (4 slot da 30min)
         const startIdx = TIME_SLOTS.indexOf(selectedTime);
         if (startIdx !== -1 && startIdx + 4 < TIME_SLOTS.length) {
           setEndTime(TIME_SLOTS[startIdx + 4]);
@@ -80,7 +83,7 @@ export default function RoomAppointmentModal({
     }
   }, [isOpen, existingAppointment, existingEndTime, selectedTime]);
 
-  // ⬅️ NUOVO: Filtra solo gli orari validi (dopo l'ora di inizio)
+  // Filtra solo gli orari validi (dopo l'ora di inizio)
   const getAvailableEndTimes = () => {
     const startIdx = TIME_SLOTS.indexOf(selectedTime);
     if (startIdx === -1) return TIME_SLOTS;
@@ -97,14 +100,14 @@ export default function RoomAppointmentModal({
       date: selectedDate,
       time: selectedTime,
       title: title.trim(),
-      endTime: endTime, // ⬅️ NUOVO
+      endTime: endTime,
     });
 
     onClose();
   };
 
   const handleDelete = () => {
-    if (onDelete) {
+    if (onDelete && confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
       onDelete();
       onClose();
     }
@@ -115,7 +118,7 @@ export default function RoomAppointmentModal({
   const dateObj = parseISO(selectedDate);
   const formattedDate = format(dateObj, "EEEE dd MMMM yyyy", { locale: it });
   
-  // ⬅️ NUOVO: Calcola durata in ore
+  // Calcola durata in ore
   const calculateDuration = () => {
     const startIdx = TIME_SLOTS.indexOf(selectedTime);
     const endIdx = TIME_SLOTS.indexOf(endTime);
@@ -166,7 +169,7 @@ export default function RoomAppointmentModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* ⬅️ NUOVO: Selettore ora fine */}
+          {/* Selettore ora fine */}
           <div>
             <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
               <Clock className="w-4 h-4 text-[#005CA9]" />
@@ -236,6 +239,7 @@ export default function RoomAppointmentModal({
                   placeholder="Inserisci il titolo..."
                   className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-[#005CA9] focus:outline-none transition-colors"
                   autoFocus
+                  required={useCustom}
                 />
                 <button
                   type="button"

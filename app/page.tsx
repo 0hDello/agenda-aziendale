@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Settings, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { Calendar as CalendarIcon, Settings } from 'lucide-react';
+import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 
 interface Agenda {
   id: string;
@@ -24,8 +24,28 @@ export default function HomePage() {
     loadAgende();
   }, []);
 
+  // CAMBIATO: Convertito da Supabase a PostgreSQL
   const loadAgende = async () => {
     try {
+      // Prova prima a caricare da database
+      try {
+        const result = await query(
+          `SELECT id, nome, descrizione, colore, icona, created_at, attiva 
+           FROM agende 
+           WHERE attiva = true 
+           ORDER BY created_at ASC`
+        );
+        
+        if (result.rows && result.rows.length > 0) {
+          setAgende(result.rows);
+          setLoading(false);
+          return;
+        }
+      } catch (dbError) {
+        console.warn('Tabella agende non trovata, uso agende statiche:', dbError);
+      }
+
+      // Fallback su agende statiche se la tabella non esiste
       const staticAgende: Agenda[] = [
         {
           id: '730',
@@ -103,83 +123,88 @@ export default function HomePage() {
             <h2 className="text-2xl font-bold text-gray-800">Le tue Agende</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {agende.map((agenda) => (
-              <div
-                key={agenda.id}
-                onClick={() => handleAgendaClick(agenda)}
-                className={`rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-transparent ${
-                  agenda.attiva
-                    ? 'bg-white hover:shadow-2xl cursor-pointer hover:border-[#005CA9] group'
-                    : 'bg-gray-100 cursor-not-allowed opacity-75'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div 
-                    className={`p-4 rounded-xl transition-all ${
-                      agenda.attiva ? 'group-hover:scale-110' : ''
-                    }`}
-                    style={{ backgroundColor: `${agenda.colore}20` }}
-                  >
-                    <CalendarIcon 
-                      className="w-8 h-8 transition-all" 
-                      style={{ color: agenda.attiva ? agenda.colore : '#9CA3AF' }}
-                    />
-                  </div>
-                  <div className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    agenda.attiva 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {agenda.attiva ? 'Attiva' : 'Disattivata'}
-                  </div>
-                </div>
-
-                <h3 className={`text-xl font-bold mb-2 ${
-                  agenda.attiva ? 'text-gray-800' : 'text-gray-500'
-                }`}>
-                  {agenda.nome}
-                </h3>
-                <p className={`text-sm mb-4 ${
-                  agenda.attiva ? 'text-gray-600' : 'text-gray-400'
-                }`}>
-                  {agenda.descrizione || 'Nessuna descrizione'}
-                </p>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  {/* Bottone Settings SOLO per Agenda 730 */}
-                  {agenda.id === '730' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        router.push('/impostazioni');
-                      }}
-                      className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
-                      title="Impostazioni agenda"
+          {agende.length === 0 ? (
+            <div className="text-center py-12">
+              <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg">Nessuna agenda disponibile</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {agende.map((agenda) => (
+                <div
+                  key={agenda.id}
+                  onClick={() => handleAgendaClick(agenda)}
+                  className={`rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-transparent ${
+                    agenda.attiva
+                      ? 'bg-white hover:shadow-2xl cursor-pointer hover:border-[#005CA9] group'
+                      : 'bg-gray-100 cursor-not-allowed opacity-75'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div 
+                      className={`p-4 rounded-xl transition-all ${
+                        agenda.attiva ? 'group-hover:scale-110' : ''
+                      }`}
+                      style={{ backgroundColor: `${agenda.colore}20` }}
                     >
-                      <Settings size={18} className="text-[#005CA9]" />
-                    </button>
-                  )}
-                  {/* Spazio vuoto per altre agende */}
-                  {agenda.id !== '730' && <div></div>}
+                      <CalendarIcon 
+                        className="w-8 h-8 transition-all" 
+                        style={{ color: agenda.attiva ? agenda.colore : '#9CA3AF' }}
+                      />
+                    </div>
+                    <div className={`text-xs font-bold px-3 py-1 rounded-full ${
+                      agenda.attiva 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {agenda.attiva ? 'Attiva' : 'Disattivata'}
+                    </div>
+                  </div>
 
-                  {agenda.attiva && (
-                    <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
-                      →
-                    </div>
-                  )}
-                  {!agenda.attiva && (
-                    <div className="text-gray-400 text-xl">
-                      →
-                    </div>
-                  )}
+                  <h3 className={`text-xl font-bold mb-2 ${
+                    agenda.attiva ? 'text-gray-800' : 'text-gray-500'
+                  }`}>
+                    {agenda.nome}
+                  </h3>
+                  <p className={`text-sm mb-4 ${
+                    agenda.attiva ? 'text-gray-600' : 'text-gray-400'
+                  }`}>
+                    {agenda.descrizione || 'Nessuna descrizione'}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    {/* Bottone Settings SOLO per Agenda 730 */}
+                    {agenda.id === '730' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          router.push('/impostazioni');
+                        }}
+                        className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
+                        title="Impostazioni agenda"
+                      >
+                        <Settings size={18} className="text-[#005CA9]" />
+                      </button>
+                    )}
+                    {/* Spazio vuoto per altre agende */}
+                    {agenda.id !== '730' && <div></div>}
+
+                    {agenda.attiva && (
+                      <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
+                        →
+                      </div>
+                    )}
+                    {!agenda.attiva && (
+                      <div className="text-gray-400 text-xl">
+                        →
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-
-            
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
