@@ -15,7 +15,6 @@ export default function SediManager() {
     loadSedi();
   }, []);
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
   const loadSedi = async () => {
     try {
       const response = await fetch('/api/sedi');
@@ -43,7 +42,6 @@ export default function SediManager() {
     setFormData({ nome: '' });
   };
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido per la sede');
@@ -61,29 +59,51 @@ export default function SediManager() {
           body: JSON.stringify({ nome: formData.nome.trim() }),
         });
 
-        if (!response.ok) throw new Error('Errore aggiornamento');
+        if (!response.ok) {
+          let errorMsg = 'Errore aggiornamento';
+          try {
+            const error = await response.json();
+            errorMsg = error.error || errorMsg;
+          } catch {}
+          console.error('❌ Errore aggiornamento:', response.status);
+          throw new Error(errorMsg);
+        }
       } else {
         // Insert nuovo
+        console.log('📤 Invio richiesta POST a /api/sedi');
         const response = await fetch('/api/sedi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nome: formData.nome.trim() }),
         });
 
-        if (!response.ok) throw new Error('Errore creazione');
+        console.log('📡 Status risposta:', response.status);
+        console.log('📡 Headers:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+          let errorMsg = `Errore ${response.status}: ${response.statusText}`;
+          try {
+            const error = await response.json();
+            errorMsg = error.error || errorMsg;
+          } catch {}
+          console.error('❌ Errore dal server:', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Sede creata:', result);
       }
 
       await loadSedi();
       handleCloseModal();
-    } catch (error) {
-      console.error('Errore salvataggio sede:', error);
-      alert('Errore durante il salvataggio');
+    } catch (error: any) {
+      console.error('❌ Errore completo salvataggio sede:', error);
+      alert(`Errore durante il salvataggio: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa sede?')) return;
 

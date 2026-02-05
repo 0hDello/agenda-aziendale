@@ -10,22 +10,22 @@ export async function PUT(
     const { nome } = await request.json();
 
     if (!nome || !nome.trim()) {
-      return NextResponse.json({ error: 'Nome persona obbligatorio' }, { status: 400 });
+      return NextResponse.json({ error: 'Nome sede obbligatorio' }, { status: 400 });
     }
 
     const result = await query(
-      'UPDATE persone SET nome = $1 WHERE id = $2 RETURNING *',
+      'UPDATE sedi SET nome = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
       [nome.trim(), id]
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'Persona non trovata' }, { status: 404 });
+      return NextResponse.json({ error: 'Sede non trovata' }, { status: 404 });
     }
 
     return NextResponse.json(result.rows[0]);
   } catch (error) {
-    console.error('Errore aggiornamento persona:', error);
-    return NextResponse.json({ error: 'Errore aggiornamento persona' }, { status: 500 });
+    console.error('Errore aggiornamento sede:', error);
+    return NextResponse.json({ error: 'Errore aggiornamento sede' }, { status: 500 });
   }
 }
 
@@ -36,19 +36,19 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    console.log('🗑️ Tentativo eliminazione persona con ID:', id);
+    console.log('🗑️ Tentativo eliminazione sede con ID:', id);
     
-    const result = await query('DELETE FROM persone WHERE id = $1 RETURNING *', [id]);
+    const result = await query('DELETE FROM sedi WHERE id = $1 RETURNING *', [id]);
 
     console.log('Risultato eliminazione:', result.rows);
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'Persona non trovata' }, { status: 404 });
+      return NextResponse.json({ error: 'Sede non trovata' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Persona eliminata con successo' });
+    return NextResponse.json({ message: 'Sede eliminata con successo' });
   } catch (error: any) {
-    console.error('❌ Errore eliminazione persona:', error);
+    console.error('❌ Errore eliminazione sede:', error);
     return NextResponse.json(
       { error: 'Impossibile eliminare: potrebbero esistere associazioni' },
       { status: 500 }
