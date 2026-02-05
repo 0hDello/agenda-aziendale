@@ -24,7 +24,6 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
 import { formatDate, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
@@ -136,8 +135,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => {
     loadData();
-    // RIMOSSO: subscribeToChanges() - PostgreSQL non supporta real-time nativamente
-    // Per implementare aggiornamenti real-time, usa polling o WebSocket separato
+    
+    // Polling per aggiornamenti automatici (ogni 30 secondi)
+    const intervalId = setInterval(() => {
+      loadData();
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -372,11 +376,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               return;
             } else {
               try {
-                // CAMBIATO: PostgreSQL invece di Supabase
-                await query(
-                  'UPDATE appuntamenti SET ora_fine = $1, updated_at = NOW() WHERE id = $2',
-                  [newEndTime, resizingAppointment.id]
-                );
+                // CAMBIATO: Usa fetch invece di query diretta
+                const response = await fetch(`/api/appuntamenti/${resizingAppointment.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    persona_id: resizingAppointment.persona_id,
+                    sede_id: resizingAppointment.sede_id,
+                    ora_inizio: startTime,
+                    ora_fine: newEndTime,
+                    cliente: resizingAppointment.cliente,
+                    note: resizingAppointment.note,
+                  }),
+                });
+
+                if (!response.ok) throw new Error('Errore resize');
                 await loadData();
               } catch (err) {
                 console.error('Errore:', err);
@@ -403,41 +417,34 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, [resizingAppointment, appointments, isResizing]);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const loadData = async () => {
     try {
-      const sediResult = await query('SELECT * FROM sedi ORDER BY nome');
-      if (sediResult.rows) setSedi(sediResult.rows);
+      // Carica sedi
+      const sediRes = await fetch('/api/sedi');
+      const sediData = await sediRes.json();
+      if (sediData) setSedi(sediData);
 
-      const personeResult = await query('SELECT * FROM persone ORDER BY nome');
-      if (personeResult.rows) setPersone(personeResult.rows);
+      // Carica persone
+      const personeRes = await fetch('/api/persone');
+      const personeData = await personeRes.json();
+      if (personeData) setPersone(personeData);
 
-      const personaSedeResult = await query('SELECT * FROM persona_sede');
-      if (personaSedeResult.rows) setPersonaSede(personaSedeResult.rows);
+      // Carica persona_sede
+      const psRes = await fetch('/api/persona-sede');
+      const psData = await psRes.json();
+      if (psData) setPersonaSede(psData);
 
-      const appointmentsResult = await query(`
-        SELECT 
-          a.*,
-          row_to_json(p.*) as persona,
-          row_to_json(s.*) as sede
-        FROM appuntamenti a
-        LEFT JOIN persone p ON a.persona_id = p.id
-        LEFT JOIN sedi s ON a.sede_id = s.id
-        ORDER BY a.data, a.ora_inizio
-      `);
-      if (appointmentsResult.rows) setAppointments(appointmentsResult.rows);
+      // Carica appuntamenti
+      const appRes = await fetch('/api/appuntamenti');
+      const appData = await appRes.json();
+      if (appData) setAppointments(appData);
     } catch (error) {
       console.error('Errore caricamento dati:', error);
     }
   };
 
-  // RIMOSSO: subscribeToChanges - non disponibile con PostgreSQL diretto
-  // Per implementare real-time updates, considera:
-  // 1. Polling periodico con setInterval
-  // 2. WebSocket separato
-  // 3. Server-Sent Events (SSE)
-
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleCreateAppointment = async (data: any) => {
     try {
       if (
@@ -451,20 +458,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         return;
       }
       
-      await query(
-        `INSERT INTO appuntamenti 
-         (persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          data.persona_id,
-          data.sede_id,
-          data.data,
-          data.ora_inizio,
-          data.ora_fine,
-          data.cliente || null,
-          data.note || null,
-        ]
-      );
+      const response = await fetch('/api/appuntamenti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error('Errore creazione');
       
       setTimeout(async () => {
         await loadData();
@@ -475,23 +475,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
-      await query(
-        `UPDATE appuntamenti 
-         SET persona_id = $1, ora_inizio = $2, ora_fine = $3, 
-             cliente = $4, note = $5, updated_at = NOW()
-         WHERE id = $6`,
-        [
-          data.persona_id,
-          data.ora_inizio,
-          data.ora_fine,
-          data.cliente || null,
-          data.note || null,
-          id,
-        ]
-      );
+      const response = await fetch(`/api/appuntamenti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error('Errore aggiornamento');
       
       setTimeout(async () => {
         await loadData();
@@ -502,11 +495,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     try {
-      await query('DELETE FROM appuntamenti WHERE id = $1', [id]);
+      const response = await fetch(`/api/appuntamenti/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Errore eliminazione');
       
       setTimeout(async () => {
         await loadData();
@@ -559,7 +556,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment({ appointment, originalTime: time });
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
 
@@ -622,12 +619,20 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
 
     try {
-      await query(
-        `UPDATE appuntamenti 
-         SET data = $1, persona_id = $2, ora_inizio = $3, ora_fine = $4, updated_at = NOW()
-         WHERE id = $5`,
-        [date, personaId, newOraInizio, newOraFine, appointment.id]
-      );
+      const response = await fetch(`/api/appuntamenti/${appointment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          persona_id: personaId,
+          sede_id: appointment.sede_id,
+          ora_inizio: newOraInizio,
+          ora_fine: newOraFine,
+          cliente: appointment.cliente,
+          note: appointment.note,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Errore spostamento');
       await loadData();
     } catch (err) {
       console.error('Errore spostamento:', err);

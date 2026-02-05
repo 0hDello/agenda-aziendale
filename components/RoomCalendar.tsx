@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Building2, ChevronDown } from 'lucide-react';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import RoomAppointmentModal from './RoomAppointmentModal';
 
 interface RoomCalendarProps {
@@ -83,19 +82,13 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   useEffect(() => {
     loadData();
     
-    // OPZIONALE: Polling per aggiornamenti automatici (sostituisce real-time di Supabase)
+    // Polling per aggiornamenti automatici (ogni 30 secondi)
     const intervalId = setInterval(() => {
       loadData();
-    }, 30000); // Ricarica ogni 30 secondi
+    }, 30000);
     
     return () => clearInterval(intervalId);
   }, []);
-
-  // RIMOSSO: Real-time subscription (non disponibile con PostgreSQL diretto)
-  // Per implementare real-time:
-  // 1. Polling (già implementato sopra)
-  // 2. WebSocket separato
-  // 3. Server-Sent Events (SSE)
 
   useEffect(() => {
     if (rooms.length > 0 && !selectedRoom) {
@@ -110,19 +103,21 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   }, [selectedRoom, currentMonth, allAppointments]);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const loadData = async () => {
     setLoading(true);
     try {
-      const roomsResult = await query('SELECT * FROM room_sale ORDER BY id');
-      if (roomsResult.rows) setRooms(roomsResult.rows);
+      // Carica sale
+      const roomsRes = await fetch('/api/room-sale');
+      const roomsData = await roomsRes.json();
+      if (roomsData) setRooms(roomsData);
 
-      const appointmentsResult = await query(
-        'SELECT * FROM room_appuntamenti ORDER BY data ASC'
-      );
+      // Carica appuntamenti
+      const appointmentsRes = await fetch('/api/room-appuntamenti');
+      const appointmentsData = await appointmentsRes.json();
       
-      if (appointmentsResult.rows) {
-        const normalized = appointmentsResult.rows.map(apt => ({
+      if (appointmentsData) {
+        const normalized = appointmentsData.map((apt: any) => ({
           ...apt,
           data: apt.data.split('T')[0],
           ora_inizio: typeof apt.ora_inizio === 'string' ? apt.ora_inizio.substring(0, 5) : apt.ora_inizio,
@@ -176,7 +171,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     setIsModalOpen(true);
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleSaveAppointment = async (data: { date: string; time: string; title: string; endTime?: string }) => {
     if (!selectedRoom) return;
 
@@ -194,50 +189,62 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
       if (existing) {
         // Aggiorna
-        const result = await query(
-          `UPDATE room_appuntamenti 
-           SET titolo = $1, ora_fine = $2, mese = $3, updated_at = NOW()
-           WHERE id = $4
-           RETURNING *`,
-          [data.title, ora_fine, mese, existing.id]
-        );
+        const response = await fetch(`/api/room-appuntamenti/${existing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titolo: data.title,
+            ora_fine: ora_fine,
+            mese: mese,
+            sala_id: selectedRoom.id,
+            data: data.date,
+            ora_inizio: data.time
+          }),
+        });
 
-        if (result.rows && result.rows[0]) {
-          const normalized = {
-            ...result.rows[0],
-            data: result.rows[0].data.split('T')[0],
-            ora_inizio: typeof result.rows[0].ora_inizio === 'string' 
-              ? result.rows[0].ora_inizio.substring(0, 5) 
-              : result.rows[0].ora_inizio,
-            ora_fine: typeof result.rows[0].ora_fine === 'string' 
-              ? result.rows[0].ora_fine.substring(0, 5) 
-              : result.rows[0].ora_fine
-          };
-          setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? normalized : apt));
-        }
+        if (!response.ok) throw new Error('Errore aggiornamento');
+
+        const updated = await response.json();
+        const normalized = {
+          ...updated,
+          data: updated.data.split('T')[0],
+          ora_inizio: typeof updated.ora_inizio === 'string' 
+            ? updated.ora_inizio.substring(0, 5) 
+            : updated.ora_inizio,
+          ora_fine: typeof updated.ora_fine === 'string' 
+            ? updated.ora_fine.substring(0, 5) 
+            : updated.ora_fine
+        };
+        setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? normalized : apt));
       } else {
         // Crea nuovo
-        const result = await query(
-          `INSERT INTO room_appuntamenti 
-           (sala_id, data, ora_inizio, ora_fine, titolo, mese) 
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING *`,
-          [selectedRoom.id, data.date, data.time, ora_fine, data.title, mese]
-        );
+        const response = await fetch('/api/room-appuntamenti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sala_id: selectedRoom.id,
+            data: data.date,
+            ora_inizio: data.time,
+            ora_fine: ora_fine,
+            titolo: data.title,
+            mese: mese
+          }),
+        });
 
-        if (result.rows && result.rows[0]) {
-          const normalized = {
-            ...result.rows[0],
-            data: result.rows[0].data.split('T')[0],
-            ora_inizio: typeof result.rows[0].ora_inizio === 'string' 
-              ? result.rows[0].ora_inizio.substring(0, 5) 
-              : result.rows[0].ora_inizio,
-            ora_fine: typeof result.rows[0].ora_fine === 'string' 
-              ? result.rows[0].ora_fine.substring(0, 5) 
-              : result.rows[0].ora_fine
-          };
-          setAllAppointments(prev => [...prev, normalized]);
-        }
+        if (!response.ok) throw new Error('Errore creazione');
+
+        const newAppointment = await response.json();
+        const normalized = {
+          ...newAppointment,
+          data: newAppointment.data.split('T')[0],
+          ora_inizio: typeof newAppointment.ora_inizio === 'string' 
+            ? newAppointment.ora_inizio.substring(0, 5) 
+            : newAppointment.ora_inizio,
+          ora_fine: typeof newAppointment.ora_fine === 'string' 
+            ? newAppointment.ora_fine.substring(0, 5) 
+            : newAppointment.ora_fine
+        };
+        setAllAppointments(prev => [...prev, normalized]);
       }
     } catch (error) {
       console.error('Errore salvataggio appuntamento:', error);
@@ -245,7 +252,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleDeleteAppointment = async () => {
     if (!selectedSlot || !selectedRoom) return;
 
@@ -256,7 +263,12 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     if (!appointment) return;
 
     try {
-      await query('DELETE FROM room_appuntamenti WHERE id = $1', [appointment.id]);
+      const response = await fetch(`/api/room-appuntamenti/${appointment.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Errore eliminazione');
+
       setAllAppointments(prev => prev.filter(apt => apt.id !== appointment.id));
     } catch (error) {
       console.error('Errore eliminazione appuntamento:', error);

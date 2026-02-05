@@ -25,7 +25,6 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import React from 'react';
 import EpasaAppointmentModal from './EpasaAppointmentModal';
 
@@ -124,19 +123,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   useEffect(() => {
     loadData();
     
-    // OPZIONALE: Polling per aggiornamenti automatici (sostituisce real-time di Supabase)
+    // Polling per aggiornamenti automatici (ogni 30 secondi)
     const intervalId = setInterval(() => {
       loadData();
-    }, 30000); // Ricarica ogni 30 secondi
+    }, 30000);
     
     return () => clearInterval(intervalId);
   }, []);
-
-  // RIMOSSO: Real-time subscription (non disponibile con PostgreSQL diretto)
-  // Per implementare real-time:
-  // 1. Polling (già implementato sopra)
-  // 2. WebSocket separato
-  // 3. Server-Sent Events (SSE)
 
   useEffect(() => {
     if (sedi.length > 0 && !selectedSede) {
@@ -145,28 +138,25 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const loadData = async () => {
     setLoading(true);
     try {
-      const sediResult = await query('SELECT * FROM epasa_sedi ORDER BY id');
-      if (sediResult.rows) setSedi(sediResult.rows);
+      // Carica sedi
+      const sediRes = await fetch('/api/epasa/sedi');
+      const sediData = await sediRes.json();
+      if (sediData) setSedi(sediData);
 
-      const operatoriResult = await query('SELECT * FROM epasa_operatori ORDER BY id');
-      if (operatoriResult.rows) setOperatori(operatoriResult.rows);
+      // Carica operatori
+      const operatoriRes = await fetch('/api/epasa/operatori');
+      const operatoriData = await operatoriRes.json();
+      if (operatoriData) setOperatori(operatoriData);
 
-      const appointmentsResult = await query(
-        'SELECT * FROM epasa_appuntamenti ORDER BY data ASC'
-      );
-
-      if (appointmentsResult.rows) {
-        const normalized = appointmentsResult.rows.map(apt => ({
-          ...apt,
-          data: apt.data.split('T')[0],
-          ora: typeof apt.ora === 'string' ? apt.ora.substring(0, 5) : apt.ora,
-        }));
-
-        setAllAppointments(normalized);
+      // Carica appuntamenti
+      const appointmentsRes = await fetch('/api/epasa/appuntamenti');
+      const appointmentsData = await appointmentsRes.json();
+      if (appointmentsData) {
+        setAllAppointments(appointmentsData);
       }
 
       setLoading(false);
@@ -176,84 +166,55 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleCreateAppointment = async (data: any) => {
     try {
-      const result = await query(
-        `INSERT INTO epasa_appuntamenti 
-         (sede_id, operatore_id, data, ora, cliente, mese, note) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING *`,
-        [
-          data.sede_id,
-          data.operatore_id,
-          data.data,
-          data.ora,
-          data.cliente,
-          data.mese,
-          data.note || null,
-        ]
-      );
+      const response = await fetch('/api/epasa/appuntamenti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-      if (result.rows && result.rows[0]) {
-        const normalized = {
-          ...result.rows[0],
-          data: result.rows[0].data.split('T')[0],
-          ora: typeof result.rows[0].ora === 'string' 
-            ? result.rows[0].ora.substring(0, 5) 
-            : result.rows[0].ora,
-        };
-        setAllAppointments(prev => [...prev, normalized]);
-      }
+      if (!response.ok) throw new Error('Errore creazione appuntamento');
+
+      const newAppointment = await response.json();
+      setAllAppointments(prev => [...prev, newAppointment]);
     } catch (error) {
       console.error('Errore creazione appuntamento:', error);
       alert("Errore durante la creazione dell'appuntamento");
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
-      const result = await query(
-        `UPDATE epasa_appuntamenti 
-         SET sede_id = $1, operatore_id = $2, data = $3, ora = $4, 
-             cliente = $5, mese = $6, note = $7, updated_at = NOW()
-         WHERE id = $8
-         RETURNING *`,
-        [
-          data.sede_id,
-          data.operatore_id,
-          data.data,
-          data.ora,
-          data.cliente,
-          data.mese,
-          data.note || null,
-          id,
-        ]
-      );
+      const response = await fetch(`/api/epasa/appuntamenti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-      if (result.rows && result.rows[0]) {
-        const normalized = {
-          ...result.rows[0],
-          data: result.rows[0].data.split('T')[0],
-          ora: typeof result.rows[0].ora === 'string' 
-            ? result.rows[0].ora.substring(0, 5) 
-            : result.rows[0].ora,
-        };
-        setAllAppointments(prev =>
-          prev.map(apt => (apt.id === id ? normalized : apt)),
-        );
-      }
+      if (!response.ok) throw new Error('Errore aggiornamento appuntamento');
+
+      const updatedAppointment = await response.json();
+      setAllAppointments(prev =>
+        prev.map(apt => (apt.id === id ? updatedAppointment : apt)),
+      );
     } catch (error) {
       console.error('Errore aggiornamento appuntamento:', error);
       alert("Errore durante l'aggiornamento dell'appuntamento");
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch invece di query diretta
   const handleDeleteAppointment = async (id: string) => {
     try {
-      await query('DELETE FROM epasa_appuntamenti WHERE id = $1', [id]);
+      const response = await fetch(`/api/epasa/appuntamenti/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Errore eliminazione appuntamento');
+
       setAllAppointments(prev => prev.filter(apt => apt.id !== id));
     } catch (error) {
       console.error('Errore eliminazione appuntamento:', error);

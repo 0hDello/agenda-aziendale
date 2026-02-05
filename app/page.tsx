@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar as CalendarIcon, Settings } from 'lucide-react';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 
 interface Agenda {
   id: string;
@@ -24,62 +23,17 @@ export default function HomePage() {
     loadAgende();
   }, []);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // CAMBIATO: Usa fetch API invece di query diretta
   const loadAgende = async () => {
     try {
-      // Prova prima a caricare da database
-      try {
-        const result = await query(
-          `SELECT id, nome, descrizione, colore, icona, created_at, attiva 
-           FROM agende 
-           WHERE attiva = true 
-           ORDER BY created_at ASC`
-        );
-        
-        if (result.rows && result.rows.length > 0) {
-          setAgende(result.rows);
-          setLoading(false);
-          return;
-        }
-      } catch (dbError) {
-        console.warn('Tabella agende non trovata, uso agende statiche:', dbError);
-      }
-
-      // Fallback su agende statiche se la tabella non esiste
-      const staticAgende: Agenda[] = [
-        {
-          id: '730',
-          nome: 'Agenda 730',
-          descrizione: 'Gestione appuntamenti',
-          colore: '#005CA9',
-          icona: 'calendar',
-          created_at: new Date().toISOString(),
-          attiva: true
-        },
-        {
-          id: 'sala-riunioni-2026',
-          nome: 'Sala Riunioni 2026',
-          descrizione: 'Prenotazioni Imola, CSPT e Saletta Primo Piano',
-          colore: '#16A34A',
-          icona: 'calendar',
-          created_at: new Date().toISOString(),
-          attiva: true
-        },
-        {
-          id: 'epasa',
-          nome: 'EPASA',
-          descrizione: 'Appuntamenti clienti - Imola, CSPT e Borgo',
-          colore: '#9333EA',
-          icona: 'calendar',
-          created_at: new Date().toISOString(),
-          attiva: true
-        }
-      ];
-
-      setAgende(staticAgende);
-      setLoading(false);
+      const response = await fetch('/api/agende');
+      if (!response.ok) throw new Error('Errore caricamento agende');
+      
+      const data = await response.json();
+      setAgende(data);
     } catch (error) {
       console.error('Errore caricamento agende:', error);
+    } finally {
       setLoading(false);
     }
   };
@@ -173,7 +127,6 @@ export default function HomePage() {
                   </p>
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    {/* Bottone Settings SOLO per Agenda 730 */}
                     {agenda.id === '730' && (
                       <button
                         onClick={(e) => {
@@ -187,7 +140,6 @@ export default function HomePage() {
                         <Settings size={18} className="text-[#005CA9]" />
                       </button>
                     )}
-                    {/* Spazio vuoto per altre agende */}
                     {agenda.id !== '730' && <div></div>}
 
                     {agenda.attiva && (
