@@ -1,18 +1,20 @@
 'use client';
 
+import { use } from 'react';
 import Calendar from '@/components/Calendar';
 import RoomCalendar from '@/components/RoomCalendar';
 import EpasaCalendar from '@/components/EpasaCalendar';
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>; // ✅ CAMBIATO: params è ora una Promise
 }
 
 export default function AgendaPage({ params }: PageProps) {
-  const { id } = params;
+  // ✅ CAMBIATO: Unwrap la Promise con React.use()
+  const { id } = use(params);
 
-  // Se l'agenda è sala-riunioni-2026, usa il RoomCalendar
-  if (id === 'sala-riunioni-2026') {
+  // Se l'agenda è sale o sala-riunioni-2026, usa il RoomCalendar
+  if (id === 'sale' || id === 'sala-riunioni-2026') {
     return (
       <div className="min-h-screen bg-gray-50">
         <RoomCalendar agendaId={id} />

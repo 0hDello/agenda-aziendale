@@ -119,17 +119,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [visibleDays, isLoadingMore]);
 
-  // Carica dati iniziali
-  useEffect(() => {
-    loadData();
-    
-    // Polling per aggiornamenti automatici (ogni 30 secondi)
-    const intervalId = setInterval(() => {
-      loadData();
-    }, 30000);
-    
-    return () => clearInterval(intervalId);
-  }, []);
+  // Carica dati iniziali (SOLO una volta)
+useEffect(() => {
+  loadData();
+}, []);
+
 
   useEffect(() => {
     if (sedi.length > 0 && !selectedSede) {
@@ -138,7 +132,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const loadData = async () => {
     setLoading(true);
     try {
@@ -166,7 +159,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const handleCreateAppointment = async (data: any) => {
     try {
       const response = await fetch('/api/epasa/appuntamenti', {
@@ -185,7 +177,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
       const response = await fetch(`/api/epasa/appuntamenti/${id}`, {
@@ -206,7 +197,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const handleDeleteAppointment = async (id: string) => {
     try {
       const response = await fetch(`/api/epasa/appuntamenti/${id}`, {
@@ -263,17 +253,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     });
   };
 
+  // ✅ MODIFICATO: Mostra TUTTI gli operatori dal database
   const getOperatorsForSede = () => {
-    if (!selectedSede) return [];
-
-    const operators = new Set<string>();
-    allAppointments.forEach(apt => {
-      if (apt.sede_id === selectedSede.id) {
-        operators.add(apt.operatore_id);
-      }
-    });
-
-    return Array.from(operators).sort();
+    // Restituisci tutti gli operatori caricati dal database
+    return operatori.map(op => op.id).sort();
   };
 
   const operatorsInSede = getOperatorsForSede();
