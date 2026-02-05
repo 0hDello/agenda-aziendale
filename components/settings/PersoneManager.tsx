@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { User, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { Persona } from '@/lib/types';
 
 export default function PersoneManager() {
@@ -16,11 +15,12 @@ export default function PersoneManager() {
     loadPersone();
   }, []);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const loadPersone = async () => {
     try {
-      const result = await query('SELECT * FROM persone ORDER BY nome');
-      setPersone(result.rows || []);
+      const response = await fetch('/api/persone');
+      const data = await response.json();
+      setPersone(data || []);
     } catch (error) {
       console.error('Errore caricamento persone:', error);
     }
@@ -43,7 +43,7 @@ export default function PersoneManager() {
     setFormData({ nome: '' });
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido');
@@ -55,16 +55,22 @@ export default function PersoneManager() {
     try {
       if (editingPersona) {
         // Update esistente
-        await query(
-          'UPDATE persone SET nome = $1, updated_at = NOW() WHERE id = $2',
-          [formData.nome.trim(), editingPersona.id]
-        );
+        const response = await fetch(`/api/persone/${editingPersona.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: formData.nome.trim() }),
+        });
+
+        if (!response.ok) throw new Error('Errore aggiornamento');
       } else {
         // Insert nuovo
-        await query(
-          'INSERT INTO persone (nome) VALUES ($1)',
-          [formData.nome.trim()]
-        );
+        const response = await fetch('/api/persone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: formData.nome.trim() }),
+        });
+
+        if (!response.ok) throw new Error('Errore creazione');
       }
 
       await loadPersone();
@@ -77,12 +83,19 @@ export default function PersoneManager() {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa persona?')) return;
 
     try {
-      await query('DELETE FROM persone WHERE id = $1', [id]);
+      const response = await fetch(`/api/persone/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore eliminazione');
+      }
+
       await loadPersone();
     } catch (error) {
       console.error('Errore eliminazione persona:', error);

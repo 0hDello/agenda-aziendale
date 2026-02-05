@@ -145,10 +145,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   }, []);
 
   useEffect(() => {
-    if (sedi.length > 0 && !selectedSedeId) {
-      setSelectedSedeId(sedi[0].id);
-    }
-  }, [sedi, selectedSedeId]);
+  if (sedi.length > 0 && !selectedSedeId) {
+    
+    const imolaSede = sedi.find(s => s.nome.toLowerCase().includes('imola'));
+    setSelectedSedeId(imolaSede ? imolaSede.id : sedi[0].id);
+  }
+}, [sedi, selectedSedeId]);
 
   useEffect(() => {
     const handleMouseEnter = (e: Event) => {

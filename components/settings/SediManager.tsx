@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Building2, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { Sede } from '@/lib/types';
 
 export default function SediManager() {
@@ -16,11 +15,12 @@ export default function SediManager() {
     loadSedi();
   }, []);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const loadSedi = async () => {
     try {
-      const result = await query('SELECT * FROM sedi ORDER BY nome');
-      setSedi(result.rows || []);
+      const response = await fetch('/api/sedi');
+      const data = await response.json();
+      setSedi(data || []);
     } catch (error) {
       console.error('Errore caricamento sedi:', error);
     }
@@ -43,7 +43,7 @@ export default function SediManager() {
     setFormData({ nome: '' });
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido per la sede');
@@ -55,16 +55,22 @@ export default function SediManager() {
     try {
       if (editingSede) {
         // Update esistente
-        await query(
-          'UPDATE sedi SET nome = $1, updated_at = NOW() WHERE id = $2',
-          [formData.nome.trim(), editingSede.id]
-        );
+        const response = await fetch(`/api/sedi/${editingSede.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: formData.nome.trim() }),
+        });
+
+        if (!response.ok) throw new Error('Errore aggiornamento');
       } else {
         // Insert nuovo
-        await query(
-          'INSERT INTO sedi (nome) VALUES ($1)',
-          [formData.nome.trim()]
-        );
+        const response = await fetch('/api/sedi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: formData.nome.trim() }),
+        });
+
+        if (!response.ok) throw new Error('Errore creazione');
       }
 
       await loadSedi();
@@ -77,12 +83,19 @@ export default function SediManager() {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa sede?')) return;
 
     try {
-      await query('DELETE FROM sedi WHERE id = $1', [id]);
+      const response = await fetch(`/api/sedi/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore eliminazione');
+      }
+
       await loadSedi();
     } catch (error) {
       console.error('Errore eliminazione sede:', error);

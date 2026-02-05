@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Plus, Trash2, X, Save } from 'lucide-react';
-import { query } from '@/lib/postgres'; // CAMBIATO: da @/lib/supabase
 import { PersonaSede, Persona, Sede } from '@/lib/types';
 
 interface PersonaSedeExtended extends PersonaSede {
@@ -22,44 +21,32 @@ export default function AgendeManager() {
     loadData();
   }, []);
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const loadData = async () => {
     try {
-      // Carica agende con JOIN per ottenere nomi persone e sedi
-      const agendeResult = await query(`
-        SELECT 
-          ps.id,
-          ps.persona_id,
-          ps.sede_id,
-          ps.created_at,
-          p.nome as persona_nome,
-          s.nome as sede_nome
-        FROM persona_sede ps
-        LEFT JOIN persone p ON ps.persona_id = p.id
-        LEFT JOIN sedi s ON ps.sede_id = s.id
-        ORDER BY ps.created_at DESC
-      `);
-      
-      if (agendeResult.rows) {
-        // Trasforma i dati per matchare la struttura attesa
-        const agendeFormatted = agendeResult.rows.map(row => ({
-          id: row.id,
-          persona_id: row.persona_id,
-          sede_id: row.sede_id,
-          created_at: row.created_at,
-          persona: { id: row.persona_id, nome: row.persona_nome },
-          sede: { id: row.sede_id, nome: row.sede_nome }
+      // Carica persona_sede
+      const psRes = await fetch('/api/persona-sede');
+      const psData = await psRes.json();
+
+      // Carica persone
+      const personeRes = await fetch('/api/persone');
+      const personeData = await personeRes.json();
+      setPersone(personeData || []);
+
+      // Carica sedi
+      const sediRes = await fetch('/api/sedi');
+      const sediData = await sediRes.json();
+      setSedi(sediData || []);
+
+      // Combina i dati
+      if (psData) {
+        const agendeFormatted = psData.map((ps: PersonaSede) => ({
+          ...ps,
+          persona: personeData.find((p: Persona) => p.id === ps.persona_id),
+          sede: sediData.find((s: Sede) => s.id === ps.sede_id),
         }));
         setAgende(agendeFormatted);
       }
-
-      // Carica persone
-      const personeResult = await query('SELECT * FROM persone ORDER BY nome');
-      setPersone(personeResult.rows || []);
-
-      // Carica sedi
-      const sediResult = await query('SELECT * FROM sedi ORDER BY nome');
-      setSedi(sediResult.rows || []);
     } catch (error) {
       console.error('Errore caricamento dati:', error);
     }
@@ -75,7 +62,7 @@ export default function AgendeManager() {
     setFormData({ persona_id: '', sede_id: '' });
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleSave = async () => {
     if (!formData.persona_id || !formData.sede_id) {
       alert('Seleziona sia la persona che la sede');
@@ -95,10 +82,16 @@ export default function AgendeManager() {
     setLoading(true);
 
     try {
-      await query(
-        'INSERT INTO persona_sede (persona_id, sede_id) VALUES ($1, $2)',
-        [formData.persona_id, formData.sede_id]
-      );
+      const response = await fetch('/api/persona-sede', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          persona_id: formData.persona_id,
+          sede_id: formData.sede_id,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Errore creazione');
 
       await loadData();
       handleCloseModal();
@@ -110,16 +103,21 @@ export default function AgendeManager() {
     }
   };
 
-  // CAMBIATO: Convertito da Supabase a PostgreSQL
+  // ✅ CORRETTO: Usa fetch invece di query diretta
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa associazione?')) return;
 
     try {
-      await query('DELETE FROM persona_sede WHERE id = $1', [id]);
+      const response = await fetch(`/api/persona-sede/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Errore eliminazione');
+
       await loadData();
     } catch (error) {
       console.error('Errore eliminazione agenda:', error);
-      alert('Errore durante l\'eliminazione');
+      alert("Errore durante l'eliminazione");
     }
   };
 

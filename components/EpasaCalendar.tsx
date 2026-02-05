@@ -62,7 +62,7 @@ const TIME_SLOTS = [
 ];
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1));
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [sedi, setSedi] = useState<Sede[]>([]);
   const [operatori, setOperatori] = useState<Operatore[]>([]);
   const [selectedSede, setSelectedSede] = useState<Sede | null>(null);
@@ -659,13 +659,14 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => {
-                setSelectedDate(new Date(2026, 0, 1));
+                setSelectedDate(new Date());
                 setShowDatePicker(false);
               }}
               className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
             >
-              Vai a 1 Gennaio 2026
+              Vai a Oggi
             </button>
+
           </div>
         </div>
       )}
