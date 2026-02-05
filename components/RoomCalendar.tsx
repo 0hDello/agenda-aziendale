@@ -78,16 +78,9 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
 
-  // Carica dati iniziali
+  // Carica dati iniziali (SOLO una volta)
   useEffect(() => {
     loadData();
-    
-    // Polling per aggiornamenti automatici (ogni 30 secondi)
-    const intervalId = setInterval(() => {
-      loadData();
-    }, 30000);
-    
-    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -103,7 +96,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   }, [selectedRoom, currentMonth, allAppointments]);
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const loadData = async () => {
     setLoading(true);
     try {
@@ -116,14 +108,9 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
       const appointmentsRes = await fetch('/api/room-appuntamenti');
       const appointmentsData = await appointmentsRes.json();
       
+      // ✅ MODIFICATO: La normalizzazione è già fatta nel backend
       if (appointmentsData) {
-        const normalized = appointmentsData.map((apt: any) => ({
-          ...apt,
-          data: apt.data.split('T')[0],
-          ora_inizio: typeof apt.ora_inizio === 'string' ? apt.ora_inizio.substring(0, 5) : apt.ora_inizio,
-          ora_fine: typeof apt.ora_fine === 'string' ? apt.ora_fine.substring(0, 5) : apt.ora_fine
-        }));
-        setAllAppointments(normalized);
+        setAllAppointments(appointmentsData);
       }
 
       setLoading(false);
@@ -149,7 +136,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
     const filteredAppointments = allAppointments.filter(app => {
       if (app.sala_id !== selectedRoom.id) return false;
-      const appDate = new Date(app.data);
+      const appDate = new Date(app.data + 'T00:00:00'); // ✅ MODIFICATO: Forza timezone locale
       return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
     });
 
@@ -171,12 +158,11 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     setIsModalOpen(true);
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const handleSaveAppointment = async (data: { date: string; time: string; title: string; endTime?: string }) => {
     if (!selectedRoom) return;
 
     try {
-      const date = new Date(data.date);
+      const date = new Date(data.date + 'T00:00:00'); // ✅ MODIFICATO: Forza timezone locale
       const mese = MONTHS[date.getMonth()];
       
       const startIdx = TIME_SLOTS.indexOf(data.time);
@@ -202,20 +188,14 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           }),
         });
 
-        if (!response.ok) throw new Error('Errore aggiornamento');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Errore aggiornamento');
+        }
 
         const updated = await response.json();
-        const normalized = {
-          ...updated,
-          data: updated.data.split('T')[0],
-          ora_inizio: typeof updated.ora_inizio === 'string' 
-            ? updated.ora_inizio.substring(0, 5) 
-            : updated.ora_inizio,
-          ora_fine: typeof updated.ora_fine === 'string' 
-            ? updated.ora_fine.substring(0, 5) 
-            : updated.ora_fine
-        };
-        setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? normalized : apt));
+        // ✅ MODIFICATO: Non serve normalizzare, già fatto dal backend
+        setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? updated : apt));
       } else {
         // Crea nuovo
         const response = await fetch('/api/room-appuntamenti', {
@@ -231,28 +211,21 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           }),
         });
 
-        if (!response.ok) throw new Error('Errore creazione');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Errore creazione');
+        }
 
         const newAppointment = await response.json();
-        const normalized = {
-          ...newAppointment,
-          data: newAppointment.data.split('T')[0],
-          ora_inizio: typeof newAppointment.ora_inizio === 'string' 
-            ? newAppointment.ora_inizio.substring(0, 5) 
-            : newAppointment.ora_inizio,
-          ora_fine: typeof newAppointment.ora_fine === 'string' 
-            ? newAppointment.ora_fine.substring(0, 5) 
-            : newAppointment.ora_fine
-        };
-        setAllAppointments(prev => [...prev, normalized]);
+        // ✅ MODIFICATO: Non serve normalizzare, già fatto dal backend
+        setAllAppointments(prev => [...prev, newAppointment]);
       }
     } catch (error) {
       console.error('Errore salvataggio appuntamento:', error);
-      alert('Errore durante il salvataggio dell\'appuntamento');
+      alert(error instanceof Error ? error.message : 'Errore durante il salvataggio dell\'appuntamento');
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
   const handleDeleteAppointment = async () => {
     if (!selectedSlot || !selectedRoom) return;
 
@@ -267,12 +240,15 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         method: 'DELETE',
       });
 
-      if (!response.ok) throw new Error('Errore eliminazione');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Errore eliminazione');
+      }
 
       setAllAppointments(prev => prev.filter(apt => apt.id !== appointment.id));
     } catch (error) {
       console.error('Errore eliminazione appuntamento:', error);
-      alert('Errore durante l\'eliminazione dell\'appuntamento');
+      alert(error instanceof Error ? error.message : 'Errore durante l\'eliminazione dell\'appuntamento');
     }
   };
 
@@ -318,7 +294,10 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   }
 
   const monthAppointmentsCount = allAppointments.filter(
-    a => a.sala_id === selectedRoom.id && new Date(a.data).getMonth() === currentMonth
+    a => {
+      const appDate = new Date(a.data + 'T00:00:00'); // ✅ MODIFICATO: Forza timezone locale
+      return a.sala_id === selectedRoom.id && appDate.getMonth() === currentMonth;
+    }
   ).length;
 
   const currentAppointment = selectedSlot 

@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
+import { format } from 'date-fns';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     const result = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
-      [params.id]
+      [id]
     );
 
     if (result.rows.length === 0) {
@@ -18,7 +21,22 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(result.rows[0]);
+    const normalized = {
+      ...result.rows[0],
+      data: result.rows[0].data instanceof Date 
+        ? format(result.rows[0].data, 'yyyy-MM-dd') 
+        : (typeof result.rows[0].data === 'string' 
+          ? result.rows[0].data.split('T')[0] 
+          : result.rows[0].data),
+      ora_inizio: typeof result.rows[0].ora_inizio === 'string' 
+        ? result.rows[0].ora_inizio.substring(0, 5) 
+        : result.rows[0].ora_inizio,
+      ora_fine: typeof result.rows[0].ora_fine === 'string' 
+        ? result.rows[0].ora_fine.substring(0, 5) 
+        : result.rows[0].ora_fine,
+    };
+
+    return NextResponse.json(normalized);
   } catch (error) {
     console.error('Errore caricamento appuntamento sala:', error);
     return NextResponse.json(
@@ -30,16 +48,18 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     const body = await request.json();
     const { sala_id, data, ora_inizio, ora_fine, titolo, mese } = body;
 
     // Verifica se l'appuntamento esiste
     const existing = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
-      [params.id]
+      [id]
     );
 
     if (existing.rows.length === 0) {
@@ -60,7 +80,7 @@ export async function PUT(
            (ora_inizio < $4 AND ora_fine > $3)
            OR (ora_inizio >= $3 AND ora_inizio < $4)
          )`,
-        [sala_id, data, ora_inizio, ora_fine, params.id]
+        [sala_id, data, ora_inizio, ora_fine, id]
       );
 
       if (conflictCheck.rows.length > 0) {
@@ -102,7 +122,7 @@ export async function PUT(
     }
 
     updates.push(`updated_at = NOW()`);
-    values.push(params.id);
+    values.push(id);
 
     const result = await query(
       `UPDATE room_appuntamenti 
@@ -112,7 +132,22 @@ export async function PUT(
       values
     );
 
-    return NextResponse.json(result.rows[0]);
+    const normalized = {
+      ...result.rows[0],
+      data: result.rows[0].data instanceof Date 
+        ? format(result.rows[0].data, 'yyyy-MM-dd') 
+        : (typeof result.rows[0].data === 'string' 
+          ? result.rows[0].data.split('T')[0] 
+          : result.rows[0].data),
+      ora_inizio: typeof result.rows[0].ora_inizio === 'string' 
+        ? result.rows[0].ora_inizio.substring(0, 5) 
+        : result.rows[0].ora_inizio,
+      ora_fine: typeof result.rows[0].ora_fine === 'string' 
+        ? result.rows[0].ora_fine.substring(0, 5) 
+        : result.rows[0].ora_fine,
+    };
+
+    return NextResponse.json(normalized);
   } catch (error) {
     console.error('Errore aggiornamento appuntamento sala:', error);
     return NextResponse.json(
@@ -124,13 +159,15 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     // Verifica se l'appuntamento esiste
     const existing = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
-      [params.id]
+      [id]
     );
 
     if (existing.rows.length === 0) {
@@ -140,7 +177,7 @@ export async function DELETE(
       );
     }
 
-    await query('DELETE FROM room_appuntamenti WHERE id = $1', [params.id]);
+    await query('DELETE FROM room_appuntamenti WHERE id = $1', [id]);
     
     return NextResponse.json({ 
       success: true, 
