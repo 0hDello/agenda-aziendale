@@ -38,3 +38,13 @@ export interface TimeSlot {
   minute: number;
   label: string;
 }
+
+
+export interface Agenda {
+  id: string;
+  nome: string;
+  descrizione?: string;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}

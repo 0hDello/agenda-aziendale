@@ -10,8 +10,8 @@ interface Agenda {
   descrizione?: string;
   colore?: string;
   icona?: string;
-  created_at: string;
-  attiva: boolean;
+  created_at?: string;
+  active: boolean; // ✅ CAMBIATO: da "attiva" a "active"
 }
 
 export default function HomePage() {
@@ -23,7 +23,6 @@ export default function HomePage() {
     loadAgende();
   }, []);
 
-  // CAMBIATO: Usa fetch API invece di query diretta
   const loadAgende = async () => {
     try {
       const response = await fetch('/api/agende');
@@ -39,7 +38,7 @@ export default function HomePage() {
   };
 
   const handleAgendaClick = (agenda: Agenda) => {
-    if (agenda.attiva) {
+    if (agenda.active) { // ✅ CAMBIATO: da "attiva" a "active"
       router.push(`/agenda/${agenda.id}`);
     }
   };
@@ -89,7 +88,7 @@ export default function HomePage() {
                   key={agenda.id}
                   onClick={() => handleAgendaClick(agenda)}
                   className={`rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-transparent ${
-                    agenda.attiva
+                    agenda.active // ✅ CAMBIATO
                       ? 'bg-white hover:shadow-2xl cursor-pointer hover:border-[#005CA9] group'
                       : 'bg-gray-100 cursor-not-allowed opacity-75'
                   }`}
@@ -97,31 +96,31 @@ export default function HomePage() {
                   <div className="flex items-start justify-between mb-4">
                     <div 
                       className={`p-4 rounded-xl transition-all ${
-                        agenda.attiva ? 'group-hover:scale-110' : ''
+                        agenda.active ? 'group-hover:scale-110' : '' // ✅ CAMBIATO
                       }`}
-                      style={{ backgroundColor: `${agenda.colore}20` }}
+                      style={{ backgroundColor: `${agenda.colore || '#005CA9'}20` }}
                     >
                       <CalendarIcon 
                         className="w-8 h-8 transition-all" 
-                        style={{ color: agenda.attiva ? agenda.colore : '#9CA3AF' }}
+                        style={{ color: agenda.active ? (agenda.colore || '#005CA9') : '#9CA3AF' }} // ✅ CAMBIATO
                       />
                     </div>
                     <div className={`text-xs font-bold px-3 py-1 rounded-full ${
-                      agenda.attiva 
+                      agenda.active // ✅ CAMBIATO
                         ? 'bg-green-100 text-green-700' 
                         : 'bg-red-100 text-red-700'
                     }`}>
-                      {agenda.attiva ? 'Attiva' : 'Disattivata'}
+                      {agenda.active ? 'Attiva' : 'Disattivata'} {/* ✅ CAMBIATO */}
                     </div>
                   </div>
 
                   <h3 className={`text-xl font-bold mb-2 ${
-                    agenda.attiva ? 'text-gray-800' : 'text-gray-500'
+                    agenda.active ? 'text-gray-800' : 'text-gray-500' // ✅ CAMBIATO
                   }`}>
                     {agenda.nome}
                   </h3>
                   <p className={`text-sm mb-4 ${
-                    agenda.attiva ? 'text-gray-600' : 'text-gray-400'
+                    agenda.active ? 'text-gray-600' : 'text-gray-400' // ✅ CAMBIATO
                   }`}>
                     {agenda.descrizione || 'Nessuna descrizione'}
                   </p>
@@ -142,12 +141,12 @@ export default function HomePage() {
                     )}
                     {agenda.id !== '730' && <div></div>}
 
-                    {agenda.attiva && (
+                    {agenda.active && ( // ✅ CAMBIATO
                       <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
                         →
                       </div>
                     )}
-                    {!agenda.attiva && (
+                    {!agenda.active && ( // ✅ CAMBIATO
                       <div className="text-gray-400 text-xl">
                         →
                       </div>
