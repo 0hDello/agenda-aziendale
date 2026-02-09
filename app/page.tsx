@@ -72,7 +72,7 @@ export default function HomePage() {
                 />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-[#005CA9]">Agende CNA</h1>
+                <h1 className="text-4xl font-bold text-[#005CA9]">Agende</h1>
                 <p className="text-gray-600 mt-1">Seleziona un'agenda per iniziare</p>
               </div>
             </div>
