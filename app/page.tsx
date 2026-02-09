@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { Calendar as CalendarIcon, Settings, Database, FileText } from 'lucide-react';
 
 interface Agenda {
   id: string;
@@ -11,7 +12,7 @@ interface Agenda {
   colore?: string;
   icona?: string;
   created_at?: string;
-  active: boolean; //: da "attiva" a "active"
+  active: boolean;
 }
 
 export default function HomePage() {
@@ -38,7 +39,7 @@ export default function HomePage() {
   };
 
   const handleAgendaClick = (agenda: Agenda) => {
-    if (agenda.active) { //: da "attiva" a "active"
+    if (agenda.active) {
       router.push(`/agenda/${agenda.id}`);
     }
   };
@@ -57,15 +58,36 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header con pulsanti Admin */}
         <div className="mb-12">
-          <div className="flex items-center gap-4">
-            <div className="bg-[#005CA9] p-4 rounded-2xl shadow-lg">
-              <CalendarIcon className="w-10 h-10 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="bg-[#005CA9] p-4 rounded-2xl shadow-lg">
+                <CalendarIcon className="w-10 h-10 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-[#005CA9]">Agende CNA</h1>
+                <p className="text-gray-600 mt-1">Seleziona un'agenda per iniziare</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold text-[#005CA9]">Agende CNA</h1>
-              <p className="text-gray-600 mt-1">Seleziona un'agenda per iniziare</p>
+
+            {/* Pulsanti Admin */}
+            <div className="flex items-center gap-3">
+              <Link href="/admin/query">
+                <button className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200">
+                  <FileText className="w-4 h-4" />
+                  <span className="text-sm font-medium">Query SQL</span>
+                </button>
+              </Link>
+
+              <Link href="/admin/tables">
+                <button className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200">
+                  <Database className="w-4 h-4" />
+                  <span className="text-sm font-medium">Tabelle</span>
+                </button>
+              </Link>
+
+              
             </div>
           </div>
         </div>
@@ -96,13 +118,13 @@ export default function HomePage() {
                   <div className="flex items-start justify-between mb-4">
                     <div 
                       className={`p-4 rounded-xl transition-all ${
-                        agenda.active ? 'group-hover:scale-110' : ''   
+                        agenda.active ? 'group-hover:scale-110' : ''
                       }`}
                       style={{ backgroundColor: `${agenda.colore || '#005CA9'}20` }}
                     >
                       <CalendarIcon 
                         className="w-8 h-8 transition-all" 
-                        style={{ color: agenda.active ? (agenda.colore || '#005CA9') : '#9CA3AF' }} //  
+                        style={{ color: agenda.active ? (agenda.colore || '#005CA9') : '#9CA3AF' }}
                       />
                     </div>
                     <div className={`text-xs font-bold px-3 py-1 rounded-full ${
@@ -110,17 +132,17 @@ export default function HomePage() {
                         ? 'bg-green-100 text-green-700' 
                         : 'bg-red-100 text-red-700'
                     }`}>
-                      {agenda.active ? 'Attiva' : 'Disattivata'} {/*   */}
+                      {agenda.active ? 'Attiva' : 'Disattivata'}
                     </div>
                   </div>
 
                   <h3 className={`text-xl font-bold mb-2 ${
-                    agenda.active ? 'text-gray-800' : 'text-gray-500' //  
+                    agenda.active ? 'text-gray-800' : 'text-gray-500'
                   }`}>
                     {agenda.nome}
                   </h3>
                   <p className={`text-sm mb-4 ${
-                    agenda.active ? 'text-gray-600' : 'text-gray-400' //  
+                    agenda.active ? 'text-gray-600' : 'text-gray-400'
                   }`}>
                     {agenda.descrizione || 'Nessuna descrizione'}
                   </p>
@@ -141,12 +163,12 @@ export default function HomePage() {
                     )}
                     {agenda.id !== '730' && <div></div>}
 
-                    {agenda.active && ( //  
+                    {agenda.active && (
                       <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
                         →
                       </div>
                     )}
-                    {!agenda.active && ( //  
+                    {!agenda.active && (
                       <div className="text-gray-400 text-xl">
                         →
                       </div>
