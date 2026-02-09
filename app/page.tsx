@@ -65,11 +65,7 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               <div className="p-2">
                 <Image 
-<<<<<<< HEAD
-                  src="/LOGO_CNA.png" 
-=======
                   src="/logo-cna.png" 
->>>>>>> 7d80c4893d8fb6679473593fe013d195eeeabf78
                   alt="Logo CNA" 
                   width={80}
                   height={80}
