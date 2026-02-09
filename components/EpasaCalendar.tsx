@@ -68,10 +68,10 @@ type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
 
 // 🔧 CONFIGURAZIONE SCROLL INFINITO
-const MAX_VISIBLE_DAYS = 14; // 2 settimane
-const DAYS_TO_LOAD = 3; // 🔧 RIDOTTO da 7 a 3 per evitare salti
+const MAX_VISIBLE_DAYS = 14; // 2 settimane target
+const DAYS_TO_LOAD = 3; // Carica 3 giorni per volta
 const MIN_DATE = new Date(2026, 0, 1); // 1 gennaio 2026
-const SCROLL_THRESHOLD = 300; // 🔧 Pixel dal bordo per attivare il caricamento
+const SCROLL_THRESHOLD = 300; // Pixel dal bordo per attivare il caricamento
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -94,7 +94,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const isLoadingRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const scrollListenerAttachedRef = useRef(false);
-  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 🔧 NUOVO: debounce timeout
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isWorkingDay = (date: Date): boolean => {
     const day = getDay(date);
@@ -111,7 +111,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // 🔧 Funzione per caricare più giorni in avanti E RIMUOVERE quelli vecchi
+  // 🔧 Funzione per caricare più giorni in avanti
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     
@@ -124,7 +124,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       
       let updatedDays = [...prev, ...newDays];
       
-      // 🔧 RIMUOVI i giorni vecchi se supera il limite
+      // 🔧 RIMUOVI i giorni vecchi SOLO se supera il limite
       if (updatedDays.length > MAX_VISIBLE_DAYS) {
         const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
         updatedDays = updatedDays.slice(daysToRemove);
@@ -137,10 +137,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     setTimeout(() => {
       isLoadingRef.current = false;
-    }, 300); // 🔧 Ridotto da 500ms a 300ms
+    }, 300);
   };
 
-  // 🔧 Funzione per caricare più giorni indietro E RIMUOVERE quelli futuri
+  // 🔧 Funzione per caricare più giorni indietro SENZA rimuovere i futuri (finché non supera limite alto)
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
 
@@ -150,7 +150,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       // 🔧 CONTROLLO: il primo giorno deve essere DOPO il limite minimo
       if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
         console.log('⛔ Limite minimo raggiunto (1 gennaio 2026)');
-        isLoadingRef.current = false; // 🔧 Resetta subito il flag
+        isLoadingRef.current = false;
         return prev;
       }
 
@@ -183,30 +183,36 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         return prev;
       }
       
+      // 🔧 AGGIUNGI i nuovi giorni SENZA rimuovere nulla
       let updatedDays = [...newDays, ...prev];
       
-      // 🔧 RIMUOVI i giorni futuri se supera il limite
-      if (updatedDays.length > MAX_VISIBLE_DAYS) {
+      // 🔧 RIMUOVI i giorni futuri SOLO se supera un limite ALTO (24 giorni)
+      if (updatedDays.length > MAX_VISIBLE_DAYS + 10) {
         const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
         updatedDays = updatedDays.slice(0, -daysToRemove);
-        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri`);
+        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri (limite alto raggiunto)`);
+      } else {
+        console.log(`✅ Mantieni tutti i ${updatedDays.length} giorni per compensazione scroll`);
       }
 
       console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
 
-      // 🔧 COMPENSAZIONE SCROLL con requestAnimationFrame per maggiore precisione
+      // 🔧 COMPENSAZIONE SCROLL con requestAnimationFrame
       requestAnimationFrame(() => {
         if (container) {
           const newScrollHeight = container.scrollHeight;
           const heightDiff = newScrollHeight - scrollHeightBefore;
           
-          // 🔧 Aggiungi un piccolo offset per evitare trigger immediato
-          container.scrollTop = scrollBefore + heightDiff + 10;
-          
-          console.log(`📍 Scroll compensato: ${scrollBefore} + ${heightDiff} = ${container.scrollTop}`);
+          // 🔧 Se abbiamo aggiunto altezza, compensa lo scroll
+          if (heightDiff > 0) {
+            container.scrollTop = scrollBefore + heightDiff;
+            console.log(`📍 Scroll compensato: ${scrollBefore} + ${heightDiff} = ${container.scrollTop}`);
+          } else {
+            console.log(`⚠️ Nessuna compensazione necessaria (heightDiff=${heightDiff})`);
+          }
         }
         
-        // 🔧 Delay più lungo prima di permettere un nuovo caricamento
+        // 🔧 Delay prima di permettere un nuovo caricamento
         setTimeout(() => {
           isLoadingRef.current = false;
         }, 500);
@@ -243,7 +249,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD && distanceFromTop > 0) {
         loadMoreDaysBackward();
       }
-    }, 150); // 🔧 Debounce di 150ms
+    }, 150);
   };
 
   // 🔧 INIZIALIZZAZIONE: Carica 14 giorni (2 settimane)
@@ -303,7 +309,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         scrollListenerAttachedRef.current = false;
       }
       
-      // 🔧 Pulisci timeout
       if (loadTimeoutRef.current) {
         clearTimeout(loadTimeoutRef.current);
       }
