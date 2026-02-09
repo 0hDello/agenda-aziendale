@@ -65,7 +65,7 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               <div className="bg-white p-4 rounded-2xl shadow-lg">
                 <Image 
-                  src="/logo-cna.jpg" 
+                  src="/LOGO_CNA.png" 
                   alt="Logo CNA" 
                   width={64}
                   height={64}
