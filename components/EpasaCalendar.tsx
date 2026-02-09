@@ -66,8 +66,8 @@ const TIME_SLOTS = [
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
 
-// 🔧 LIMITE MASSIMO di giorni da tenere in memoria
-const MAX_VISIBLE_DAYS = 40;
+// 🔧 LIMITE MASSIMO di giorni da tenere in memoria (2 settimane = 14 giorni)
+const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD = 7;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -209,10 +209,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // 🔧 INIZIALIZZAZIONE: Carica 20 giorni
+  // 🔧 INIZIALIZZAZIONE: Carica 14 giorni (2 settimane)
   useEffect(() => {
     console.log('🚀 Inizializzazione calendario...');
-    const days = Array.from({ length: 20 }, (_, i) => addDays(selectedDate, i));
+    const days = Array.from({ length: 14 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
     
     setTimeout(() => {
