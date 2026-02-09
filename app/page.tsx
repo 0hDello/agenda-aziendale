@@ -63,14 +63,12 @@ export default function HomePage() {
         <div className="mb-12">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-2">
-                <Image 
+              <div className="w-20 h-20 flex items-center justify-center">
+                <img 
                   src="/logo-cna.png" 
                   alt="Logo CNA" 
-                  width={80}
-                  height={80}
-                  className="object-contain"
-                  priority
+                  className="w-full h-full object-contain"
+                  style={{ margin: 0, padding: 0 }}
                 />
               </div>
               <div>
