@@ -378,7 +378,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               return;
             } else {
               try {
-                // CAMBIATO: Usa fetch invece di query diretta
+                // : Usa fetch invece di query diretta
                 const response = await fetch(`/api/appuntamenti/${resizingAppointment.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
@@ -419,7 +419,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, [resizingAppointment, appointments, isResizing]);
 
-  // CAMBIATO: Usa fetch invece di query diretta
+  // : Usa fetch invece di query diretta
   const loadData = async () => {
     try {
       // Carica sedi
@@ -446,7 +446,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
+  // : Usa fetch invece di query diretta
   const handleCreateAppointment = async (data: any) => {
     try {
       if (
@@ -477,7 +477,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
+  // : Usa fetch invece di query diretta
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
       const response = await fetch(`/api/appuntamenti/${id}`, {
@@ -497,7 +497,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
+  // : Usa fetch invece di query diretta
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     try {
@@ -558,7 +558,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment({ appointment, originalTime: time });
   };
 
-  // CAMBIATO: Usa fetch invece di query diretta
+  // : Usa fetch invece di query diretta
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
 

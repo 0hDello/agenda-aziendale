@@ -5,10 +5,10 @@ import { format } from 'date-fns';
 // PUT - Aggiorna appuntamento
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> } // ✅ CORRETTO: params è Promise
+  { params }: { params: Promise<{ id: string }> } //  CORRETTO: params è Promise
 ) {
   try {
-    // ✅ CORRETTO: Unwrap params con await
+    //  CORRETTO: Unwrap params con await
     const { id } = await params;
     
     const body = await request.json();
@@ -34,7 +34,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Appuntamento non trovato' }, { status: 404 });
     }
 
-    // ✅ AGGIUNGI NORMALIZZAZIONE
+    //  AGGIUNGI NORMALIZZAZIONE
     const normalized = {
       ...result.rows[0],
       data: result.rows[0].data instanceof Date 
@@ -60,10 +60,10 @@ export async function PUT(
 // DELETE - Elimina appuntamento
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> } // ✅ CORRETTO: params è Promise
+  { params }: { params: Promise<{ id: string }> } //  CORRETTO: params è Promise
 ) {
   try {
-    // ✅ CORRETTO: Unwrap params con await
+    //  CORRETTO: Unwrap params con await
     const { id } = await params;
     
     const result = await query('DELETE FROM appuntamenti WHERE id = $1', [id]);

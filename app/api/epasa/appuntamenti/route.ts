@@ -9,9 +9,9 @@ export async function GET() {
     if (result.rows) {
       const normalized = result.rows.map(apt => ({
         ...apt,
-        // ✅ CORRETTO: Gestisce sia Date che stringa
+        //  CORRETTO: Gestisce sia Date che stringa
         data: apt.data instanceof Date ? format(apt.data, 'yyyy-MM-dd') : apt.data.split('T')[0],
-        // ✅ CORRETTO: Gestisce ora come stringa o oggetto Time
+        //  CORRETTO: Gestisce ora come stringa o oggetto Time
         ora: typeof apt.ora === 'string' ? apt.ora.substring(0, 5) : apt.ora,
       }));
       return NextResponse.json(normalized);
@@ -48,11 +48,11 @@ export async function POST(request: Request) {
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],
-        // ✅ CORRETTO: Gestisce sia Date che stringa
+        //  CORRETTO: Gestisce sia Date che stringa
         data: result.rows[0].data instanceof Date 
           ? format(result.rows[0].data, 'yyyy-MM-dd') 
           : result.rows[0].data.split('T')[0],
-        // ✅ CORRETTO: Gestisce ora come stringa o oggetto Time
+        //  CORRETTO: Gestisce ora come stringa o oggetto Time
         ora: typeof result.rows[0].ora === 'string' 
           ? result.rows[0].ora.substring(0, 5) 
           : result.rows[0].ora,

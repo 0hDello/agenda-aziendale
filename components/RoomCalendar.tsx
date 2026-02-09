@@ -108,7 +108,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
       const appointmentsRes = await fetch('/api/room-appuntamenti');
       const appointmentsData = await appointmentsRes.json();
       
-      // ✅ MODIFICATO: La normalizzazione è già fatta nel backend
+      //  MODIFICATO: La normalizzazione è già fatta nel backend
       if (appointmentsData) {
         setAllAppointments(appointmentsData);
       }
@@ -136,7 +136,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
     const filteredAppointments = allAppointments.filter(app => {
       if (app.sala_id !== selectedRoom.id) return false;
-      const appDate = new Date(app.data + 'T00:00:00'); // ✅ MODIFICATO: Forza timezone locale
+      const appDate = new Date(app.data + 'T00:00:00'); //  MODIFICATO: Forza timezone locale
       return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
     });
 
@@ -162,7 +162,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     if (!selectedRoom) return;
 
     try {
-      const date = new Date(data.date + 'T00:00:00'); // ✅ MODIFICATO: Forza timezone locale
+      const date = new Date(data.date + 'T00:00:00'); //  MODIFICATO: Forza timezone locale
       const mese = MONTHS[date.getMonth()];
       
       const startIdx = TIME_SLOTS.indexOf(data.time);
@@ -194,7 +194,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         }
 
         const updated = await response.json();
-        // ✅ MODIFICATO: Non serve normalizzare, già fatto dal backend
+        //  MODIFICATO: Non serve normalizzare, già fatto dal backend
         setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? updated : apt));
       } else {
         // Crea nuovo
@@ -217,7 +217,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         }
 
         const newAppointment = await response.json();
-        // ✅ MODIFICATO: Non serve normalizzare, già fatto dal backend
+        //  MODIFICATO: Non serve normalizzare, già fatto dal backend
         setAllAppointments(prev => [...prev, newAppointment]);
       }
     } catch (error) {
@@ -295,7 +295,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
   const monthAppointmentsCount = allAppointments.filter(
     a => {
-      const appDate = new Date(a.data + 'T00:00:00'); // ✅ MODIFICATO: Forza timezone locale
+      const appDate = new Date(a.data + 'T00:00:00'); //  MODIFICATO: Forza timezone locale
       return a.sala_id === selectedRoom.id && appDate.getMonth() === currentMonth;
     }
   ).length;

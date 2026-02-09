@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       [nome.trim()]
     );
 
-    console.log('✅ Sede inserita:', result.rows[0]);
+    console.log(' Sede inserita:', result.rows[0]);
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {

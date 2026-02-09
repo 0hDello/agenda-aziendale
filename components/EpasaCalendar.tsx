@@ -57,7 +57,7 @@ interface Appointment {
   note?: string;
 }
 
-// ✅ Orari dalle 8:30 alle 12:30 (ultimo appuntamento)
+//  Orari dalle 8:30 alle 12:30 (ultimo appuntamento)
 const TIME_SLOTS = [
   '08:00','08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00'
@@ -86,7 +86,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
 
-  // ✅ Funzione per verificare se un giorno è lavorativo (lun-ven)
+  //  Funzione per verificare se un giorno è lavorativo (lun-ven)
   const isWorkingDay = (date: Date): boolean => {
     const day = getDay(date);
     return day !== 0 && day !== 6; // 0 = domenica, 6 = sabato
@@ -278,7 +278,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return 'partial';
   };
 
-  // ✅ MODIFICATO: Considera sia "free" che "partial" come disponibili
+  //  MODIFICATO: Considera sia "free" che "partial" come disponibili
 const getFirstAvailableDay = (operator: string): string | null => {
   const today = new Date();
   for (let i = 0; i < 90; i++) {
@@ -292,7 +292,7 @@ const getFirstAvailableDay = (operator: string): string | null => {
     const dateStr = format(checkDate, 'yyyy-MM-dd');
     const availability = getDayAvailability(dateStr, operator);
     
-    // ✅ Accetta sia "free" che "partial" come primo giorno disponibile
+    //  Accetta sia "free" che "partial" come primo giorno disponibile
     if (availability === 'free' || availability === 'partial') {
       return dateStr;
     }
@@ -898,10 +898,10 @@ const getFirstAvailableDay = (operator: string): string | null => {
               {(() => {
                 const monthStart = startOfMonth(selectedDate);
                 const monthEnd = endOfMonth(selectedDate);
-                // ✅ MODIFICATO: Solo giorni del mese corrente
+                //  MODIFICATO: Solo giorni del mese corrente
                 const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
                 
-                // ✅ AGGIUNTO: Calcola quanti giorni vuoti servono all'inizio
+                //  AGGIUNTO: Calcola quanti giorni vuoti servono all'inizio
                 const firstDayOfWeek = (getDay(monthStart) + 6) % 7; // 0 = Lun, 6 = Dom
                 const emptyDays = Array(firstDayOfWeek).fill(null);
 

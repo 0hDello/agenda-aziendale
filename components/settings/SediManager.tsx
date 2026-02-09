@@ -91,7 +91,7 @@ export default function SediManager() {
         }
         
         const result = await response.json();
-        console.log('✅ Sede creata:', result);
+        console.log(' Sede creata:', result);
       }
 
       await loadSedi();

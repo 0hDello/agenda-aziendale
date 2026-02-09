@@ -21,7 +21,7 @@ export default function AgendeManager() {
     loadData();
   }, []);
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
+  //  CORRETTO: Usa fetch invece di query diretta
   const loadData = async () => {
     try {
       // Carica persona_sede
@@ -62,7 +62,7 @@ export default function AgendeManager() {
     setFormData({ persona_id: '', sede_id: '' });
   };
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
+  //  CORRETTO: Usa fetch invece di query diretta
   const handleSave = async () => {
     if (!formData.persona_id || !formData.sede_id) {
       alert('Seleziona sia la persona che la sede');
@@ -103,7 +103,7 @@ export default function AgendeManager() {
     }
   };
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
+  //  CORRETTO: Usa fetch invece di query diretta
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa associazione?')) return;
 

@@ -6,11 +6,11 @@ import RoomCalendar from '@/components/RoomCalendar';
 import EpasaCalendar from '@/components/EpasaCalendar';
 
 interface PageProps {
-  params: Promise<{ id: string }>; // ✅ CAMBIATO: params è ora una Promise
+  params: Promise<{ id: string }>; //  : params è ora una Promise
 }
 
 export default function AgendaPage({ params }: PageProps) {
-  // ✅ CAMBIATO: Unwrap la Promise con React.use()
+  //  : Unwrap la Promise con React.use()
   const { id } = use(params);
 
   // Se l'agenda è sale o sala-riunioni-2026, usa il RoomCalendar

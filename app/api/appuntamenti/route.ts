@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     const result = await query(sql, params);
     
-    // ✅ AGGIUNGI NORMALIZZAZIONE
+    //  AGGIUNGI NORMALIZZAZIONE
     if (result.rows) {
       const normalized = result.rows.map(apt => ({
         ...apt,
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       [persona_id, sede_id, data, ora_inizio, ora_fine, cliente || null, note || null]
     );
 
-    // ✅ AGGIUNGI NORMALIZZAZIONE
+    //  AGGIUNGI NORMALIZZAZIONE
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],

@@ -15,7 +15,7 @@ export default function PersoneManager() {
     loadPersone();
   }, []);
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
+  //  CORRETTO: Usa fetch invece di query diretta
   const loadPersone = async () => {
     try {
       const response = await fetch('/api/persone');
@@ -43,7 +43,7 @@ export default function PersoneManager() {
     setFormData({ nome: '' });
   };
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
+  //  CORRETTO: Usa fetch invece di query diretta
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido');
@@ -83,7 +83,7 @@ export default function PersoneManager() {
     }
   };
 
-  // ✅ CORRETTO: Usa fetch invece di query diretta
+  //  CORRETTO: Usa fetch invece di query diretta
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa persona?')) return;
 

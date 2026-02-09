@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'; // ✅ Aggiunto NextRequest
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 
 export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> } // ✅ CORRETTO: params è Promise
+  request: NextRequest, // ✅ MODIFICATO: Request → NextRequest
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // ✅ CORRETTO: Unwrap params con await
     const { id } = await params;
     
     const body = await request.json();
@@ -33,11 +32,9 @@ export async function PUT(
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],
-        // ✅ CORRETTO: Gestisce sia Date che stringa
         data: result.rows[0].data instanceof Date 
           ? format(result.rows[0].data, 'yyyy-MM-dd') 
           : result.rows[0].data.split('T')[0],
-        // ✅ CORRETTO: Gestisce ora come stringa o oggetto Time
         ora: typeof result.rows[0].ora === 'string' 
           ? result.rows[0].ora.substring(0, 5) 
           : result.rows[0].ora,
@@ -53,11 +50,10 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> } // ✅ CORRETTO: params è Promise
+  request: NextRequest, // ✅ MODIFICATO: Request → NextRequest
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // ✅ CORRETTO: Unwrap params con await
     const { id } = await params;
     
     const result = await query('DELETE FROM epasa_appuntamenti WHERE id = $1', [id]);
