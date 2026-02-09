@@ -67,10 +67,11 @@ const TIME_SLOTS = [
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
 
-// 🔧 LIMITE MASSIMO di giorni da tenere in memoria (2 settimane = 14 giorni)
-const MAX_VISIBLE_DAYS = 14;
-const DAYS_TO_LOAD = 7;
+// 🔧 CONFIGURAZIONE SCROLL INFINITO
+const MAX_VISIBLE_DAYS = 14; // 2 settimane
+const DAYS_TO_LOAD = 3; // 🔧 RIDOTTO da 7 a 3 per evitare salti
 const MIN_DATE = new Date(2026, 0, 1); // 1 gennaio 2026
+const SCROLL_THRESHOLD = 300; // 🔧 Pixel dal bordo per attivare il caricamento
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -93,6 +94,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const isLoadingRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const scrollListenerAttachedRef = useRef(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 🔧 NUOVO: debounce timeout
 
   const isWorkingDay = (date: Date): boolean => {
     const day = getDay(date);
@@ -135,7 +137,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     setTimeout(() => {
       isLoadingRef.current = false;
-    }, 500);
+    }, 300); // 🔧 Ridotto da 500ms a 300ms
   };
 
   // 🔧 Funzione per caricare più giorni indietro E RIMUOVERE quelli futuri
@@ -145,9 +147,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     setVisibleDays(prev => {
       const firstDay = prev[0];
       
-      // 🔧 CONTROLLO CORRETTO: il primo giorno deve essere DOPO il limite minimo
+      // 🔧 CONTROLLO: il primo giorno deve essere DOPO il limite minimo
       if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
         console.log('⛔ Limite minimo raggiunto (1 gennaio 2026)');
+        isLoadingRef.current = false; // 🔧 Resetta subito il flag
         return prev;
       }
 
@@ -155,58 +158,73 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       isLoadingRef.current = true;
 
       const container = scrollContainerRef.current;
-      if (container) {
-        const scrollBefore = container.scrollTop;
-        const scrollHeightBefore = container.scrollHeight;
-
-        // Calcola i nuovi giorni da aggiungere, rispettando il limite minimo
-        const newDays: Date[] = [];
-        for (let i = DAYS_TO_LOAD; i > 0; i--) {
-          const newDay = subDays(firstDay, i);
-          if (startOfDay(newDay) >= startOfDay(MIN_DATE)) {
-            newDays.push(newDay);
-          }
-        }
-        
-        // Se non ci sono nuovi giorni validi, esci
-        if (newDays.length === 0) {
-          console.log('⛔ Nessun giorno valido da aggiungere');
-          isLoadingRef.current = false;
-          return prev;
-        }
-        
-        let updatedDays = [...newDays, ...prev];
-        
-        // 🔧 RIMUOVI i giorni futuri se supera il limite
-        if (updatedDays.length > MAX_VISIBLE_DAYS) {
-          const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
-          updatedDays = updatedDays.slice(0, -daysToRemove);
-          console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri`);
-        }
-
-        console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
-
-        setTimeout(() => {
-          if (container) {
-            const newScrollHeight = container.scrollHeight;
-            const heightDiff = newScrollHeight - scrollHeightBefore;
-            container.scrollTop = scrollBefore + heightDiff;
-          }
-          isLoadingRef.current = false;
-        }, 50);
-
-        return updatedDays;
+      if (!container) {
+        isLoadingRef.current = false;
+        return prev;
       }
 
-      isLoadingRef.current = false;
-      return prev;
+      // 🔧 SALVA la posizione attuale
+      const scrollBefore = container.scrollTop;
+      const scrollHeightBefore = container.scrollHeight;
+
+      // Calcola i nuovi giorni da aggiungere, rispettando il limite minimo
+      const newDays: Date[] = [];
+      for (let i = DAYS_TO_LOAD; i > 0; i--) {
+        const newDay = subDays(firstDay, i);
+        if (startOfDay(newDay) >= startOfDay(MIN_DATE)) {
+          newDays.push(newDay);
+        }
+      }
+      
+      // Se non ci sono nuovi giorni validi, esci
+      if (newDays.length === 0) {
+        console.log('⛔ Nessun giorno valido da aggiungere');
+        isLoadingRef.current = false;
+        return prev;
+      }
+      
+      let updatedDays = [...newDays, ...prev];
+      
+      // 🔧 RIMUOVI i giorni futuri se supera il limite
+      if (updatedDays.length > MAX_VISIBLE_DAYS) {
+        const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
+        updatedDays = updatedDays.slice(0, -daysToRemove);
+        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri`);
+      }
+
+      console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
+
+      // 🔧 COMPENSAZIONE SCROLL con requestAnimationFrame per maggiore precisione
+      requestAnimationFrame(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          const heightDiff = newScrollHeight - scrollHeightBefore;
+          
+          // 🔧 Aggiungi un piccolo offset per evitare trigger immediato
+          container.scrollTop = scrollBefore + heightDiff + 10;
+          
+          console.log(`📍 Scroll compensato: ${scrollBefore} + ${heightDiff} = ${container.scrollTop}`);
+        }
+        
+        // 🔧 Delay più lungo prima di permettere un nuovo caricamento
+        setTimeout(() => {
+          isLoadingRef.current = false;
+        }, 500);
+      });
+
+      return updatedDays;
     });
   };
 
-  // 🔧 Handler scroll principale con trigger ridotto
+  // 🔧 Handler scroll principale con DEBOUNCE
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container || isLoadingRef.current) return;
+
+    // 🔧 CANCELLA timeout precedente (debounce)
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
 
     const { scrollTop, scrollHeight, clientHeight } = container;
     const scrollDirection = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
@@ -215,16 +233,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     const distanceFromTop = scrollTop;
 
-    // 🔧 TRIGGER RIDOTTO: 500px invece di 1000px per evitare caricamenti multipli
-    // SCROLL VERSO IL BASSO
-    if (scrollDirection === 'down' && distanceFromBottom < 500) {
-      loadMoreDaysForward();
-    }
-    
-    // SCROLL VERSO L'ALTO
-    else if (scrollDirection === 'up' && distanceFromTop < 500 && distanceFromTop > 0) {
-      loadMoreDaysBackward();
-    }
+    // 🔧 DEBOUNCE: aspetta 150ms prima di caricare
+    loadTimeoutRef.current = setTimeout(() => {
+      // SCROLL VERSO IL BASSO
+      if (scrollDirection === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
+        loadMoreDaysForward();
+      }
+      // SCROLL VERSO L'ALTO
+      else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD && distanceFromTop > 0) {
+        loadMoreDaysBackward();
+      }
+    }, 150); // 🔧 Debounce di 150ms
   };
 
   // 🔧 INIZIALIZZAZIONE: Carica 14 giorni (2 settimane)
@@ -266,6 +285,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         container.removeEventListener('scroll', handleScroll);
         scrollListenerAttachedRef.current = false;
       }
+      
+      // 🔧 Pulisci timeout al cleanup
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
     };
   }, [loading, viewMode]);
 
@@ -277,6 +301,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         console.log('🔌 Rimuovo listener (vista mensile)');
         container.removeEventListener('scroll', handleScroll);
         scrollListenerAttachedRef.current = false;
+      }
+      
+      // 🔧 Pulisci timeout
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
       }
     }
   }, [viewMode]);
