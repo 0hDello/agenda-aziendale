@@ -22,6 +22,7 @@ import {
   subMonths,
   startOfWeek,
   endOfWeek,
+  startOfDay,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
@@ -33,6 +34,12 @@ import React from 'react';
 interface CalendarProps {
   agendaId?: string;
 }
+
+// 🔧 CONFIGURAZIONE SCROLL INFINITO
+const MAX_VISIBLE_DAYS = 14; // 2 settimane target
+const DAYS_TO_LOAD = 3; // Carica 3 giorni per volta
+const MIN_DATE = new Date(2020, 0, 1); // 1 gennaio 2020
+const SCROLL_THRESHOLD = 600; // Pixel dal bordo per attivare il caricamento
 
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -60,8 +67,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasInitialLoad, setHasInitialLoad] = useState(false);
+  const isLoadingRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const scrollListenerAttachedRef = useRef(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const scrollToSelectedDate = () => {
     const selectedDateStr = formatDate(selectedDate);
@@ -73,65 +82,194 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
+  // 🔧 Funzione per caricare più giorni in avanti
+  const loadMoreDaysForward = () => {
+    if (isLoadingRef.current) return;
+    
+    console.log('🔽 Caricamento giorni futuri...');
+    isLoadingRef.current = true;
+
+    setVisibleDays(prev => {
+      const lastDay = prev[prev.length - 1];
+      const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
+      
+      let updatedDays = [...prev, ...newDays];
+      
+      // 🔧 RIMUOVI i giorni vecchi SOLO se supera il limite
+      if (updatedDays.length > MAX_VISIBLE_DAYS) {
+        const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
+        updatedDays = updatedDays.slice(daysToRemove);
+        console.log(`🗑️ Rimossi ${daysToRemove} giorni vecchi`);
+      }
+      
+      console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
+      return updatedDays;
+    });
+
+    setTimeout(() => {
+      isLoadingRef.current = false;
+    }, 300);
+  };
+
+  // 🔧 Funzione per caricare più giorni indietro SENZA rimuovere i futuri
+  const loadMoreDaysBackward = () => {
+    if (isLoadingRef.current) return;
+
+    setVisibleDays(prev => {
+      const firstDay = prev[0];
+      
+      // 🔧 CONTROLLO: il primo giorno deve essere DOPO il limite minimo
+      if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
+        console.log('⛔ Limite minimo raggiunto (1 gennaio 2020)');
+        isLoadingRef.current = false;
+        return prev;
+      }
+
+      console.log('🔼 Caricamento giorni passati...');
+      isLoadingRef.current = true;
+
+      const container = scrollContainerRef.current;
+      if (!container) {
+        isLoadingRef.current = false;
+        return prev;
+      }
+
+      // 🔧 SALVA la posizione attuale
+      const scrollBefore = container.scrollTop;
+      const scrollHeightBefore = container.scrollHeight;
+
+      // Calcola i nuovi giorni da aggiungere, rispettando il limite minimo
+      const newDays: Date[] = [];
+      for (let i = DAYS_TO_LOAD; i > 0; i--) {
+        const newDay = subDays(firstDay, i);
+        if (startOfDay(newDay) >= startOfDay(MIN_DATE)) {
+          newDays.push(newDay);
+        }
+      }
+      
+      // Se non ci sono nuovi giorni validi, esci
+      if (newDays.length === 0) {
+        console.log('⛔ Nessun giorno valido da aggiungere');
+        isLoadingRef.current = false;
+        return prev;
+      }
+      
+      // 🔧 AGGIUNGI i nuovi giorni SENZA rimuovere nulla
+      let updatedDays = [...newDays, ...prev];
+      
+      // 🔧 RIMUOVI i giorni futuri SOLO se supera un limite ALTO (24 giorni)
+      if (updatedDays.length > MAX_VISIBLE_DAYS + 10) {
+        const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
+        updatedDays = updatedDays.slice(0, -daysToRemove);
+        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri (limite alto raggiunto)`);
+      } else {
+        console.log(`✅ Mantieni tutti i ${updatedDays.length} giorni per compensazione scroll`);
+      }
+
+      console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
+
+      // 🔧 COMPENSAZIONE SCROLL con requestAnimationFrame
+      requestAnimationFrame(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          const heightDiff = newScrollHeight - scrollHeightBefore;
+          
+          // 🔧 Compensa il 70% dell'altezza aggiunta per rimanere vicino al top
+          if (heightDiff > 0) {
+            const compensation = heightDiff * 0.7;
+            container.scrollTop = scrollBefore + compensation;
+            console.log(`📍 Scroll compensato al 70%: ${scrollBefore} + ${compensation.toFixed(0)} = ${container.scrollTop}`);
+          } else {
+            console.log(`⚠️ Nessuna compensazione necessaria (heightDiff=${heightDiff})`);
+          }
+        }
+        
+        // 🔧 Delay prima di permettere un nuovo caricamento
+        setTimeout(() => {
+          isLoadingRef.current = false;
+        }, 500);
+      });
+
+      return updatedDays;
+    });
+  };
+
+  // 🔧 Handler scroll principale con DEBOUNCE
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container || isLoadingRef.current) return;
+
+    // 🔧 CANCELLA timeout precedente (debounce)
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const scrollDirection = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
+    lastScrollTopRef.current = scrollTop;
+
+    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+    const distanceFromTop = scrollTop;
+
+    // 🔧 DEBOUNCE: aspetta 150ms prima di caricare
+    loadTimeoutRef.current = setTimeout(() => {
+      // SCROLL VERSO IL BASSO
+      if (scrollDirection === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
+        loadMoreDaysForward();
+      }
+      // SCROLL VERSO L'ALTO
+      else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD && distanceFromTop > 0) {
+        loadMoreDaysBackward();
+      }
+    }, 150);
+  };
+
+  // 🔧 INIZIALIZZAZIONE: Carica 14 giorni (2 settimane)
   useEffect(() => {
-    const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
+    console.log('🚀 Inizializzazione calendario 730...');
+    const days = Array.from({ length: 14 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
-    setHasInitialLoad(false);
-    setTimeout(scrollToSelectedDate, 100);
+    
+    setTimeout(() => {
+      scrollToSelectedDate();
+      if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
+        console.log('🔗 Attaching scroll listener dopo inizializzazione...');
+        attachScrollListener();
+      }
+    }, 200);
   }, [selectedDate]);
 
-  useEffect(() => {
+  // 🔧 Funzione per attaccare il listener
+  const attachScrollListener = () => {
     const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!container || scrollListenerAttachedRef.current) return;
 
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+    console.log('✅ Scroll listener ATTIVATO!');
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    scrollListenerAttachedRef.current = true;
+  };
 
-      if (scrollPercentage > 0.9 && !isLoadingMore) {
-        setIsLoadingMore(true);
-        const lastDay = visibleDays[visibleDays.length - 1];
-        const newDays = Array.from({ length: 3 }, (_, i) =>
-          addDays(lastDay, i + 1),
-        );
-        setVisibleDays(prev => [...prev, ...newDays]);
-        setTimeout(() => setIsLoadingMore(false), 500);
+  // 🔧 useEffect che si attiva SOLO quando il container è pronto E dati caricati
+  useEffect(() => {
+    if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
+      console.log('🎯 Container pronto, attacco listener...');
+      attachScrollListener();
+    }
+
+    return () => {
+      const container = scrollContainerRef.current;
+      if (container && scrollListenerAttachedRef.current) {
+        console.log('🔌 Rimuovo scroll listener');
+        container.removeEventListener('scroll', handleScroll);
+        scrollListenerAttachedRef.current = false;
+      }
+      
+      // 🔧 Pulisci timeout al cleanup
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
       }
     };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [visibleDays, isLoadingMore]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSelectedDate(new Date());
-    }, 1000);
-    return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    if (visibleDays.length === 0 || isLoadingMore) return;
-
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const { scrollHeight, clientHeight } = container;
-
-        if (scrollHeight <= clientHeight + 20 && visibleDays.length < 60) {
-          const lastDay = visibleDays[visibleDays.length - 1];
-          const newDays = Array.from({ length: 5 }, (_, i) =>
-            addDays(lastDay, i + 1),
-          );
-          setVisibleDays(prev => [...prev, ...newDays]);
-        } else if (!hasInitialLoad) {
-          setHasInitialLoad(true);
-        }
-      });
-    });
-  }, [visibleDays.length, isLoadingMore, hasInitialLoad]);
 
   useEffect(() => {
     loadData();
@@ -378,7 +516,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               return;
             } else {
               try {
-                // : Usa fetch invece di query diretta
                 const response = await fetch(`/api/appuntamenti/${resizingAppointment.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
@@ -419,7 +556,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, [resizingAppointment, appointments, isResizing]);
 
-  // : Usa fetch invece di query diretta
   const loadData = async () => {
     try {
       // Carica sedi
@@ -446,7 +582,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // : Usa fetch invece di query diretta
   const handleCreateAppointment = async (data: any) => {
     try {
       if (
@@ -477,7 +612,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // : Usa fetch invece di query diretta
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
       const response = await fetch(`/api/appuntamenti/${id}`, {
@@ -497,7 +631,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // : Usa fetch invece di query diretta
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     try {
@@ -558,7 +691,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment({ appointment, originalTime: time });
   };
 
-  // : Usa fetch invece di query diretta
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
 
@@ -849,17 +981,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       </React.Fragment>
                     );
                   })}
-
-                  {isLoadingMore && (
-                    <tr>
-                      <td
-                        colSpan={sedePersone.length + 1}
-                        className="p-4 text-center text-gray-500"
-                      >
-                        Caricamento...
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
