@@ -26,6 +26,7 @@ import {
   isWeekend,
   getDay,
   differenceInDays,
+  startOfDay,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import React from 'react';
@@ -69,6 +70,7 @@ type DayAvailability = 'free' | 'partial' | 'full';
 // 🔧 LIMITE MASSIMO di giorni da tenere in memoria (2 settimane = 14 giorni)
 const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD = 7;
+const MIN_DATE = new Date(2026, 0, 1); // 1 gennaio 2026
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -143,7 +145,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     setVisibleDays(prev => {
       const firstDay = prev[0];
       
-      if (firstDay <= new Date(2026, 0, 1)) {
+      // 🔧 CONTROLLO CORRETTO: il primo giorno deve essere DOPO il limite minimo
+      if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
         console.log('⛔ Limite minimo raggiunto (1 gennaio 2026)');
         return prev;
       }
@@ -156,7 +159,21 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         const scrollBefore = container.scrollTop;
         const scrollHeightBefore = container.scrollHeight;
 
-        const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => subDays(firstDay, DAYS_TO_LOAD - i));
+        // Calcola i nuovi giorni da aggiungere, rispettando il limite minimo
+        const newDays: Date[] = [];
+        for (let i = DAYS_TO_LOAD; i > 0; i--) {
+          const newDay = subDays(firstDay, i);
+          if (startOfDay(newDay) >= startOfDay(MIN_DATE)) {
+            newDays.push(newDay);
+          }
+        }
+        
+        // Se non ci sono nuovi giorni validi, esci
+        if (newDays.length === 0) {
+          console.log('⛔ Nessun giorno valido da aggiungere');
+          isLoadingRef.current = false;
+          return prev;
+        }
         
         let updatedDays = [...newDays, ...prev];
         
@@ -186,7 +203,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     });
   };
 
-  // 🔧 Handler scroll principale
+  // 🔧 Handler scroll principale con trigger ridotto
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container || isLoadingRef.current) return;
@@ -198,13 +215,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     const distanceFromTop = scrollTop;
 
+    // 🔧 TRIGGER RIDOTTO: 500px invece di 1000px per evitare caricamenti multipli
     // SCROLL VERSO IL BASSO
-    if (scrollDirection === 'down' && distanceFromBottom < 1000) {
+    if (scrollDirection === 'down' && distanceFromBottom < 500) {
       loadMoreDaysForward();
     }
     
     // SCROLL VERSO L'ALTO
-    else if (scrollDirection === 'up' && distanceFromTop < 1000 && distanceFromTop > 0) {
+    else if (scrollDirection === 'up' && distanceFromTop < 500 && distanceFromTop > 0) {
       loadMoreDaysBackward();
     }
   };
@@ -439,14 +457,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const handlePreviousDay = () => {
     const newDate = subDays(selectedDate, 1);
-    if (newDate >= new Date(2026, 0, 1)) {
+    if (newDate >= MIN_DATE) {
       setSelectedDate(newDate);
     }
   };
 
   const handlePreviousMonth = () => {
     const newDate = subMonths(selectedDate, 1);
-    if (newDate >= new Date(2026, 0, 1)) {
+    if (newDate >= MIN_DATE) {
       setSelectedDate(newDate);
     }
   };
@@ -519,7 +537,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 const dateStr = formatDate(day);
                 const today = new Date();
                 const isToday = formatDate(today) === dateStr;
-                const isBefore2026 = day < new Date(2026, 0, 1);
+                const isBefore2026 = day < MIN_DATE;
                 const isWeekendDay = isWeekend(day);
 
                 return (
@@ -878,7 +896,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   <>
                     <button
                       onClick={handlePreviousDay}
-                      disabled={selectedDate <= new Date(2026, 0, 1)}
+                      disabled={selectedDate <= MIN_DATE}
                       className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -889,7 +907,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 {viewMode === 'monthly' && (
                   <button
                     onClick={handlePreviousMonth}
-                    disabled={selectedDate <= new Date(2026, 0, 1)}
+                    disabled={selectedDate <= MIN_DATE}
                     className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -976,7 +994,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               <button
                 type="button"
                 onClick={handlePreviousMonth}
-                disabled={selectedDate <= new Date(2026, 0, 1)}
+                disabled={selectedDate <= MIN_DATE}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={20} className="text-[#005CA9]" />
@@ -1027,7 +1045,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       const isToday =
                         format(day, 'yyyy-MM-dd') ===
                         format(today, 'yyyy-MM-dd');
-                      const isBefore2026 = day < new Date(2026, 0, 1);
+                      const isBefore2026 = day < MIN_DATE;
                       const isWeekendDay = isWeekend(day);
 
                       return (
