@@ -25,6 +25,7 @@ import {
   subMonths,
   isWeekend,
   getDay,
+  differenceInDays,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import React from 'react';
@@ -57,7 +58,6 @@ interface Appointment {
   note?: string;
 }
 
-//  Orari dalle 8:30 alle 12:30 (ultimo appuntamento)
 const TIME_SLOTS = [
   '08:00','08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00'
@@ -65,6 +65,10 @@ const TIME_SLOTS = [
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
+
+// 🔧 LIMITE MASSIMO di giorni da tenere in memoria
+const MAX_VISIBLE_DAYS = 40;
+const DAYS_TO_LOAD = 7;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -83,13 +87,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   } | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
+  const isLoadingRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const scrollListenerAttachedRef = useRef(false);
 
-  //  Funzione per verificare se un giorno è lavorativo (lun-ven)
   const isWorkingDay = (date: Date): boolean => {
     const day = getDay(date);
-    return day !== 0 && day !== 6; // 0 = domenica, 6 = sabato
+    return day !== 0 && day !== 6;
   };
 
   const scrollToSelectedDate = () => {
@@ -102,34 +107,161 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
+  // 🔧 Funzione per caricare più giorni in avanti E RIMUOVERE quelli vecchi
+  const loadMoreDaysForward = () => {
+    if (isLoadingRef.current) return;
+    
+    console.log('🔽 Caricamento giorni futuri...');
+    isLoadingRef.current = true;
+
+    setVisibleDays(prev => {
+      const lastDay = prev[prev.length - 1];
+      const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
+      
+      let updatedDays = [...prev, ...newDays];
+      
+      // 🔧 RIMUOVI i giorni vecchi se supera il limite
+      if (updatedDays.length > MAX_VISIBLE_DAYS) {
+        const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
+        updatedDays = updatedDays.slice(daysToRemove);
+        console.log(`🗑️ Rimossi ${daysToRemove} giorni vecchi`);
+      }
+      
+      console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
+      return updatedDays;
+    });
+
+    setTimeout(() => {
+      isLoadingRef.current = false;
+    }, 500);
+  };
+
+  // 🔧 Funzione per caricare più giorni indietro E RIMUOVERE quelli futuri
+  const loadMoreDaysBackward = () => {
+    if (isLoadingRef.current) return;
+
+    setVisibleDays(prev => {
+      const firstDay = prev[0];
+      
+      if (firstDay <= new Date(2026, 0, 1)) {
+        console.log('⛔ Limite minimo raggiunto (1 gennaio 2026)');
+        return prev;
+      }
+
+      console.log('🔼 Caricamento giorni passati...');
+      isLoadingRef.current = true;
+
+      const container = scrollContainerRef.current;
+      if (container) {
+        const scrollBefore = container.scrollTop;
+        const scrollHeightBefore = container.scrollHeight;
+
+        const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => subDays(firstDay, DAYS_TO_LOAD - i));
+        
+        let updatedDays = [...newDays, ...prev];
+        
+        // 🔧 RIMUOVI i giorni futuri se supera il limite
+        if (updatedDays.length > MAX_VISIBLE_DAYS) {
+          const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
+          updatedDays = updatedDays.slice(0, -daysToRemove);
+          console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri`);
+        }
+
+        console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
+
+        setTimeout(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight;
+            const heightDiff = newScrollHeight - scrollHeightBefore;
+            container.scrollTop = scrollBefore + heightDiff;
+          }
+          isLoadingRef.current = false;
+        }, 50);
+
+        return updatedDays;
+      }
+
+      isLoadingRef.current = false;
+      return prev;
+    });
+  };
+
+  // 🔧 Handler scroll principale
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container || isLoadingRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const scrollDirection = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
+    lastScrollTopRef.current = scrollTop;
+
+    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+    const distanceFromTop = scrollTop;
+
+    // SCROLL VERSO IL BASSO
+    if (scrollDirection === 'down' && distanceFromBottom < 1000) {
+      loadMoreDaysForward();
+    }
+    
+    // SCROLL VERSO L'ALTO
+    else if (scrollDirection === 'up' && distanceFromTop < 1000 && distanceFromTop > 0) {
+      loadMoreDaysBackward();
+    }
+  };
+
+  // 🔧 INIZIALIZZAZIONE: Carica 20 giorni
   useEffect(() => {
-    const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
+    console.log('🚀 Inizializzazione calendario...');
+    const days = Array.from({ length: 20 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
-    setTimeout(scrollToSelectedDate, 100);
+    
+    setTimeout(() => {
+      scrollToSelectedDate();
+      if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
+        console.log('🔗 Attaching scroll listener dopo inizializzazione...');
+        attachScrollListener();
+      }
+    }, 200);
   }, [selectedDate]);
 
-  useEffect(() => {
+  // 🔧 Funzione per attaccare il listener
+  const attachScrollListener = () => {
     const container = scrollContainerRef.current;
-    if (!container || viewMode === 'monthly') return;
+    if (!container || scrollListenerAttachedRef.current) return;
 
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+    console.log('✅ Scroll listener ATTIVATO!');
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    scrollListenerAttachedRef.current = true;
+  };
 
-      if (scrollPercentage > 0.9 && !isLoadingMore) {
-        setIsLoadingMore(true);
-        const lastDay = visibleDays[visibleDays.length - 1];
-        const newDays = Array.from({ length: 3 }, (_, i) =>
-          addDays(lastDay, i + 1),
-        );
-        setVisibleDays(prev => [...prev, ...newDays]);
-        setTimeout(() => setIsLoadingMore(false), 500);
+  // 🔧 useEffect che si attiva SOLO quando il container è pronto E dati caricati
+  useEffect(() => {
+    if (!loading && scrollContainerRef.current && viewMode === 'daily' && !scrollListenerAttachedRef.current) {
+      console.log('🎯 Container pronto, attacco listener...');
+      attachScrollListener();
+    }
+
+    return () => {
+      const container = scrollContainerRef.current;
+      if (container && scrollListenerAttachedRef.current) {
+        console.log('🔌 Rimuovo scroll listener');
+        container.removeEventListener('scroll', handleScroll);
+        scrollListenerAttachedRef.current = false;
       }
     };
+  }, [loading, viewMode]);
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [visibleDays, isLoadingMore, viewMode]);
+  // 🔧 Cleanup quando cambia view mode
+  useEffect(() => {
+    if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        console.log('🔌 Rimuovo listener (vista mensile)');
+        container.removeEventListener('scroll', handleScroll);
+        scrollListenerAttachedRef.current = false;
+      }
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     loadData();
@@ -143,6 +275,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   }, [sedi, selectedSede]);
 
   const loadData = async () => {
+    console.log('📥 Caricamento dati agenda...');
     setLoading(true);
     try {
       const sediRes = await fetch('/api/epasa/sedi');
@@ -159,9 +292,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         setAllAppointments(appointmentsData);
       }
 
+      console.log('✅ Dati caricati con successo!');
       setLoading(false);
     } catch (error) {
-      console.error('Errore caricamento dati:', error);
+      console.error('❌ Errore caricamento dati:', error);
       setLoading(false);
     }
   };
@@ -278,28 +412,24 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return 'partial';
   };
 
-  //  MODIFICATO: Considera sia "free" che "partial" come disponibili
-const getFirstAvailableDay = (operator: string): string | null => {
-  const today = new Date();
-  for (let i = 0; i < 90; i++) {
-    const checkDate = addDays(today, i);
-    
-    // Salta se è sabato o domenica
-    if (!isWorkingDay(checkDate)) {
-      continue;
+  const getFirstAvailableDay = (operator: string): string | null => {
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+      const checkDate = addDays(today, i);
+      
+      if (!isWorkingDay(checkDate)) {
+        continue;
+      }
+      
+      const dateStr = format(checkDate, 'yyyy-MM-dd');
+      const availability = getDayAvailability(dateStr, operator);
+      
+      if (availability === 'free' || availability === 'partial') {
+        return dateStr;
+      }
     }
-    
-    const dateStr = format(checkDate, 'yyyy-MM-dd');
-    const availability = getDayAvailability(dateStr, operator);
-    
-    //  Accetta sia "free" che "partial" come primo giorno disponibile
-    if (availability === 'free' || availability === 'partial') {
-      return dateStr;
-    }
-  }
-  return null;
-};
-
+    return null;
+  };
 
   const getOperatorsForSede = () => {
     return operatori.map(op => op.id).sort();
@@ -322,183 +452,176 @@ const getFirstAvailableDay = (operator: string): string | null => {
   };
 
   const renderMonthlyView = () => {
-  const monthStart = startOfMonth(selectedDate);
-  const monthEnd = endOfMonth(selectedDate);
-  // Solo giorni del mese corrente
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  return (
-    <div className="p-4">
-      {/* Legenda */}
-      <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-green-500"></div>
-          <span className="text-xs font-medium text-gray-700">Libero</span>
+    return (
+      <div className="p-4">
+        <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-green-500"></div>
+            <span className="text-xs font-medium text-gray-700">Libero</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-yellow-500"></div>
+            <span className="text-xs font-medium text-gray-700">Parzialmente occupato</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-red-500"></div>
+            <span className="text-xs font-medium text-gray-700">Pieno</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-gray-300"></div>
+            <span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-yellow-500"></div>
-          <span className="text-xs font-medium text-gray-700">Parzialmente occupato</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-500"></div>
-          <span className="text-xs font-medium text-gray-700">Pieno</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gray-300"></div>
-          <span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span>
-        </div>
-      </div>
 
-      {/* Calendario mensile */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">
-                Giorno
-              </th>
-              {operatorsInSede.map(operator => {
-                const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                const firstAvailable = getFirstAvailableDay(operator);
-                
-                return (
-                  <th
-                    key={operator}
-                    className="p-3 text-center text-sm font-semibold border-b"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: operatorColor }}
-                        >
-                          <User size={14} className="text-white" />
-                        </div>
-                        <span style={{ color: operatorColor }}>{operator}</span>
-                      </div>
-                      {firstAvailable && (
-                        <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                          Primo libero: {format(new Date(firstAvailable), 'dd/MM')}
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((day) => {
-              const dateStr = formatDate(day);
-              const today = new Date();
-              const isToday = formatDate(today) === dateStr;
-              const isBefore2026 = day < new Date(2026, 0, 1);
-              const isWeekendDay = isWeekend(day);
-
-              return (
-                <tr
-                  key={dateStr}
-                  className="border-b hover:bg-gray-50 transition-colors"
-                >
-                  {/* Prima colonna: Giorno */}
-                  <td
-                    className={`p-3 font-medium border-r ${
-                      isToday
-                        ? 'bg-[#005CA9] text-white'
-                        : isWeekendDay
-                        ? 'bg-gray-200 text-gray-400'
-                        : 'text-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{format(day, 'd')}</span>
-                      <span className="text-xs capitalize">
-                        {format(day, 'EEE', { locale: it })}
-                      </span>
-                    </div>
-                  </td>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">
+                  Giorno
+                </th>
+                {operatorsInSede.map(operator => {
+                  const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+                  const firstAvailable = getFirstAvailableDay(operator);
                   
-                  {/* Colonne successive: un operatore per colonna */}
-                  {operatorsInSede.map(operator => {
-                    // Weekend mostrato come disabilitato
-                    if (isWeekendDay) {
+                  return (
+                    <th
+                      key={operator}
+                      className="p-3 text-center text-sm font-semibold border-b"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: operatorColor }}
+                          >
+                            <User size={14} className="text-white" />
+                          </div>
+                          <span style={{ color: operatorColor }}>{operator}</span>
+                        </div>
+                        {firstAvailable && (
+                          <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                            Primo libero: {format(new Date(firstAvailable), 'dd/MM')}
+                          </div>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((day) => {
+                const dateStr = formatDate(day);
+                const today = new Date();
+                const isToday = formatDate(today) === dateStr;
+                const isBefore2026 = day < new Date(2026, 0, 1);
+                const isWeekendDay = isWeekend(day);
+
+                return (
+                  <tr
+                    key={dateStr}
+                    className="border-b hover:bg-gray-50 transition-colors"
+                  >
+                    <td
+                      className={`p-3 font-medium border-r ${
+                        isToday
+                          ? 'bg-[#005CA9] text-white'
+                          : isWeekendDay
+                          ? 'bg-gray-200 text-gray-400'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{format(day, 'd')}</span>
+                        <span className="text-xs capitalize">
+                          {format(day, 'EEE', { locale: it })}
+                        </span>
+                      </div>
+                    </td>
+                    
+                    {operatorsInSede.map(operator => {
+                      if (isWeekendDay) {
+                        return (
+                          <td
+                            key={`${dateStr}-${operator}`}
+                            className="p-2 text-center bg-gray-200 opacity-50"
+                            title="Weekend - Chiuso"
+                          >
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-xs text-gray-500">-</span>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      const availability = getDayAvailability(dateStr, operator);
+                      const bgColor =
+                        availability === 'free'
+                          ? 'bg-green-100'
+                          : availability === 'partial'
+                          ? 'bg-yellow-100'
+                          : 'bg-red-100';
+                      const borderColor =
+                        availability === 'free'
+                          ? 'border-green-500'
+                          : availability === 'partial'
+                          ? 'border-yellow-500'
+                          : 'border-red-500';
+
+                      const dayAppointments = allAppointments.filter(
+                        apt =>
+                          apt.sede_id === selectedSede?.id &&
+                          apt.data === dateStr &&
+                          apt.operatore_id === operator,
+                      );
+
                       return (
                         <td
                           key={`${dateStr}-${operator}`}
-                          className="p-2 text-center bg-gray-200 opacity-50"
-                          title="Weekend - Chiuso"
+                          className={`p-2 text-center cursor-pointer ${bgColor} border-l-4 ${borderColor} ${
+                            isBefore2026
+                              ? 'opacity-30 cursor-not-allowed'
+                              : 'hover:opacity-80'
+                          }`}
+                          onClick={() => {
+                            if (!isBefore2026) {
+                              setSelectedDate(day);
+                              setViewMode('daily');
+                            }
+                          }}
+                          title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${
+                            dayAppointments.length
+                          } appuntamenti\nClicca per dettagli`}
                         >
                           <div className="flex flex-col items-center gap-1">
-                            <span className="text-xs text-gray-500">-</span>
+                            <span className="text-sm font-bold text-gray-700">
+                              {dayAppointments.length}
+                            </span>
+                            <span className="text-xs text-gray-600">
+                              {availability === 'free'
+                                ? 'Vuoto'
+                                : availability === 'partial'
+                                ? 'App.'
+                                : 'Pieno'}
+                            </span>
                           </div>
                         </td>
                       );
-                    }
-
-                    const availability = getDayAvailability(dateStr, operator);
-                    const bgColor =
-                      availability === 'free'
-                        ? 'bg-green-100'
-                        : availability === 'partial'
-                        ? 'bg-yellow-100'
-                        : 'bg-red-100';
-                    const borderColor =
-                      availability === 'free'
-                        ? 'border-green-500'
-                        : availability === 'partial'
-                        ? 'border-yellow-500'
-                        : 'border-red-500';
-
-                    const dayAppointments = allAppointments.filter(
-                      apt =>
-                        apt.sede_id === selectedSede?.id &&
-                        apt.data === dateStr &&
-                        apt.operatore_id === operator,
-                    );
-
-                    return (
-                      <td
-                        key={`${dateStr}-${operator}`}
-                        className={`p-2 text-center cursor-pointer ${bgColor} border-l-4 ${borderColor} ${
-                          isBefore2026
-                            ? 'opacity-30 cursor-not-allowed'
-                            : 'hover:opacity-80'
-                        }`}
-                        onClick={() => {
-                          if (!isBefore2026) {
-                            setSelectedDate(day);
-                            setViewMode('daily');
-                          }
-                        }}
-                        title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${
-                          dayAppointments.length
-                        } appuntamenti\nClicca per dettagli`}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-sm font-bold text-gray-700">
-                            {dayAppointments.length}
-                          </span>
-                          <span className="text-xs text-gray-600">
-                            {availability === 'free'
-                              ? 'Vuoto'
-                              : availability === 'partial'
-                              ? 'App.'
-                              : 'Pieno'}
-                          </span>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
-};
-
+    );
+  };
 
   const renderDailyView = () => {
     return (
@@ -574,7 +697,6 @@ const getFirstAvailableDay = (operator: string): string | null => {
                     </td>
                   </tr>
 
-                  {/* Non mostrare slot per weekend */}
                   {!isWeekendDay && TIME_SLOTS.map(time => {
                     return (
                       <tr key={`${dateStr}-${time}`}>
@@ -681,17 +803,6 @@ const getFirstAvailableDay = (operator: string): string | null => {
                 </React.Fragment>
               );
             })}
-
-            {isLoadingMore && (
-              <tr>
-                <td
-                  colSpan={Math.max(operatorsInSede.length + 1, 2)}
-                  className="p-4 text-center text-gray-500"
-                >
-                  Caricamento...
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
@@ -738,7 +849,6 @@ const getFirstAvailableDay = (operator: string): string | null => {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Toggle Vista */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button
                     onClick={() => setViewMode('daily')}
@@ -898,21 +1008,17 @@ const getFirstAvailableDay = (operator: string): string | null => {
               {(() => {
                 const monthStart = startOfMonth(selectedDate);
                 const monthEnd = endOfMonth(selectedDate);
-                //  MODIFICATO: Solo giorni del mese corrente
                 const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
                 
-                //  AGGIUNTO: Calcola quanti giorni vuoti servono all'inizio
-                const firstDayOfWeek = (getDay(monthStart) + 6) % 7; // 0 = Lun, 6 = Dom
+                const firstDayOfWeek = (getDay(monthStart) + 6) % 7;
                 const emptyDays = Array(firstDayOfWeek).fill(null);
 
                 return (
                   <>
-                    {/* Giorni vuoti all'inizio */}
                     {emptyDays.map((_, index) => (
                       <div key={`empty-${index}`} className="aspect-square" />
                     ))}
                     
-                    {/* Giorni del mese */}
                     {days.map((day, index) => {
                       const isSelected =
                         format(day, 'yyyy-MM-dd') ===
