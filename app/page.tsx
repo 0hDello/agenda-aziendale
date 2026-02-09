@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar as CalendarIcon, Settings, Database, FileText } from 'lucide-react';
 
 interface Agenda {
@@ -62,8 +63,15 @@ export default function HomePage() {
         <div className="mb-12">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="bg-[#005CA9] p-4 rounded-2xl shadow-lg">
-                <CalendarIcon className="w-10 h-10 text-white" />
+              <div className="bg-white p-4 rounded-2xl shadow-lg">
+                <Image 
+                  src="/logo-cna.jpg" 
+                  alt="Logo CNA" 
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                  priority
+                />
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-[#005CA9]">Agende CNA</h1>
