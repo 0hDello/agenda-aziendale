@@ -453,9 +453,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   /**
    * Calcola la disponibilità giornaliera.
+   *
    * Gli slot bloccati per orario (es. 08:00 di MILECE) sono esclusi dal conteggio:
-   * sono "strutturalmente chiusi" come un weekend, non indicano affollamento.
+   * sono "strutturalmente chiusi" e non indicano affollamento.
    * totalSlots = solo gli slot effettivamente prenotabili dall'operatore.
+   *
+   * Soglie colore:
+   *   - 0 occupati          → verde  (free)
+   *   - 1..totalSlots-1     → giallo (partial)
+   *   - totalSlots occupati → rosso  (full)
    */
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
@@ -466,15 +472,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     // Slot strutturalmente bloccati per orario (esclusi dalla disponibilità)
     const timeBlockedCount = TIME_SLOTS.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
     // Slot effettivamente disponibili per questo operatore
-    const totalSlots    = TIME_SLOTS.length - timeBlockedCount;
+    const totalSlots = TIME_SLOTS.length - timeBlockedCount;
 
-    const realCount  = getRealAppointmentsCount(date, operator);
-    const uffCount   = getUffChiusoSlotsCount(date, operator);
+    const realCount     = getRealAppointmentsCount(date, operator);
+    const uffCount      = getUffChiusoSlotsCount(date, operator);
     const occupiedSlots = realCount + uffCount;
 
-    if (occupiedSlots === 0) return 'free';
-    if (occupiedSlots >= totalSlots * 0.8) return 'full';
-    return 'partial';
+    if (occupiedSlots === 0)              return 'free';
+    if (occupiedSlots >= totalSlots)      return 'full';    // tutti gli slot occupati → rosso
+    return 'partial';                                       // almeno uno libero → giallo
   };
 
   const getFirstAvailableDay = (operator: string): string | null => {
