@@ -144,6 +144,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return slotApts.length > 0 && slotApts.every(a => a.cliente.trim().toUpperCase() === 'UFF CHIUSO');
   };
 
+  /** Conta solo gli appuntamenti reali (esclude UFF CHIUSO) */
   const getRealAppointmentsCount = (dateStr: string, operatoreId: string): number => {
     if (!selectedSede) return 0;
     return allAppointments.filter(
@@ -151,6 +152,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
              apt.operatore_id === operatoreId &&
              apt.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
     ).length;
+  };
+
+  /**
+   * Conta gli slot UFF CHIUSO per giorno/operatore.
+   * Un "TIME_SLOT" è bloccato se ha almeno un appuntamento UFF CHIUSO su quell'orario.
+   */
+  const getUffChiusoSlotsCount = (dateStr: string, operatoreId: string): number => {
+    if (!selectedSede) return 0;
+    return TIME_SLOTS.filter(time => isUffChiusoSlot(dateStr, time, operatoreId)).length;
   };
 
   const scrollToDate = (date: Date) => {
@@ -360,18 +370,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   // ─── modalità modifica: blocca/sblocca slot ──────────────────────────────────
 
-  /**
-   * In editMode:
-   * - Slot UFF CHIUSO → elimina l'UFF CHIUSO (sblocca)
-   * - Qualsiasi altro slot → elimina tutti gli appuntamenti esistenti e crea UFF CHIUSO (blocca)
-   */
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
 
     const uffApts = getUffChiusoApts(dateStr, time, operator);
 
     if (uffApts.length > 0) {
-      // Sblocca: elimina tutti gli UFF CHIUSO in questo slot
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -380,7 +384,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       }
       setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
-      // Blocca: elimina prima tutti gli appuntamenti esistenti in questo slot, poi crea UFF CHIUSO
       const existingApts = allAppointments.filter(
         apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
                apt.ora === time && apt.operatore_id === operator
@@ -435,14 +438,25 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
+  /**
+   * Calcola la disponibilità giornaliera considerando:
+   * - slot UFF CHIUSO come "occupati" (non disponibili per prenotazione)
+   * - appuntamenti reali come "occupati"
+   * Gli slot liberi = TIME_SLOTS.length - realApts - uffChiusoSlots
+   */
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
     const dateObj = new Date(date + 'T12:00:00');
     if (operator === 'MILECE' && !isMileceWorkingDay(dateObj)) return 'closed';
     if (isGiornoChiuso(date, operator)) return 'closed';
-    const n = getRealAppointmentsCount(date, operator);
-    if (n === 0) return 'free';
-    if (n >= TIME_SLOTS.length * 0.8) return 'full';
+
+    const realCount    = getRealAppointmentsCount(date, operator);
+    const uffCount     = getUffChiusoSlotsCount(date, operator);
+    const occupiedSlots = realCount + uffCount;
+    const totalSlots    = TIME_SLOTS.length;
+
+    if (occupiedSlots === 0) return 'free';
+    if (occupiedSlots >= totalSlots * 0.8) return 'full';
     return 'partial';
   };
 
@@ -546,7 +560,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       );
                       const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
                       const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
+                      // Il numero mostrato sono solo gli appuntamenti reali (non i blocchi UFF CHIUSO)
                       const n  = getRealAppointmentsCount(dateStr, operator);
+                      const uffN = getUffChiusoSlotsCount(dateStr, operator);
                       return (
                         <td
                           key={`${dateStr}-${operator}`}
@@ -554,11 +570,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             isBefore ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'
                           }`}
                           onClick={() => { if (!isBefore) { navigateToDate(day); setViewMode('daily'); } }}
-                          title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti`}
+                          title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti reali, ${uffN} slot bloccati`}
                         >
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-sm font-bold text-gray-700">{n}</span>
-                            <span className="text-xs text-gray-600">{av === 'free' ? 'Vuoto' : av === 'partial' ? 'App.' : 'Pieno'}</span>
+                            <span className="text-xs text-gray-600">
+                              {av === 'free' ? 'Vuoto' : av === 'partial' ? 'Parziale' : 'Pieno'}
+                            </span>
+                            {uffN > 0 && (
+                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                                <Lock size={8} />{uffN}
+                              </span>
+                            )}
                           </div>
                         </td>
                       );
