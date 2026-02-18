@@ -96,18 +96,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [loading, setLoading]                 = useState(true);
   const [showDatePicker, setShowDatePicker]   = useState(false);
   const [showModal, setShowModal]             = useState(false);
-  const [showGiorniChiusiPanel, setShowGiorniChiusiPanel] = useState(false);
   const [selectedSlot, setSelectedSlot]       = useState<{ date: string; time: string; operator?: string } | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [viewMode, setViewMode]               = useState<ViewMode>('daily');
   const [isInitialized, setIsInitialized]     = useState(false);
-  // Modalità modifica: blocca/sblocca slot con un click
   const [editMode, setEditMode]               = useState(false);
-
-  // Stato per aggiunta giorno chiuso dal pannello
-  const [nuovaDataChiusa, setNuovaDataChiusa]           = useState('');
-  const [nuovoOperatoreChiuso, setNuovoOperatoreChiuso] = useState('');
-  const [nuovoMotivoChiuso, setNuovoMotivoChiuso]       = useState('');
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -133,7 +126,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean =>
     giorniChiusi.some(g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === operatoreId));
 
-  /** Ritorna gli appuntamenti UFF CHIUSO per questo slot */
   const getUffChiusoApts = (dateStr: string, time: string, operatoreId: string): Appointment[] => {
     if (!selectedSede) return [];
     return allAppointments.filter(
@@ -370,9 +362,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   /**
    * In editMode:
-   * - Slot libero → crea appuntamento "UFF CHIUSO" (lo blocca, diventa grigio)
-   * - Slot con appuntamento reale → crea appuntamento "UFF CHIUSO" sopra (blocca)
-   * - Slot già "UFF CHIUSO" → elimina quell'appuntamento (sblocca)
+   * - Slot UFF CHIUSO → elimina l'UFF CHIUSO (sblocca)
+   * - Qualsiasi altro slot → elimina tutti gli appuntamenti esistenti e crea UFF CHIUSO (blocca)
    */
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
@@ -389,7 +380,21 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       }
       setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
-      // Blocca: crea un appuntamento "UFF CHIUSO"
+      // Blocca: elimina prima tutti gli appuntamenti esistenti in questo slot, poi crea UFF CHIUSO
+      const existingApts = allAppointments.filter(
+        apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
+               apt.ora === time && apt.operatore_id === operator
+      );
+      const deletedIds: string[] = [];
+      for (const apt of existingApts) {
+        try {
+          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+          deletedIds.push(apt.id);
+        } catch { alert('Errore durante il blocco'); return; }
+      }
+      setAllAppointments(prev => prev.filter(a => !deletedIds.includes(a.id)));
+
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -408,37 +413,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         setAllAppointments(prev => [...prev, newApt]);
       } catch { alert('Errore durante il blocco'); }
     }
-  };
-
-  // ─── gestione giorni chiusi (pannello) ───────────────────────────────────────
-
-  const handleAddGiornoChiuso = async () => {
-    if (!nuovaDataChiusa) { alert('Inserisci una data'); return; }
-    try {
-      const res = await fetch('/api/epasa/giorni-chiusi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: nuovaDataChiusa,
-          operatore_id: nuovoOperatoreChiuso || null,
-          motivo: nuovoMotivoChiuso || null,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const newGc = await res.json();
-      setGiorniChiusi(prev => [...prev, newGc]);
-      setNuovaDataChiusa('');
-      setNuovoOperatoreChiuso('');
-      setNuovoMotivoChiuso('');
-    } catch { alert('Errore aggiunta giorno chiuso'); }
-  };
-
-  const handleDeleteGiornoChiuso = async (id: number) => {
-    try {
-      const res = await fetch(`/api/epasa/giorni-chiusi/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
-      setGiorniChiusi(prev => prev.filter(g => g.id !== id));
-    } catch { alert('Errore eliminazione giorno chiuso'); }
   };
 
   const openModalForNewAppointment = (date: string, time: string, operator: string) => {
@@ -498,98 +472,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const d = subMonths(selectedDate, 1);
     if (d >= MIN_DATE) setSelectedDate(d);
   };
-
-  // ─── PANNELLO GIORNI CHIUSI ─────────────────────────────────────────────────
-
-  const renderGiorniChiusiPanel = () => (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border-t-4 border-[#005CA9] max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-xl font-bold text-[#005CA9] flex items-center gap-2">
-            <Lock size={18} /> Gestione Giorni Chiusi
-          </h3>
-          <button onClick={() => setShowGiorniChiusiPanel(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Aggiungi giorno chiuso</h4>
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs text-gray-500 mb-1 block">Data *</label>
-                <input
-                  type="date"
-                  value={nuovaDataChiusa}
-                  onChange={e => setNuovaDataChiusa(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs text-gray-500 mb-1 block">Operatore (vuoto = tutti)</label>
-                <select
-                  value={nuovoOperatoreChiuso}
-                  onChange={e => setNuovoOperatoreChiuso(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40"
-                >
-                  <option value="">Tutti gli operatori</option>
-                  {operatorsInSede.map(op => (
-                    <option key={op} value={op}>{op}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Motivo (opzionale)</label>
-              <input
-                type="text"
-                value={nuovoMotivoChiuso}
-                onChange={e => setNuovoMotivoChiuso(e.target.value)}
-                placeholder="es. Festività, Formazione..."
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40"
-              />
-            </div>
-            <button
-              onClick={handleAddGiornoChiuso}
-              className="mt-1 w-full py-2 bg-[#005CA9] text-white rounded-lg text-sm font-semibold hover:bg-[#004080] transition-colors flex items-center justify-center gap-2"
-            >
-              <Plus size={16} /> Aggiungi
-            </button>
-          </div>
-        </div>
-        <div className="overflow-y-auto flex-1">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Giorni chiusi salvati</h4>
-          {giorniChiusi.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">Nessun giorno chiuso aggiunto</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {giorniChiusi
-                .sort((a, b) => a.data.localeCompare(b.data))
-                .map(gc => (
-                  <div key={gc.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">
-                        {format(new Date(gc.data + 'T12:00:00'), 'dd/MM/yyyy', { locale: it })}
-                      </span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        {gc.operatore_id ? gc.operatore_id : 'Tutti'}
-                        {gc.motivo ? ` — ${gc.motivo}` : ''}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteGiornoChiuso(gc.id)}
-                      className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
   // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
 
@@ -695,7 +577,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const renderDailyView = () => (
     <div>
-      {/* Banner modalità modifica */}
       {editMode && (
         <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
           <div className="flex items-center gap-2">
@@ -773,7 +654,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           const isDayClosed     = isMileceClosed || isManuallyClose;
                           const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
 
-                          // ── Giorno strutturalmente chiuso (MILECE non lavora / giorno chiuso DB)
                           if (isDayClosed) {
                             return (
                               <td
@@ -791,7 +671,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             );
                           }
 
-                          // ── Slot UFF CHIUSO
                           if (isUffChiuso) {
                             return (
                               <td
@@ -812,7 +691,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             );
                           }
 
-                          // ── Slot normale con appuntamento reale
                           if (slotApts.length > 0) {
                             const colors = operator === 'MILECE'
                               ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
@@ -857,7 +735,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             );
                           }
 
-                          // ── Slot libero
                           return (
                             <td
                               key={`${operator}-${time}`}
@@ -964,23 +841,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   >
                     {editMode ? <Unlock size={16} /> : <Lock size={16} />}
                   </button>
-                  {/* Tooltip */}
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
                     {editMode ? 'Esci dalla modifica' : 'Modifica slot'}
-                  </div>
-                </div>
-
-                {/* Tasto gestione giorni chiusi (pannello) */}
-                <div className="relative group">
-                  <button
-                    onClick={() => setShowGiorniChiusiPanel(true)}
-                    className="w-9 h-9 rounded-full flex items-center justify-center shadow border-2 bg-white border-gray-300 text-gray-500 hover:border-[#005CA9] hover:text-[#005CA9] transition-all"
-                    title="Gestisci giorni chiusi"
-                  >
-                    <CalendarIcon size={16} />
-                  </button>
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
-                    Giorni chiusi
                   </div>
                 </div>
 
@@ -1038,8 +900,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
         </div>
       </div>
-
-      {showGiorniChiusiPanel && renderGiorniChiusiPanel()}
 
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
