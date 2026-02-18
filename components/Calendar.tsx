@@ -39,69 +39,79 @@ interface CalendarProps {
   agendaId?: string;
 }
 
-const DAYS_PAST = 3;
+const DAYS_PAST   = 3;
 const DAYS_FUTURE = 4;
 const MAX_VISIBLE_DAYS = 7;
-const DAYS_TO_LOAD = 1;
+const DAYS_TO_LOAD    = 1;
 const MIN_DATE = new Date(2020, 0, 1);
-const SCROLL_THRESHOLD = 400;
+const SCROLL_THRESHOLD = 400; // px dal bordo per triggerare il caricamento
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
 
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('daily');
-  const [visibleDays, setVisibleDays] = useState<Date[]>([]);
+  const [selectedDate, setSelectedDate]   = useState(new Date());
+  const [viewMode, setViewMode]           = useState<ViewMode>('daily');
+  const [visibleDays, setVisibleDays]     = useState<Date[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [appointments, setAppointments] = useState<Appuntamento[]>([]);
-  const [persone, setPersone] = useState<Persona[]>([]);
-  const [sedi, setSedi] = useState<Sede[]>([]);
-  const [personaSede, setPersonaSede] = useState<PersonaSede[]>([]);
+  const [appointments, setAppointments]   = useState<Appuntamento[]>([]);
+  const [persone, setPersone]             = useState<Persona[]>([]);
+  const [sedi, setSedi]                   = useState<Sede[]>([]);
+  const [personaSede, setPersonaSede]     = useState<PersonaSede[]>([]);
   const [selectedSedeId, setSelectedSedeId] = useState<string>('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '', personaId: '' });
+  const [isModalOpen, setIsModalOpen]     = useState(false);
+  const [selectedSlot, setSelectedSlot]   = useState({ date: '', time: '', personaId: '' });
   const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
-  const [draggedAppointment, setDraggedAppointment] = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
+  const [draggedAppointment, setDraggedAppointment]   = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
   const [resizingAppointment, setResizingAppointment] = useState<Appuntamento | null>(null);
-  const [isResizing, setIsResizing] = useState(false);
+  const [isResizing, setIsResizing]       = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isLoadingRef = useRef(false);
-  const lastScrollTopRef = useRef(0);
+  const scrollContainerRef        = useRef<HTMLDivElement>(null);
+  const isLoadingRef              = useRef(false);        // true mentre stiamo caricando
+  const isCompensatingRef         = useRef(false);        // true mentre applichiamo la compensazione scroll
   const scrollListenerAttachedRef = useRef(false);
-  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // Ref per passare scrollHeight alla requestAnimationFrame FUORI da setVisibleDays
-  const scrollSnapshotRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
+  const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
+  const visibleDaysRef            = useRef<Date[]>([]);   // mirror sincrono di visibleDays
+  const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
+
+  // Mirror sincrono: aggiornato ad ogni render prima che qualsiasi callback venga invocato
+  useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
+
+  // ─── helpers ───────────────────────────────────────────────────────────────
 
   const scrollToDate = (date: Date) => {
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
     if (el && scrollContainerRef.current) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const buildWindowAround = (center: Date): Date[] => {
+    const days: Date[] = [];
+    for (let i = DAYS_PAST; i > 0; i--) {
+      const d = subDays(center, i);
+      if (startOfDay(d) >= startOfDay(MIN_DATE)) days.push(d);
+    }
+    days.push(center);
+    for (let i = 1; i <= DAYS_FUTURE; i++) days.push(addDays(center, i));
+    return days;
+  };
+
   const navigateToDate = useCallback((date: Date) => {
     setSelectedDate(date);
-    const alreadyVisible = visibleDays.some(d => isSameDay(d, date));
-    if (alreadyVisible) {
+    if (visibleDays.some(d => isSameDay(d, date))) {
       setTimeout(() => scrollToDate(date), 50);
     } else {
-      const days: Date[] = [];
-      for (let i = DAYS_PAST; i > 0; i--) {
-        const d = subDays(date, i);
-        if (startOfDay(d) >= startOfDay(MIN_DATE)) days.push(d);
-      }
-      days.push(date);
-      for (let i = 1; i <= DAYS_FUTURE; i++) days.push(addDays(date, i));
-      setVisibleDays(days);
+      setVisibleDays(buildWindowAround(date));
       setTimeout(() => scrollToDate(date), 200);
     }
   }, [visibleDays]);
 
-  // 🔽 Carica giorni futuri (scroll verso il basso)
+  // ─── caricamento giorni futuri ─────────────────────────────────────────────
+
   const loadMoreDaysForward = () => {
-    if (isLoadingRef.current) return;
+    if (isLoadingRef.current || isCompensatingRef.current) return;
     isLoadingRef.current = true;
+
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
@@ -109,33 +119,38 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-    setTimeout(() => { isLoadingRef.current = false; }, 300);
+
+    // Sblocca subito: verso il basso non serve compensazione
+    setTimeout(() => { isLoadingRef.current = false; }, 200);
   };
 
-  // 🔼 Carica giorni passati (scroll verso l'alto)
-  // CHIAVE: leggiamo scrollTop e scrollHeight PRIMA di chiamare setVisibleDays,
-  // poi applichiamo la compensazione nella requestAnimationFrame successiva.
+  // ─── caricamento giorni passati ────────────────────────────────────────────
+  // Legge scrollTop/scrollHeight PRIMA del setState (sincrono),
+  // poi applica la compensazione dopo che React ha aggiornato il DOM.
+  // NON fa retry automatico: sarà il prossimo evento scroll a triggerare.
+
   const loadMoreDaysBackward = () => {
-    if (isLoadingRef.current) return;
+    if (isLoadingRef.current || isCompensatingRef.current) return;
+
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // Leggi i valori SINCRONI prima di qualsiasi setState
-    const firstDayCheck = visibleDaysRef.current[0];
-    if (!firstDayCheck || startOfDay(firstDayCheck) <= startOfDay(MIN_DATE)) return;
+    const firstDay = visibleDaysRef.current[0];
+    if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
-      const d = subDays(firstDayCheck, i);
+      const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
     if (newDays.length === 0) return;
 
-    isLoadingRef.current = true;
+    isLoadingRef.current    = true;
+    isCompensatingRef.current = true;
 
-    // Salva snapshot SINCRONO qui, fuori da setVisibleDays
+    // Snapshot sincrono PRIMA di setState
     scrollSnapshotRef.current = {
-      scrollTop: container.scrollTop,
+      scrollTop:    container.scrollTop,
       scrollHeight: container.scrollHeight,
     };
 
@@ -145,70 +160,71 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       return updated;
     });
 
-    // Dopo che React ha aggiornato il DOM, applica la compensazione
+    // Doppia rAF: il secondo frame garantisce che il browser abbia già eseguito il layout
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (container && scrollSnapshotRef.current) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
           if (heightDiff > 0) {
+            // Imposta scrollTop senza emettere un evento scroll "visibile"
             container.scrollTop = snapTop + heightDiff;
           }
           scrollSnapshotRef.current = null;
         }
+        // Sblocca DOPO la compensazione; il prossimo evento scroll (se l'utente
+        // sta ancora scrollando) si occuperà di caricare il giorno successivo
         setTimeout(() => {
-          isLoadingRef.current = false;
-          // Se siamo ancora vicini alla cima, triggera di nuovo
-          if (container && container.scrollTop < SCROLL_THRESHOLD) {
-            loadMoreDaysBackward();
-          }
-        }, 350);
+          isLoadingRef.current      = false;
+          isCompensatingRef.current = false;
+        }, 150);
       });
     });
   };
 
-  // Ref speculare a visibleDays per leggere il valore corrente in modo sincrono
-  const visibleDaysRef = useRef<Date[]>([]);
-  useEffect(() => {
-    visibleDaysRef.current = visibleDays;
-  }, [visibleDays]);
+  // ─── handler scroll ────────────────────────────────────────────────────────
+  // La direzione è calcolata DENTRO il timeout (dopo il debounce),
+  // leggendo scrollTop in quel momento — non prima — per evitare
+  // che la compensazione programmatica corrompa la direzione rilevata.
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
-    if (!container || isLoadingRef.current) return;
+    if (!container) return;
+    if (isLoadingRef.current || isCompensatingRef.current) return;
+
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const scrollDirection = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
-    lastScrollTopRef.current = scrollTop;
-
-    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-    const distanceFromTop = scrollTop;
+    // Campiona la posizione al momento dell'evento (pre-debounce)
+    const scrollTopAtEvent = container.scrollTop;
 
     loadTimeoutRef.current = setTimeout(() => {
-      if (scrollDirection === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
+      if (!container || isLoadingRef.current || isCompensatingRef.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromTop    = scrollTop;
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+      // Direzione: confronta la posizione campionata con quella attuale nel timeout
+      // Se la compensazione ha mosso lo scroll nel frattempo, i due valori saranno
+      // vicini e la direzione risulterà neutra — nessun caricamento spurio.
+      const movedDown = scrollTop >= scrollTopAtEvent;
+
+      if (movedDown && distanceFromBottom < SCROLL_THRESHOLD) {
         loadMoreDaysForward();
-      } else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD) {
+      } else if (!movedDown && distanceFromTop < SCROLL_THRESHOLD) {
         loadMoreDaysBackward();
       }
-    }, 100);
+    }, 80);
   };
 
-  // Inizializzazione: 3 giorni passati + oggi + 4 futuri
+  // ─── inizializzazione ──────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!isInitialized) {
-      const today = selectedDate;
-      const days: Date[] = [];
-      for (let i = DAYS_PAST; i > 0; i--) {
-        const d = subDays(today, i);
-        if (startOfDay(d) >= startOfDay(MIN_DATE)) days.push(d);
-      }
-      days.push(today);
-      for (let i = 1; i <= DAYS_FUTURE; i++) days.push(addDays(today, i));
-      setVisibleDays(days);
+      setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
       setTimeout(() => {
-        scrollToDate(today);
+        scrollToDate(selectedDate);
         attachScrollListener();
       }, 200);
     }
@@ -423,7 +439,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const getAppointmentsForSlot = (date: string, time: string, personaId: string) =>
     appointments.filter(apt => {
       const s = apt.ora_inizio ? apt.ora_inizio.substring(0, 5) : '';
-      const e = apt.ora_fine ? apt.ora_fine.substring(0, 5) : '';
+      const e = apt.ora_fine   ? apt.ora_fine.substring(0, 5)   : '';
       return apt.data === date && apt.sede_id === selectedSedeId && time >= s && time < e && apt.persona_id === personaId;
     });
 
@@ -432,17 +448,17 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
     const { appointment, originalTime } = draggedAppointment;
-    const origIdx = TIME_SLOTS.findIndex(s => s.label === originalTime);
-    const newIdx = TIME_SLOTS.findIndex(s => s.label === newTime);
+    const origIdx  = TIME_SLOTS.findIndex(s => s.label === originalTime);
+    const newIdx   = TIME_SLOTS.findIndex(s => s.label === newTime);
     if (origIdx === -1 || newIdx === -1) { setDraggedAppointment(null); return; }
-    const diff = newIdx - origIdx;
+    const diff     = newIdx - origIdx;
     const startIdx = TIME_SLOTS.findIndex(s => s.label === appointment.ora_inizio.substring(0, 5));
-    let endIdx = TIME_SLOTS.findIndex(s => s.label === appointment.ora_fine.substring(0, 5));
+    let   endIdx   = TIME_SLOTS.findIndex(s => s.label === appointment.ora_fine.substring(0, 5));
     if (endIdx === -1 && appointment.ora_fine.substring(0, 5) === '18:00') endIdx = TIME_SLOTS.length;
     const ns = startIdx + diff; const ne = endIdx + diff;
     if (ns < 0 || ne > TIME_SLOTS.length) { alert("Impossibile spostare l'appuntamento in questo orario"); setDraggedAppointment(null); return; }
     const newStart = TIME_SLOTS[ns].label;
-    const newEnd = ne < TIME_SLOTS.length ? TIME_SLOTS[ne].label : '18:00';
+    const newEnd   = ne < TIME_SLOTS.length ? TIME_SLOTS[ne].label : '18:00';
     const hasConflict = appointments.some(apt => {
       if (apt.id === appointment.id || apt.persona_id !== personaId || apt.sede_id !== appointment.sede_id || apt.data !== date) return false;
       return newStart < apt.ora_fine.substring(0,5) && newEnd > apt.ora_inizio.substring(0,5);
@@ -459,10 +475,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment(null);
   };
 
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  const handleDragOver  = (e: React.DragEvent) => e.preventDefault();
   const handleResizeStart = (appointment: Appuntamento) => setResizingAppointment(appointment);
 
-  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ─────────────────────────────────────────────────────────
 
   const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
     const n = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId).length;
@@ -518,7 +534,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               {days.map(day => {
                 const dateStr = formatDate(day);
                 const isToday = formatDate(new Date()) === dateStr;
-                const isWe = isWeekend(day);
+                const isWe    = isWeekend(day);
                 return (
                   <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
                     <td className={`p-3 font-medium border-r ${isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-200 text-gray-400' : 'text-gray-700'}`}>
@@ -532,7 +548,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       const av = getDayAvailability(dateStr, persona.id);
                       const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
                       const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
-                      const n = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === persona.id).length;
+                      const n  = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === persona.id).length;
                       return (
                         <td key={`${dateStr}-${persona.id}`} className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} hover:opacity-80`}
                           onClick={() => { setSelectedDate(day); setViewMode('daily'); }}
@@ -554,7 +570,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ─────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
@@ -592,7 +608,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                     </td>
                     {sedePersone.map(persona => {
                       const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
-                      const dayApts = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
+                      const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
                       return (
                         <td key={`${persona.id}-${slot.label}`} className={`relative p-0 border-r border-gray-100 ${!slotApts.length ? 'border-b border-gray-100' : ''}`} style={{ height: '45px' }}>
                           <TimeSlot
@@ -715,8 +731,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const days = eachDayOfInterval({ start: startOfWeek(ms, { weekStartsOn: 1 }), end: endOfWeek(me, { weekStartsOn: 1 }) });
                 return days.map((day, i) => {
                   const isCurr = isSameMonth(day, selectedDate);
-                  const isSel = format(day,'yyyy-MM-dd') === format(selectedDate,'yyyy-MM-dd');
-                  const isTod = format(day,'yyyy-MM-dd') === format(new Date(),'yyyy-MM-dd');
+                  const isSel  = format(day,'yyyy-MM-dd') === format(selectedDate,'yyyy-MM-dd');
+                  const isTod  = format(day,'yyyy-MM-dd') === format(new Date(),'yyyy-MM-dd');
                   return (
                     <button key={i} type="button" onClick={() => { navigateToDate(day); setShowDatePicker(false); }}
                       className={`aspect-square rounded-lg text-sm font-medium transition-all cursor-pointer ${isSel ? 'bg-[#005CA9] text-white shadow-md scale-105' : isTod ? 'bg-[#E6F2FF] text-[#005CA9] font-bold' : isCurr ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' : 'bg-transparent text-gray-300'}`}>
