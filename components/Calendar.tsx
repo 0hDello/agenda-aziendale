@@ -73,17 +73,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef            = useRef<Date[]>([]);
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
-  // Direzione REALE dell'utente: aggiornata solo dagli eventi scroll dell'utente,
-  // MAI dalla compensazione programmatica.
-  const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
-  // Ultimo scrollTop causato dall'utente (non dalla compensazione)
-  const lastUserScrollTopRef      = useRef(0);
-  // Quando true, lo scroll handler sa che il prossimo evento e' compensazione
-  const isCompensatingRef         = useRef(false);
+  // Direzione reale dell'utente — mai sovrascritta dalla compensazione
+  const userScrollDirectionRef  = useRef<'up' | 'down' | null>(null);
+  const lastUserScrollTopRef    = useRef(0);
+  // Quando true il prossimo evento scroll e' compensazione artificiale
+  const isCompensatingRef       = useRef(false);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
-  // ─── helpers ─────────────────────────────────────────────────────────────
+  // ─── helpers ────────────────────────────────────────────────────────────────
 
   const scrollToDate = (date: Date) => {
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
@@ -111,7 +109,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [visibleDays]);
 
-  // ─── carica giorni futuri ─────────────────────────────────────────────────
+  // ─── carica giorni futuri ───────────────────────────────────────────────────
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
@@ -129,12 +127,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setTimeout(() => { isLoadingRef.current = false; }, 200);
   };
 
-  // ─── carica giorni passati ────────────────────────────────────────────────
+  // ─── carica giorni passati ──────────────────────────────────────────────────
   //
-  // Snapshot sincrono di scrollTop/scrollHeight PRIMA del setState.
-  // La compensazione avviene nella doppia rAF successiva.
-  // isCompensatingRef impedisce che quell'evento scroll artificiale
-  // venga interpretato come scroll dell'utente.
+  // Dopo aver sbloccato il lock (isLoadingRef = false), controlla se siamo
+  // ancora vicini alla cima E la direzione dell'utente era 'up': in quel caso
+  // chiama se stessa di nuovo. Questo gestisce lo scroll veloce in cui durante
+  // il lock arrivano eventi che vengono scartati.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
@@ -154,6 +152,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     isLoadingRef.current = true;
 
+    // Snapshot sincrono PRIMA del setState
     scrollSnapshotRef.current = {
       scrollTop:    container.scrollTop,
       scrollHeight: container.scrollHeight,
@@ -172,26 +171,37 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
           if (heightDiff > 0) {
-            // Segnala che il prossimo evento scroll e' compensazione
             isCompensatingRef.current = true;
             container.scrollTop = snapTop + heightDiff;
           }
           scrollSnapshotRef.current = null;
         }
-        setTimeout(() => { isLoadingRef.current = false; }, 150);
+
+        // Sblocca il lock; poi controlla se serve caricare ancora
+        setTimeout(() => {
+          isLoadingRef.current = false;
+
+          // Retry basato sulla direzione reale: se l'utente stava ancora
+          // andando su e siamo ancora vicini alla cima, carica un altro giorno.
+          // Non e' un loop cieco: si ferma appena distanceFromTop >= THRESHOLD
+          // o la direzione cambia.
+          if (
+            userScrollDirectionRef.current === 'up' &&
+            container.scrollTop < SCROLL_THRESHOLD
+          ) {
+            loadMoreDaysBackward();
+          }
+        }, 100);
       });
     });
   };
 
-  // ─── handler scroll ───────────────────────────────────────────────────────
+  // ─── handler scroll ─────────────────────────────────────────────────────────
   //
-  // Logica:
-  // 1. Se isCompensatingRef e' true, e' uno scroll artificiale: lo ignoriamo
-  //    (resetta il flag e aggiorna lastUserScrollTopRef al nuovo valore
-  //     cosi' il prossimo evento reale ha un punto di riferimento corretto).
-  // 2. Altrimenti calcola la direzione reale dell'utente confrontando
-  //    scrollTop con lastUserScrollTopRef, la salva in userScrollDirectionRef
-  //    e decide se caricare avanti o indietro.
+  // Se isCompensatingRef e' true: evento artificiale, ignora e reimposta
+  // il riferimento per il prossimo evento reale.
+  // Altrimenti: calcola direzione reale, salva in userScrollDirectionRef,
+  // poi decide se caricare (con debounce 80ms).
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -199,19 +209,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     const currentScrollTop = container.scrollTop;
 
-    // Evento di compensazione: ignora e reimposta il riferimento
+    // Evento di compensazione: ignora, reimposta il riferimento e esci
     if (isCompensatingRef.current) {
-      isCompensatingRef.current  = false;
+      isCompensatingRef.current    = false;
       lastUserScrollTopRef.current = currentScrollTop;
       return;
     }
 
     if (isLoadingRef.current) return;
 
-    // Rileva la direzione reale dell'utente
+    // Direzione reale dell'utente
     const direction: 'up' | 'down' =
       currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
-    lastUserScrollTopRef.current  = currentScrollTop;
+    lastUserScrollTopRef.current   = currentScrollTop;
     userScrollDirectionRef.current = direction;
 
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
@@ -232,7 +242,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }, 80);
   };
 
-  // ─── inizializzazione ─────────────────────────────────────────────────────
+  // ─── inizializzazione ───────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!isInitialized) {
@@ -573,7 +583,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDragOver   = (e: React.DragEvent) => e.preventDefault();
   const handleResizeStart = (appointment: Appuntamento) => setResizingAppointment(appointment);
 
-  // ─── VISTA MENSILE ────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
 
   const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
     const n = appointments.filter(apt =>
@@ -690,7 +700,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
