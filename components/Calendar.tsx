@@ -39,13 +39,12 @@ interface CalendarProps {
   agendaId?: string;
 }
 
-// 🔧 CONFIGURAZIONE SCROLL INFINITO
-const DAYS_PAST = 3;          // Giorni passati caricati all'avvio
-const DAYS_FUTURE = 4;        // Giorni futuri caricati all'avvio
-const MAX_VISIBLE_DAYS = 7;   // Finestra massima di giorni in memoria
-const DAYS_TO_LOAD = 1;       // Quanti giorni caricare per volta
+const DAYS_PAST = 3;
+const DAYS_FUTURE = 4;
+const MAX_VISIBLE_DAYS = 7;
+const DAYS_TO_LOAD = 1;
 const MIN_DATE = new Date(2020, 0, 1);
-const SCROLL_THRESHOLD = 300; // Pixel dal bordo per triggerare il caricamento
+const SCROLL_THRESHOLD = 400;
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
@@ -73,111 +72,110 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const lastScrollTopRef = useRef(0);
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref per passare scrollHeight alla requestAnimationFrame FUORI da setVisibleDays
+  const scrollSnapshotRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
 
-  // Scrolla fino a un giorno specifico nel DOM
   const scrollToDate = (date: Date) => {
-    const dateStr = formatDate(date);
-    const el = document.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
-    if (el && scrollContainerRef.current) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
+    if (el && scrollContainerRef.current) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Navigazione frecce/datepicker: se il giorno è già visibile scrolla, altrimenti reinizializza
   const navigateToDate = useCallback((date: Date) => {
     setSelectedDate(date);
     const alreadyVisible = visibleDays.some(d => isSameDay(d, date));
     if (alreadyVisible) {
       setTimeout(() => scrollToDate(date), 50);
     } else {
-      // Reinizializza la finestra centrata su quel giorno: 3 passati + target + 3 futuri
       const days: Date[] = [];
       for (let i = DAYS_PAST; i > 0; i--) {
         const d = subDays(date, i);
         if (startOfDay(d) >= startOfDay(MIN_DATE)) days.push(d);
       }
       days.push(date);
-      for (let i = 1; i <= DAYS_FUTURE; i++) {
-        days.push(addDays(date, i));
-      }
+      for (let i = 1; i <= DAYS_FUTURE; i++) days.push(addDays(date, i));
       setVisibleDays(days);
       setTimeout(() => scrollToDate(date), 200);
     }
   }, [visibleDays]);
 
-  // 🔽 Scroll verso il basso: carica giorni futuri
+  // 🔽 Carica giorni futuri (scroll verso il basso)
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
-
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
       let updated = [...prev, ...newDays];
-      if (updated.length > MAX_VISIBLE_DAYS) {
-        updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
-      }
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-
     setTimeout(() => { isLoadingRef.current = false; }, 300);
   };
 
-  // 🔼 Scroll verso l'alto: carica giorni passati con compensazione scroll
+  // 🔼 Carica giorni passati (scroll verso l'alto)
+  // CHIAVE: leggiamo scrollTop e scrollHeight PRIMA di chiamare setVisibleDays,
+  // poi applichiamo la compensazione nella requestAnimationFrame successiva.
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
-
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // Controlla subito il primo giorno disponibile
+    // Leggi i valori SINCRONI prima di qualsiasi setState
+    const firstDayCheck = visibleDaysRef.current[0];
+    if (!firstDayCheck || startOfDay(firstDayCheck) <= startOfDay(MIN_DATE)) return;
+
+    const newDays: Date[] = [];
+    for (let i = DAYS_TO_LOAD; i > 0; i--) {
+      const d = subDays(firstDayCheck, i);
+      if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
+    }
+    if (newDays.length === 0) return;
+
+    isLoadingRef.current = true;
+
+    // Salva snapshot SINCRONO qui, fuori da setVisibleDays
+    scrollSnapshotRef.current = {
+      scrollTop: container.scrollTop,
+      scrollHeight: container.scrollHeight,
+    };
+
     setVisibleDays(prev => {
-      const firstDay = prev[0];
-      if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
-        return prev;
-      }
-
-      isLoadingRef.current = true;
-
-      const scrollBefore = container.scrollTop;
-      const scrollHeightBefore = container.scrollHeight;
-
-      const newDays: Date[] = [];
-      for (let i = DAYS_TO_LOAD; i > 0; i--) {
-        const d = subDays(firstDay, i);
-        if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
-      }
-
-      if (newDays.length === 0) {
-        isLoadingRef.current = false;
-        return prev;
-      }
-
       let updated = [...newDays, ...prev];
-      if (updated.length > MAX_VISIBLE_DAYS) {
-        updated = updated.slice(0, MAX_VISIBLE_DAYS);
-      }
-
-      // Compensazione scroll: il contenuto non deve saltare
-      requestAnimationFrame(() => {
-        if (container) {
-          const heightDiff = container.scrollHeight - scrollHeightBefore;
-          if (heightDiff > 0) {
-            container.scrollTop = scrollBefore + heightDiff;
-          }
-        }
-        setTimeout(() => { isLoadingRef.current = false; }, 400);
-      });
-
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
+    });
+
+    // Dopo che React ha aggiornato il DOM, applica la compensazione
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (container && scrollSnapshotRef.current) {
+          const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
+          const heightDiff = container.scrollHeight - snapHeight;
+          if (heightDiff > 0) {
+            container.scrollTop = snapTop + heightDiff;
+          }
+          scrollSnapshotRef.current = null;
+        }
+        setTimeout(() => {
+          isLoadingRef.current = false;
+          // Se siamo ancora vicini alla cima, triggera di nuovo
+          if (container && container.scrollTop < SCROLL_THRESHOLD) {
+            loadMoreDaysBackward();
+          }
+        }, 350);
+      });
     });
   };
 
-  // Handler scroll con debounce
+  // Ref speculare a visibleDays per leggere il valore corrente in modo sincrono
+  const visibleDaysRef = useRef<Date[]>([]);
+  useEffect(() => {
+    visibleDaysRef.current = visibleDays;
+  }, [visibleDays]);
+
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container || isLoadingRef.current) return;
-
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
     const { scrollTop, scrollHeight, clientHeight } = container;
@@ -191,16 +189,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       if (scrollDirection === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
         loadMoreDaysForward();
       } else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD) {
-        // NOTA: rimossa la condizione " && distanceFromTop > 0 "
-        // così si triggera anche quando scrollTop è 0 (in cima)
         loadMoreDaysBackward();
       }
-    }, 150);
+    }, 100);
   };
 
-  // INIZIALIZZAZIONE una tantum al mount:
-  // Parte con DAYS_PAST giorni passati + oggi + DAYS_FUTURE giorni futuri
-  // così c'è subito contenuto sopra e lo scroll verso l'alto funziona
+  // Inizializzazione: 3 giorni passati + oggi + 4 futuri
   useEffect(() => {
     if (!isInitialized) {
       const today = selectedDate;
@@ -210,9 +204,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         if (startOfDay(d) >= startOfDay(MIN_DATE)) days.push(d);
       }
       days.push(today);
-      for (let i = 1; i <= DAYS_FUTURE; i++) {
-        days.push(addDays(today, i));
-      }
+      for (let i = 1; i <= DAYS_FUTURE; i++) days.push(addDays(today, i));
       setVisibleDays(days);
       setIsInitialized(true);
       setTimeout(() => {
@@ -246,10 +238,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   useEffect(() => {
     if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
       const container = scrollContainerRef.current;
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-        scrollListenerAttachedRef.current = false;
-      }
+      if (container) { container.removeEventListener('scroll', handleScroll); scrollListenerAttachedRef.current = false; }
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     }
     if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
@@ -309,9 +298,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const table = document.querySelector('table tbody');
       if (!table) return;
       const rect = table.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
       const rowHeight = 45;
-      const targetSlotIndex = Math.floor(relativeY / rowHeight);
+      const targetSlotIndex = Math.floor((e.clientY - rect.top) / rowHeight);
       if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
         const startTime = resizingAppointment.ora_inizio.substring(0, 5);
         const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
@@ -325,14 +313,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             const overlay = document.createElement('div');
             overlay.className = 'resize-overlay';
             Object.assign(overlay.style, { position:'absolute', top:'0', left:'0', right:'0', height:`${(targetSlotIndex - startIndex) * rowHeight}px`, backgroundColor:'rgba(34,197,94,0.2)', border:'2px dashed rgb(34,197,94)', pointerEvents:'none', zIndex:'20' });
-            appointmentElement.appendChild(overlay);
-            appointmentElement.style.opacity = '0.7';
+            appointmentElement.appendChild(overlay); appointmentElement.style.opacity = '0.7';
           } else if (targetSlotIndex < currentEndIndex && targetSlotIndex > startIndex) {
             const overlay = document.createElement('div');
             overlay.className = 'resize-overlay';
             Object.assign(overlay.style, { position:'absolute', top:`${(targetSlotIndex - startIndex) * rowHeight}px`, left:'0', right:'0', bottom:'0', backgroundColor:'rgba(239,68,68,0.3)', border:'2px dashed rgb(239,68,68)', pointerEvents:'none', zIndex:'20' });
-            appointmentElement.appendChild(overlay);
-            appointmentElement.style.opacity = '0.8';
+            appointmentElement.appendChild(overlay); appointmentElement.style.opacity = '0.8';
           }
         }
       }
@@ -358,21 +344,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }
         if (newEndTime > startTime) {
           const hasConflict = appointments.some(apt => {
-            if (apt.id === resizingAppointment.id) return false;
-            if (apt.persona_id !== resizingAppointment.persona_id || apt.sede_id !== resizingAppointment.sede_id || apt.data !== resizingAppointment.data) return false;
+            if (apt.id === resizingAppointment.id || apt.persona_id !== resizingAppointment.persona_id || apt.sede_id !== resizingAppointment.sede_id || apt.data !== resizingAppointment.data) return false;
             return startTime < apt.ora_fine.substring(0,5) && newEndTime > apt.ora_inizio.substring(0,5);
           });
-          if (hasConflict) {
-            alert('Impossibile ridimensionare: fascia oraria già occupata');
-          } else {
+          if (hasConflict) { alert('Impossibile ridimensionare: fascia oraria già occupata'); }
+          else {
             try {
               const res = await fetch(`/api/appuntamenti/${resizingAppointment.id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ persona_id: resizingAppointment.persona_id, sede_id: resizingAppointment.sede_id, ora_inizio: startTime, ora_fine: newEndTime, cliente: resizingAppointment.cliente, note: resizingAppointment.note }),
               });
-              if (!res.ok) throw new Error('Errore resize');
+              if (!res.ok) throw new Error();
               await loadData();
-            } catch (err) { alert('Errore durante il ridimensionamento'); }
+            } catch { alert('Errore durante il ridimensionamento'); }
           }
         }
       }
@@ -407,7 +391,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       if (!data.persona_id || !data.sede_id || !data.data || !data.ora_inizio || !data.ora_fine) { alert('Compila tutti i campi obbligatori'); return; }
       const res = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      if (!res.ok) throw new Error('Errore creazione');
+      if (!res.ok) throw new Error();
       setTimeout(async () => { await loadData(); }, 300);
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
@@ -415,7 +399,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
       const res = await fetch(`/api/appuntamenti/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      if (!res.ok) throw new Error('Errore aggiornamento');
+      if (!res.ok) throw new Error();
       setTimeout(async () => { await loadData(); }, 300);
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
@@ -424,7 +408,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     try {
       const res = await fetch(`/api/appuntamenti/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Errore eliminazione');
+      if (!res.ok) throw new Error();
       setTimeout(async () => { await loadData(); }, 300);
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
@@ -478,7 +462,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
   const handleResizeStart = (appointment: Appuntamento) => setResizingAppointment(appointment);
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
 
   const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
     const n = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId).length;
@@ -570,7 +554,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
