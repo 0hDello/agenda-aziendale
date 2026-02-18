@@ -45,6 +45,9 @@ const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD = 400;
+// Tempo (ms) in cui gli eventi scroll vengono ignorati dopo una compensazione.
+// Impedisce che lo scroll inerziale del browser ri-triggeri loadMoreDaysBackward.
+const POST_COMPENSATE_COOLDOWN = 400;
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
@@ -75,8 +78,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
+  // true durante l'evento singolo di compensazione DOM
   const isCompensatingRef         = useRef(false);
-  // Ref stabile che punta sempre alla versione aggiornata di handleScroll
+  // true per POST_COMPENSATE_COOLDOWN ms dopo la compensazione:
+  // blocca lo scroll inerziale residuo che altrimenti ri-triggera il caricamento
+  const inCooldownRef             = useRef(false);
+  const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
@@ -128,9 +135,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── carica giorni passati ──────────────────────────────────────────────────
+  //
+  // NIENTE retry ricorsivo: dopo lo sblocco del lock, il normale handleScroll
+  // si occupa di richiamare loadMoreDaysBackward se siamo ancora in cima.
+  // Il cooldown impedisce che lo scroll inerziale lo faccia troppo presto.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
+    if (inCooldownRef.current) return;
 
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -166,30 +178,32 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
           if (heightDiff > 0) {
+            // Segnala compensazione singola
             isCompensatingRef.current = true;
             container.scrollTop = snapTop + heightDiff;
+
+            // Avvia cooldown: ignora scroll inerziale per POST_COMPENSATE_COOLDOWN ms
+            inCooldownRef.current = true;
+            if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+            cooldownTimerRef.current = setTimeout(() => {
+              inCooldownRef.current = false;
+            }, POST_COMPENSATE_COOLDOWN);
           }
           scrollSnapshotRef.current = null;
         }
 
         setTimeout(() => {
           isLoadingRef.current = false;
-          if (
-            userScrollDirectionRef.current === 'up' &&
-            container.scrollTop < SCROLL_THRESHOLD
-          ) {
-            loadMoreDaysBackward();
-          }
+          // NON richiamiamo qui loadMoreDaysBackward:
+          // il cooldown garantisce che handleScroll non scatti subito,
+          // e dopo il cooldown se l'utente e' ancora in cima handleScroll
+          // lo richiamera' da solo tramite il debounce normale.
         }, 100);
       });
     });
   };
 
   // ─── handler scroll (stabile via ref) ──────────────────────────────────────
-  //
-  // handleScrollRef.current viene aggiornato ad ogni render, quindi
-  // il listener DOM chiama sempre la versione fresca senza dover essere
-  // rimosso e ri-attaccato (nessuna closure stale).
 
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
@@ -197,8 +211,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     const currentScrollTop = container.scrollTop;
 
+    // Evento singolo di compensazione DOM: reimposta riferimento ed esci
     if (isCompensatingRef.current) {
       isCompensatingRef.current    = false;
+      lastUserScrollTopRef.current = currentScrollTop;
+      return;
+    }
+
+    // Dentro il cooldown post-compensazione: aggiorna solo il riferimento
+    // senza triggerare caricamenti (blocca lo scroll inerziale residuo)
+    if (inCooldownRef.current) {
       lastUserScrollTopRef.current = currentScrollTop;
       return;
     }
@@ -213,7 +235,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
     loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingRef.current) return;
+      if (!container || isLoadingRef.current || inCooldownRef.current) return;
 
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromTop    = scrollTop;
@@ -247,11 +269,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
-    // Wrapper stabile: chiama sempre handleScrollRef.current (mai stale)
     const stableHandler = () => handleScrollRef.current();
     container.addEventListener('scroll', stableHandler, { passive: true });
     scrollListenerAttachedRef.current = true;
-    // Salva il wrapper per poterlo rimuovere in seguito
     (container as any).__scrollHandler = stableHandler;
   };
 
@@ -271,6 +291,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return () => {
       detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
     };
   }, [isInitialized]);
 
