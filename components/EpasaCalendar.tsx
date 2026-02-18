@@ -128,6 +128,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   /**
    * Restituisce true se lo slot è bloccato per via dell'orario di inizio di MILECE.
    * MILECE inizia alle 08:30 → lo slot 08:00 è sempre chiuso per lei nei suoi giorni lavorativi.
+   * Questi slot NON concorrono al calcolo della disponibilità (sono strutturalmente esclusi).
    */
   const isMileceTimeBlocked = (operator: string, day: Date, time: string): boolean => {
     if (operator !== 'MILECE') return false;
@@ -451,10 +452,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   /**
-   * Calcola la disponibilità giornaliera considerando:
-   * - slot UFF CHIUSO come "occupati" (non disponibili per prenotazione)
-   * - appuntamenti reali come "occupati"
-   * - slot bloccati per orario (es. 08:00 per MILECE) come "occupati"
+   * Calcola la disponibilità giornaliera.
+   * Gli slot bloccati per orario (es. 08:00 di MILECE) sono esclusi dal conteggio:
+   * sono "strutturalmente chiusi" come un weekend, non indicano affollamento.
+   * totalSlots = solo gli slot effettivamente prenotabili dall'operatore.
    */
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
@@ -462,11 +463,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (operator === 'MILECE' && !isMileceWorkingDay(dateObj)) return 'closed';
     if (isGiornoChiuso(date, operator)) return 'closed';
 
-    const realCount        = getRealAppointmentsCount(date, operator);
-    const uffCount         = getUffChiusoSlotsCount(date, operator);
+    // Slot strutturalmente bloccati per orario (esclusi dalla disponibilità)
     const timeBlockedCount = TIME_SLOTS.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
-    const occupiedSlots    = realCount + uffCount + timeBlockedCount;
-    const totalSlots       = TIME_SLOTS.length;
+    // Slot effettivamente disponibili per questo operatore
+    const totalSlots    = TIME_SLOTS.length - timeBlockedCount;
+
+    const realCount  = getRealAppointmentsCount(date, operator);
+    const uffCount   = getUffChiusoSlotsCount(date, operator);
+    const occupiedSlots = realCount + uffCount;
 
     if (occupiedSlots === 0) return 'free';
     if (occupiedSlots >= totalSlots * 0.8) return 'full';
