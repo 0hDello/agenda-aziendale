@@ -30,6 +30,8 @@ import {
   getDay,
   startOfDay,
   getDate,
+  getMonth,
+  getYear,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import React from 'react';
@@ -110,20 +112,46 @@ const MILECE_START_TIME   = '08:30';
 /**
  * Borgo: martedì della 2ª e 3ª settimana del mese.
  *
- * La settimana del mese è calcolata per blocchi fissi di 7 giorni:
- *   Settimana 1 → giorni  1–7
- *   Settimana 2 → giorni  8–14  ← OK per Borgo
- *   Settimana 3 → giorni 15–21  ← OK per Borgo
- *   Settimana 4 → giorni 22–28
- *   Settimana 5 → giorni 29–31
+ * La settimana è calcolata come blocco Lun–Dom reale:
+ * si trova il lunedì di inizio della settimana ISO del giorno dato,
+ * poi si calcola quante settimane (Lun–Dom) complete del mese
+ * precedono quel lunedì: il numero che ne risulta (+1) è il numero di settimana del mese.
  *
- * Questa logica è indipendente da quanti martedì sono già passati nel mese;
- * conta solo in quale "blocco settimanale" cade il giorno.
+ * Esempio – Aprile 2026 (inizia mercoledì 1):
+ *   Sett. 1: lun 30/mar – dom  5/apr  → martedì  della settimana = 31/mar (fuori mese, non conta)
+ *   Sett. 2: lun  6/apr – dom 12/apr  → martedì =  7 apr  ✔
+ *   Sett. 3: lun 13/apr – dom 19/apr  → martedì = 14 apr  ✔
+ *   Sett. 4: lun 20/apr – dom 26/apr  → chiuso
+ *   Sett. 5: lun 27/apr – dom 30/apr  → chiuso
  */
+const getWeekOfMonthISO = (date: Date): number => {
+  // Trovo il lunedì della settimana corrente (ISO: settimana inizia lunedì)
+  const dow = getDay(date); // 0=dom,1=lun,...,6=sab
+  const daysSinceMon = (dow + 6) % 7; // 0=lun, 1=mar, ..., 6=dom
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - daysSinceMon);
+  monday.setHours(0, 0, 0, 0);
+
+  // Primo giorno del mese
+  const firstOfMonth = new Date(getYear(date), getMonth(date), 1, 0, 0, 0, 0);
+
+  // Lunedì della settimana che contiene il 1° del mese
+  const dowFirst = getDay(firstOfMonth);
+  const daysSinceMonFirst = (dowFirst + 6) % 7;
+  const firstMonday = new Date(firstOfMonth);
+  firstMonday.setDate(firstOfMonth.getDate() - daysSinceMonFirst);
+  firstMonday.setHours(0, 0, 0, 0);
+
+  // Numero di settimane tra il primo lunedì e il lunedì del giorno dato
+  const diffMs = monday.getTime() - firstMonday.getTime();
+  const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  return diffWeeks + 1; // settimana 1-based
+};
+
 const isBorgoWorkingDay = (date: Date): boolean => {
   if (getDay(date) !== 2) return false; // non è martedì
-  const d = getDate(date); // giorno del mese (1-31)
-  return (d >= 8 && d <= 14) || (d >= 15 && d <= 21);
+  const week = getWeekOfMonthISO(date);
+  return week === 2 || week === 3;
 };
 
 type ViewMode = 'daily' | 'monthly';
@@ -191,7 +219,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   /**
    * Restituisce true se il giorno è strutturalmente chiuso per l'operatore nella sede.
    * - MILECE (IMOLA): solo Mar/Mer/Ven
-   * - BORGO: solo martedì della 2ª e 3ª settimana (giorni 8-14 e 15-21)
+   * - BORGO: solo martedì della 2ª e 3ª settimana ISO del mese (Lun–Dom)
    * - CSPT: tutti i giorni feriali
    */
   const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
@@ -519,7 +547,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
    *
    * Tiene conto degli orari e dei giorni lavorativi specifici per sede:
    * - CSPT  : tutti i giorni feriali, orari pomeriggio
-   * - BORGO : solo martedì della 2ª e 3ª settimana, orari mattina 09-11:30
+   * - BORGO : solo martedì della 2ª e 3ª settimana ISO, orari mattina 09-11:30
    * - IMOLA : tutti i giorni feriali, orari mattina 08-12
    *           (MILECE solo Mar/Mer/Ven e inizia alle 08:30)
    *
@@ -778,7 +806,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           if (isDayClosed || isManuallyClose) {
                             const title = isDayClosed
                               ? (selectedSede!.id === 'borgo'
-                                  ? 'Borgo: marted\u00ec della 2\u00aa e 3\u00aa settimana'
+                                  ? 'Borgo: marted\u00ec della 2\u00aa e 3\u00aa settimana del mese'
                                   : operator === 'MILECE'
                                     ? 'MILECE non lavora questo giorno'
                                     : 'Ufficio chiuso')
