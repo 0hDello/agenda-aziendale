@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,7 +25,7 @@ import {
   startOfWeek,
   endOfWeek,
   isWeekend,
-  getDay,
+  isSameDay,
   startOfDay,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -40,10 +40,10 @@ interface CalendarProps {
 }
 
 // 🔧 CONFIGURAZIONE SCROLL INFINITO
-const MAX_VISIBLE_DAYS = 7;   // 1 settimana target (meno DOM = più stabile)
-const DAYS_TO_LOAD = 1;       // Carica 1 giorno per volta (più preciso)
-const MIN_DATE = new Date(2020, 0, 1); // 1 gennaio 2020
-const SCROLL_THRESHOLD = 200; // Pixel dal bordo per attivare il caricamento (abbassato)
+const MAX_VISIBLE_DAYS = 7;   // 1 settimana target
+const DAYS_TO_LOAD = 1;       // Carica 1 giorno per volta
+const MIN_DATE = new Date(2020, 0, 1);
+const SCROLL_THRESHOLD = 200;
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
@@ -52,6 +52,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [visibleDays, setVisibleDays] = useState<Date[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [appointments, setAppointments] = useState<Appuntamento[]>([]);
   const [persone, setPersone] = useState<Persona[]>([]);
   const [sedi, setSedi] = useState<Sede[]>([]);
@@ -80,59 +81,63 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const scrollToSelectedDate = () => {
-    const selectedDateStr = formatDate(selectedDate);
-    const dateElement = document.querySelector<HTMLElement>(
-      `[data-date="${selectedDateStr}"]`,
-    );
+  // 🔧 Scroll verso un giorno specifico, se presente nel DOM
+  const scrollToDate = (date: Date) => {
+    const dateStr = formatDate(date);
+    const dateElement = document.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
     if (dateElement && scrollContainerRef.current) {
       dateElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  // 🔧 Funzione per caricare più giorni in avanti
+  // 🔧 Navigazione con le frecce: NON reinizializza visibleDays
+  // Se il giorno è già visibile, scrolla. Altrimenti reinizializza da quel giorno.
+  const navigateToDate = useCallback((date: Date) => {
+    setSelectedDate(date);
+    const alreadyVisible = visibleDays.some(d => isSameDay(d, date));
+    if (alreadyVisible) {
+      setTimeout(() => scrollToDate(date), 50);
+    } else {
+      // Il giorno non è nella finestra visibile: reinizializza da lì
+      const days = Array.from({ length: MAX_VISIBLE_DAYS }, (_, i) => addDays(date, i));
+      setVisibleDays(days);
+      setTimeout(() => scrollToDate(date), 200);
+    }
+  }, [visibleDays]);
+
+  // 🔧 Carica più giorni in avanti (scroll verso il basso)
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
-    
-    console.log('🔽 Caricamento giorni futuri...');
     isLoadingRef.current = true;
 
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
-      
       let updatedDays = [...prev, ...newDays];
-      
-      // Rimuovi i giorni vecchi SOLO se supera il limite
+
       if (updatedDays.length > MAX_VISIBLE_DAYS) {
         const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
         updatedDays = updatedDays.slice(daysToRemove);
-        console.log(`🗑️ Rimossi ${daysToRemove} giorni vecchi`);
       }
-      
-      console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
+
       return updatedDays;
     });
 
-    setTimeout(() => {
-      isLoadingRef.current = false;
-    }, 300);
+    setTimeout(() => { isLoadingRef.current = false; }, 300);
   };
 
-  // 🔧 Funzione per caricare più giorni indietro
+  // 🔧 Carica più giorni indietro (scroll verso l'alto)
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
 
     setVisibleDays(prev => {
       const firstDay = prev[0];
-      
+
       if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
-        console.log('⛔ Limite minimo raggiunto (1 gennaio 2020)');
         isLoadingRef.current = false;
         return prev;
       }
 
-      console.log('🔼 Caricamento giorni passati...');
       isLoadingRef.current = true;
 
       const container = scrollContainerRef.current;
@@ -141,11 +146,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         return prev;
       }
 
-      // Salva la posizione attuale PRIMA di modificare il DOM
       const scrollBefore = container.scrollTop;
       const scrollHeightBefore = container.scrollHeight;
 
-      // Calcola i nuovi giorni da aggiungere
       const newDays: Date[] = [];
       for (let i = DAYS_TO_LOAD; i > 0; i--) {
         const newDay = subDays(firstDay, i);
@@ -153,55 +156,40 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           newDays.push(newDay);
         }
       }
-      
+
       if (newDays.length === 0) {
-        console.log('⛔ Nessun giorno valido da aggiungere');
         isLoadingRef.current = false;
         return prev;
       }
-      
-      // Aggiungi i nuovi giorni in cima
+
       let updatedDays = [...newDays, ...prev];
-      
-      // Rimuovi giorni futuri SOLO se supera il limite alto
+
       if (updatedDays.length > MAX_VISIBLE_DAYS + 3) {
         const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
         updatedDays = updatedDays.slice(0, -daysToRemove);
-        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri`);
       }
 
-      console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
-
-      // 🔧 COMPENSAZIONE SCROLL al 100% — evita il salto del giorno
+      // 🔧 Compensazione scroll al 100%: rimane esattamente dove era
       requestAnimationFrame(() => {
         if (container) {
-          const newScrollHeight = container.scrollHeight;
-          const heightDiff = newScrollHeight - scrollHeightBefore;
-          
+          const heightDiff = container.scrollHeight - scrollHeightBefore;
           if (heightDiff > 0) {
-            // Compensazione ESATTA al 100%: lo scroll rimane esattamente dove era
             container.scrollTop = scrollBefore + heightDiff;
-            console.log(`📍 Scroll compensato al 100%: ${scrollBefore} + ${heightDiff} = ${container.scrollTop}`);
           }
         }
-        
-        setTimeout(() => {
-          isLoadingRef.current = false;
-        }, 400);
+        setTimeout(() => { isLoadingRef.current = false; }, 400);
       });
 
       return updatedDays;
     });
   };
 
-  // 🔧 Handler scroll principale con DEBOUNCE
+  // 🔧 Handler scroll principale con debounce
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container || isLoadingRef.current) return;
 
-    if (loadTimeoutRef.current) {
-      clearTimeout(loadTimeoutRef.current);
-    }
+    if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
     const { scrollTop, scrollHeight, clientHeight } = container;
     const scrollDirection = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
@@ -219,47 +207,41 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }, 150);
   };
 
-  // 🔧 INIZIALIZZAZIONE: Carica 7 giorni (1 settimana)
+  // 🔧 INIZIALIZZAZIONE una tantum (solo al primo mount)
   useEffect(() => {
-    console.log('🚀 Inizializzazione calendario 730...');
-    const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
-    setVisibleDays(days);
-    
-    setTimeout(() => {
-      scrollToSelectedDate();
-      if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
+    if (!isInitialized) {
+      const days = Array.from({ length: MAX_VISIBLE_DAYS }, (_, i) => addDays(selectedDate, i));
+      setVisibleDays(days);
+      setIsInitialized(true);
+      setTimeout(() => {
+        scrollToDate(selectedDate);
         attachScrollListener();
-      }
-    }, 200);
-  }, [selectedDate]);
+      }, 200);
+    }
+  }, []);
 
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
-
-    console.log('✅ Scroll listener ATTIVATO!');
     container.addEventListener('scroll', handleScroll, { passive: true });
     scrollListenerAttachedRef.current = true;
   };
 
   useEffect(() => {
-    if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
+    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) {
       attachScrollListener();
     }
-
     return () => {
       const container = scrollContainerRef.current;
       if (container && scrollListenerAttachedRef.current) {
         container.removeEventListener('scroll', handleScroll);
         scrollListenerAttachedRef.current = false;
       }
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     };
-  }, []);
+  }, [isInitialized]);
 
-  // Cleanup quando cambia view mode
+  // Cleanup listener quando si passa alla vista mensile
   useEffect(() => {
     if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
       const container = scrollContainerRef.current;
@@ -267,19 +249,17 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         container.removeEventListener('scroll', handleScroll);
         scrollListenerAttachedRef.current = false;
       }
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+    }
+    // Quando torna alla vista giornaliera, ri-aggancia il listener
+    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
+      setTimeout(() => attachScrollListener(), 100);
     }
   }, [viewMode]);
 
   useEffect(() => {
     loadData();
-    
-    const intervalId = setInterval(() => {
-      loadData();
-    }, 30000);
-    
+    const intervalId = setInterval(() => { loadData(); }, 30000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -298,15 +278,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       if (cell) {
         const id = cell.getAttribute('data-appointment-id');
         if (id) {
-          document
-            .querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`)
-            .forEach(el => {
-              el.classList.add('appointment-hover');
-            });
+          document.querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`).forEach(el => el.classList.add('appointment-hover'));
         }
       }
     };
-
     const handleMouseLeave = (e: Event) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
@@ -314,121 +289,57 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       if (cell) {
         const id = cell.getAttribute('data-appointment-id');
         if (id) {
-          document
-            .querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`)
-            .forEach(el => {
-              el.classList.remove('appointment-hover');
-            });
+          document.querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`).forEach(el => el.classList.remove('appointment-hover'));
         }
       }
     };
-
     document.addEventListener('mouseenter', handleMouseEnter, true);
     document.addEventListener('mouseleave', handleMouseLeave, true);
-
     return () => {
       document.removeEventListener('mouseenter', handleMouseEnter, true);
       document.removeEventListener('mouseleave', handleMouseLeave, true);
-      document
-        .querySelectorAll<HTMLElement>('.appointment-hover')
-        .forEach(el => {
-          el.classList.remove('appointment-hover');
-        });
+      document.querySelectorAll<HTMLElement>('.appointment-hover').forEach(el => el.classList.remove('appointment-hover'));
     };
   }, []);
 
   useEffect(() => {
     if (!resizingAppointment) {
-      document.querySelectorAll('.resize-overlay').forEach(el => {
-        el.remove();
-      });
-      document.querySelectorAll<HTMLElement>('[data-appointment-id]').forEach(
-        el => {
-          el.style.opacity = '';
-        },
-      );
+      document.querySelectorAll('.resize-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('[data-appointment-id]').forEach(el => { el.style.opacity = ''; });
       return;
     }
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) {
-        setIsResizing(true);
-      }
-
+      if (!isResizing) setIsResizing(true);
       const table = document.querySelector('table tbody');
       if (!table) return;
-
       const rect = table.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
       const rowHeight = 45;
-
       const exactSlotPosition = relativeY / rowHeight;
       const targetSlotIndex = Math.floor(exactSlotPosition);
 
       if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
         const startTime = resizingAppointment.ora_inizio.substring(0, 5);
-        const startIndex = TIME_SLOTS.findIndex(
-          slot => slot.label === startTime,
-        );
-
-        const appointmentElement = document.querySelector<HTMLElement>(
-          `[data-appointment-id="${resizingAppointment.id}"]`,
-        );
-
+        const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
+        const appointmentElement = document.querySelector<HTMLElement>(`[data-appointment-id="${resizingAppointment.id}"]`);
         if (appointmentElement) {
-          const oldOverlay =
-            appointmentElement.querySelector<HTMLElement>('.resize-overlay');
-          if (oldOverlay) {
-            oldOverlay.remove();
-          }
-
+          appointmentElement.querySelector<HTMLElement>('.resize-overlay')?.remove();
           const newEndSlotIndex = targetSlotIndex;
-
           const currentEndTime = resizingAppointment.ora_fine.substring(0, 5);
-          let currentEndIndex = TIME_SLOTS.findIndex(
-            slot => slot.label === currentEndTime,
-          );
-          if (currentEndIndex === -1 && currentEndTime === '18:00') {
-            currentEndIndex = TIME_SLOTS.length;
-          }
+          let currentEndIndex = TIME_SLOTS.findIndex(slot => slot.label === currentEndTime);
+          if (currentEndIndex === -1 && currentEndTime === '18:00') currentEndIndex = TIME_SLOTS.length;
 
           if (newEndSlotIndex > currentEndIndex) {
-            const newSlotCount = newEndSlotIndex - startIndex;
-            const newHeight = newSlotCount * rowHeight;
-
             const overlay = document.createElement('div');
             overlay.className = 'resize-overlay';
-            overlay.style.position = 'absolute';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.right = '0';
-            overlay.style.height = `${newHeight}px`;
-            overlay.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
-            overlay.style.border = '2px dashed rgb(34, 197, 94)';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '20';
-
+            Object.assign(overlay.style, { position:'absolute', top:'0', left:'0', right:'0', height:`${(newEndSlotIndex - startIndex) * rowHeight}px`, backgroundColor:'rgba(34,197,94,0.2)', border:'2px dashed rgb(34,197,94)', pointerEvents:'none', zIndex:'20' });
             appointmentElement.appendChild(overlay);
             appointmentElement.style.opacity = '0.7';
-          } else if (
-            newEndSlotIndex < currentEndIndex &&
-            newEndSlotIndex > startIndex
-          ) {
-            const newSlotCount = newEndSlotIndex - startIndex;
-            const newHeight = newSlotCount * rowHeight;
-
+          } else if (newEndSlotIndex < currentEndIndex && newEndSlotIndex > startIndex) {
             const overlay = document.createElement('div');
             overlay.className = 'resize-overlay';
-            overlay.style.position = 'absolute';
-            overlay.style.top = `${newHeight}px`;
-            overlay.style.left = '0';
-            overlay.style.right = '0';
-            overlay.style.bottom = '0';
-            overlay.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
-            overlay.style.border = '2px dashed rgb(239, 68, 68)';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '20';
-
+            Object.assign(overlay.style, { position:'absolute', top:`${(newEndSlotIndex - startIndex) * rowHeight}px`, left:'0', right:'0', bottom:'0', backgroundColor:'rgba(239,68,68,0.3)', border:'2px dashed rgb(239,68,68)', pointerEvents:'none', zIndex:'20' });
             appointmentElement.appendChild(overlay);
             appointmentElement.style.opacity = '0.8';
           }
@@ -437,118 +348,59 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
 
     const cleanupResizeEffects = () => {
-      document.querySelectorAll('.resize-overlay').forEach(el => {
-        el.remove();
-      });
-
-      document.querySelectorAll<HTMLElement>('[data-appointment-id]').forEach(
-        el => {
-          el.style.opacity = '';
-        },
-      );
+      document.querySelectorAll('.resize-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('[data-appointment-id]').forEach(el => { el.style.opacity = ''; });
     };
 
     const handleMouseUp = async (e: MouseEvent) => {
       if (!resizingAppointment) return;
-
       cleanupResizeEffects();
-
       const table = document.querySelector('table tbody');
-      if (!table) {
-        setResizingAppointment(null);
-        setTimeout(() => {
-          setIsResizing(false);
-        }, 100);
-        return;
-      }
-
+      if (!table) { setResizingAppointment(null); setTimeout(() => setIsResizing(false), 100); return; }
       const rect = table.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
       const rowHeight = 45;
-
-      const exactSlotPosition = relativeY / rowHeight;
-      const targetSlotIndex = Math.floor(exactSlotPosition);
+      const targetSlotIndex = Math.floor(relativeY / rowHeight);
 
       if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
         const newEndSlotIndex = targetSlotIndex;
-
         if (newEndSlotIndex <= TIME_SLOTS.length && newEndSlotIndex > 0) {
-          const newEndTime =
-            newEndSlotIndex < TIME_SLOTS.length
-              ? TIME_SLOTS[newEndSlotIndex].label
-              : '18:00';
+          const newEndTime = newEndSlotIndex < TIME_SLOTS.length ? TIME_SLOTS[newEndSlotIndex].label : '18:00';
           const startTime = resizingAppointment.ora_inizio.substring(0, 5);
-
-          const startIndex = TIME_SLOTS.findIndex(
-            slot => slot.label === startTime,
-          );
+          const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
           if (newEndSlotIndex <= startIndex) {
             alert("La durata minima dell'appuntamento è 30 minuti");
-            setResizingAppointment(null);
-            setTimeout(() => {
-              setIsResizing(false);
-            }, 100);
-            return;
+            setResizingAppointment(null); setTimeout(() => setIsResizing(false), 100); return;
           }
-
           if (newEndTime > startTime) {
             const hasConflict = appointments.some(apt => {
               if (apt.id === resizingAppointment.id) return false;
-              if (apt.persona_id !== resizingAppointment.persona_id)
-                return false;
+              if (apt.persona_id !== resizingAppointment.persona_id) return false;
               if (apt.sede_id !== resizingAppointment.sede_id) return false;
               if (apt.data !== resizingAppointment.data) return false;
-
-              const aptStart = apt.ora_inizio.substring(0, 5);
-              const aptEnd = apt.ora_fine.substring(0, 5);
-
-              return startTime < aptEnd && newEndTime > aptStart;
+              return startTime < apt.ora_fine.substring(0,5) && newEndTime > apt.ora_inizio.substring(0,5);
             });
-
             if (hasConflict) {
-              alert(
-                'Impossibile ridimensionare: fascia oraria già occupata',
-              );
-              setResizingAppointment(null);
-              setTimeout(() => {
-                setIsResizing(false);
-              }, 100);
-              return;
+              alert('Impossibile ridimensionare: fascia oraria già occupata');
             } else {
               try {
                 const response = await fetch(`/api/appuntamenti/${resizingAppointment.id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    persona_id: resizingAppointment.persona_id,
-                    sede_id: resizingAppointment.sede_id,
-                    ora_inizio: startTime,
-                    ora_fine: newEndTime,
-                    cliente: resizingAppointment.cliente,
-                    note: resizingAppointment.note,
-                  }),
+                  method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ persona_id: resizingAppointment.persona_id, sede_id: resizingAppointment.sede_id, ora_inizio: startTime, ora_fine: newEndTime, cliente: resizingAppointment.cliente, note: resizingAppointment.note }),
                 });
-
                 if (!response.ok) throw new Error('Errore resize');
                 await loadData();
-              } catch (err) {
-                console.error('Errore:', err);
-                alert('Errore durante il ridimensionamento');
-              }
+              } catch (err) { console.error('Errore:', err); alert('Errore durante il ridimensionamento'); }
             }
           }
         }
       }
-
       setResizingAppointment(null);
-      setTimeout(() => {
-        setIsResizing(false);
-      }, 100);
+      setTimeout(() => setIsResizing(false), 100);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -561,100 +413,48 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const sediRes = await fetch('/api/sedi');
       const sediData = await sediRes.json();
       if (sediData) setSedi(sediData);
-
       const personeRes = await fetch('/api/persone');
       const personeData = await personeRes.json();
       if (personeData) setPersone(personeData);
-
       const psRes = await fetch('/api/persona-sede');
       const psData = await psRes.json();
       if (psData) setPersonaSede(psData);
-
       const appRes = await fetch('/api/appuntamenti');
       const appData = await appRes.json();
       if (appData) setAppointments(appData);
-    } catch (error) {
-      console.error('Errore caricamento dati:', error);
-    }
+    } catch (error) { console.error('Errore caricamento dati:', error); }
   };
 
   const handleCreateAppointment = async (data: any) => {
     try {
-      if (
-        !data.persona_id ||
-        !data.sede_id ||
-        !data.data ||
-        !data.ora_inizio ||
-        !data.ora_fine
-      ) {
-        alert('Compila tutti i campi obbligatori');
-        return;
+      if (!data.persona_id || !data.sede_id || !data.data || !data.ora_inizio || !data.ora_fine) {
+        alert('Compila tutti i campi obbligatori'); return;
       }
-      
-      const response = await fetch('/api/appuntamenti', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
+      const response = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (!response.ok) throw new Error('Errore creazione');
-      
-      setTimeout(async () => {
-        await loadData();
-      }, 300);
-    } catch (err) {
-      console.error('Errore creazione:', err);
-      alert('Errore imprevisto: ' + String(err));
-    }
+      setTimeout(async () => { await loadData(); }, 300);
+    } catch (err) { console.error('Errore creazione:', err); alert('Errore imprevisto: ' + String(err)); }
   };
 
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
-      const response = await fetch(`/api/appuntamenti/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
+      const response = await fetch(`/api/appuntamenti/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (!response.ok) throw new Error('Errore aggiornamento');
-      
-      setTimeout(async () => {
-        await loadData();
-      }, 300);
-    } catch (err) {
-      console.error('Errore aggiornamento:', err);
-      alert('Errore imprevisto: ' + String(err));
-    }
+      setTimeout(async () => { await loadData(); }, 300);
+    } catch (err) { console.error('Errore aggiornamento:', err); alert('Errore imprevisto: ' + String(err)); }
   };
 
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     try {
-      const response = await fetch(`/api/appuntamenti/${id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/appuntamenti/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Errore eliminazione');
-      
-      setTimeout(async () => {
-        await loadData();
-      }, 300);
-    } catch (err) {
-      console.error('Errore eliminazione:', err);
-      alert('Errore imprevisto: ' + String(err));
-    }
+      setTimeout(async () => { await loadData(); }, 300);
+    } catch (err) { console.error('Errore eliminazione:', err); alert('Errore imprevisto: ' + String(err)); }
   };
 
-  const handleSlotClick = (
-    date: string,
-    time: string,
-    personaId: string,
-    existingAppointment?: Appuntamento,
-  ) => {
-    if (isResizing) {
-      return;
-    }
-
+  const handleSlotClick = (date: string, time: string, personaId: string, existingAppointment?: Appuntamento) => {
+    if (isResizing) return;
     if (existingAppointment) {
       setSelectedAppointment(existingAppointment);
     } else {
@@ -664,23 +464,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setIsModalOpen(true);
   };
 
-  const getAppointmentsForSlot = (
-    date: string,
-    time: string,
-    personaId: string,
-  ) => {
-    const found = appointments.filter(apt => {
+  const getAppointmentsForSlot = (date: string, time: string, personaId: string) => {
+    return appointments.filter(apt => {
       const aptOraInizio = apt.ora_inizio ? apt.ora_inizio.substring(0, 5) : '';
       const aptOraFine = apt.ora_fine ? apt.ora_fine.substring(0, 5) : '';
-      return (
-        apt.data === date &&
-        apt.sede_id === selectedSedeId &&
-        time >= aptOraInizio &&
-        time < aptOraFine &&
-        apt.persona_id === personaId
-      );
+      return apt.data === date && apt.sede_id === selectedSedeId && time >= aptOraInizio && time < aptOraFine && apt.persona_id === personaId;
     });
-    return found;
   };
 
   const handleDragStart = (appointment: Appuntamento, time: string) => {
@@ -689,112 +478,49 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
-
     const { appointment, originalTime } = draggedAppointment;
-
-    const originalIndex = TIME_SLOTS.findIndex(
-      slot => slot.label === originalTime,
-    );
+    const originalIndex = TIME_SLOTS.findIndex(slot => slot.label === originalTime);
     const newIndex = TIME_SLOTS.findIndex(slot => slot.label === newTime);
-
-    if (originalIndex === -1 || newIndex === -1) {
-      setDraggedAppointment(null);
-      return;
-    }
-
+    if (originalIndex === -1 || newIndex === -1) { setDraggedAppointment(null); return; }
     const timeDiff = newIndex - originalIndex;
-
-    const startIndex = TIME_SLOTS.findIndex(
-      slot => slot.label === appointment.ora_inizio.substring(0, 5),
-    );
-    let endIndex = TIME_SLOTS.findIndex(
-      slot => slot.label === appointment.ora_fine.substring(0, 5),
-    );
-    if (endIndex === -1 && appointment.ora_fine.substring(0, 5) === '18:00') {
-      endIndex = TIME_SLOTS.length;
-    }
-
+    const startIndex = TIME_SLOTS.findIndex(slot => slot.label === appointment.ora_inizio.substring(0, 5));
+    let endIndex = TIME_SLOTS.findIndex(slot => slot.label === appointment.ora_fine.substring(0, 5));
+    if (endIndex === -1 && appointment.ora_fine.substring(0, 5) === '18:00') endIndex = TIME_SLOTS.length;
     const newStartIndex = startIndex + timeDiff;
     const newEndIndex = endIndex + timeDiff;
-
     if (newStartIndex < 0 || newEndIndex > TIME_SLOTS.length) {
-      alert("Impossibile spostare l'appuntamento in questo orario");
-      setDraggedAppointment(null);
-      return;
+      alert("Impossibile spostare l'appuntamento in questo orario"); setDraggedAppointment(null); return;
     }
-
     const newOraInizio = TIME_SLOTS[newStartIndex].label;
-    const newOraFine =
-      newEndIndex < TIME_SLOTS.length
-        ? TIME_SLOTS[newEndIndex].label
-        : '18:00';
-
+    const newOraFine = newEndIndex < TIME_SLOTS.length ? TIME_SLOTS[newEndIndex].label : '18:00';
     const hasConflict = appointments.some(apt => {
       if (apt.id === appointment.id) return false;
-      if (apt.persona_id !== personaId || apt.sede_id !== appointment.sede_id)
-        return false;
+      if (apt.persona_id !== personaId || apt.sede_id !== appointment.sede_id) return false;
       if (apt.data !== date) return false;
-      const aptStart = apt.ora_inizio.substring(0, 5);
-      const aptEnd = apt.ora_fine.substring(0, 5);
-      const hasOverlap = newOraInizio < aptEnd && newOraFine > aptStart;
-      return hasOverlap;
+      return newOraInizio < apt.ora_fine.substring(0,5) && newOraFine > apt.ora_inizio.substring(0,5);
     });
-
-    if (hasConflict) {
-      alert(
-        "Impossibile spostare l'appuntamento: fascia oraria già occupata per questa persona",
-      );
-      setDraggedAppointment(null);
-      return;
-    }
-
+    if (hasConflict) { alert("Impossibile spostare l'appuntamento: fascia oraria già occupata per questa persona"); setDraggedAppointment(null); return; }
     try {
       const response = await fetch(`/api/appuntamenti/${appointment.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          persona_id: personaId,
-          sede_id: appointment.sede_id,
-          ora_inizio: newOraInizio,
-          ora_fine: newOraFine,
-          cliente: appointment.cliente,
-          note: appointment.note,
-        }),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona_id: personaId, sede_id: appointment.sede_id, ora_inizio: newOraInizio, ora_fine: newOraFine, cliente: appointment.cliente, note: appointment.note }),
       });
-
       if (!response.ok) throw new Error('Errore spostamento');
       await loadData();
-    } catch (err) {
-      console.error('Errore spostamento:', err);
-      alert('Errore imprevisto: ' + String(err));
-    }
-
+    } catch (err) { console.error('Errore spostamento:', err); alert('Errore imprevisto: ' + String(err)); }
     setDraggedAppointment(null);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleResizeStart = (appointment: Appuntamento) => { setResizingAppointment(appointment); };
 
-  const handleResizeStart = (appointment: Appuntamento) => {
-    setResizingAppointment(appointment);
-  };
-
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
 
   const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
-    const dayAppointments = appointments.filter(
-      apt =>
-        apt.sede_id === selectedSedeId &&
-        apt.data === dateStr &&
-        apt.persona_id === personaId,
-    );
-
-    const totalSlots = TIME_SLOTS.length;
+    const dayAppointments = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId);
     const occupiedSlots = dayAppointments.length;
-
     if (occupiedSlots === 0) return 'free';
-    if (occupiedSlots >= totalSlots * 0.8) return 'full';
+    if (occupiedSlots >= TIME_SLOTS.length * 0.8) return 'full';
     return 'partial';
   };
 
@@ -805,9 +531,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       if (isWeekend(checkDate)) continue;
       const dateStr = format(checkDate, 'yyyy-MM-dd');
       const availability = getDayAvailability(dateStr, personaId);
-      if (availability === 'free' || availability === 'partial') {
-        return dateStr;
-      }
+      if (availability === 'free' || availability === 'partial') return dateStr;
     }
     return null;
   };
@@ -820,43 +544,23 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return (
       <div className="p-4">
         <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500"></div>
-            <span className="text-xs font-medium text-gray-700">Libero</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-500"></div>
-            <span className="text-xs font-medium text-gray-700">Parzialmente occupato</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-red-500"></div>
-            <span className="text-xs font-medium text-gray-700">Pieno</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-gray-300"></div>
-            <span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span>
-          </div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-green-500"></div><span className="text-xs font-medium text-gray-700">Libero</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-yellow-500"></div><span className="text-xs font-medium text-gray-700">Parzialmente occupato</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-500"></div><span className="text-xs font-medium text-gray-700">Pieno</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-gray-300"></div><span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span></div>
         </div>
-
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">
-                  Giorno
-                </th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">Giorno</th>
                 {sedePersone.map(persona => {
                   const firstAvailable = getFirstAvailableDay(persona.id);
                   return (
-                    <th
-                      key={persona.id}
-                      className="p-3 text-center text-sm font-semibold border-b"
-                    >
+                    <th key={persona.id} className="p-3 text-center text-sm font-semibold border-b">
                       <div className="flex flex-col items-center gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#005CA9] flex items-center justify-center">
-                            <User size={14} className="text-white" />
-                          </div>
+                          <div className="w-6 h-6 rounded-full bg-[#005CA9] flex items-center justify-center"><User size={14} className="text-white" /></div>
                           <span className="text-[#005CA9]">{persona.nome}</span>
                         </div>
                         {firstAvailable && (
@@ -875,80 +579,27 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const dateStr = formatDate(day);
                 const isToday = formatDate(new Date()) === dateStr;
                 const isWeekendDay = isWeekend(day);
-
                 return (
                   <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
-                    <td
-                      className={`p-3 font-medium border-r ${
-                        isToday
-                          ? 'bg-[#005CA9] text-white'
-                          : isWeekendDay
-                          ? 'bg-gray-200 text-gray-400'
-                          : 'text-gray-700'
-                      }`}
-                    >
+                    <td className={`p-3 font-medium border-r ${isToday ? 'bg-[#005CA9] text-white' : isWeekendDay ? 'bg-gray-200 text-gray-400' : 'text-gray-700'}`}>
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{format(day, 'd')}</span>
-                        <span className="text-xs capitalize">
-                          {format(day, 'EEE', { locale: it })}
-                        </span>
+                        <span className="text-xs capitalize">{format(day, 'EEE', { locale: it })}</span>
                       </div>
                     </td>
-
                     {sedePersone.map(persona => {
-                      if (isWeekendDay) {
-                        return (
-                          <td
-                            key={`${dateStr}-${persona.id}`}
-                            className="p-2 text-center bg-gray-200 opacity-50"
-                          >
-                            <span className="text-xs text-gray-500">-</span>
-                          </td>
-                        );
-                      }
-
+                      if (isWeekendDay) return <td key={`${dateStr}-${persona.id}`} className="p-2 text-center bg-gray-200 opacity-50"><span className="text-xs text-gray-500">-</span></td>;
                       const availability = getDayAvailability(dateStr, persona.id);
-                      const bgColor =
-                        availability === 'free'
-                          ? 'bg-green-100'
-                          : availability === 'partial'
-                          ? 'bg-yellow-100'
-                          : 'bg-red-100';
-                      const borderColor =
-                        availability === 'free'
-                          ? 'border-green-500'
-                          : availability === 'partial'
-                          ? 'border-yellow-500'
-                          : 'border-red-500';
-
-                      const dayAppointments = appointments.filter(
-                        apt =>
-                          apt.sede_id === selectedSedeId &&
-                          apt.data === dateStr &&
-                          apt.persona_id === persona.id,
-                      );
-
+                      const bgColor = availability === 'free' ? 'bg-green-100' : availability === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
+                      const borderColor = availability === 'free' ? 'border-green-500' : availability === 'partial' ? 'border-yellow-500' : 'border-red-500';
+                      const dayAppointments = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === persona.id);
                       return (
-                        <td
-                          key={`${dateStr}-${persona.id}`}
-                          className={`p-2 text-center cursor-pointer ${bgColor} border-l-4 ${borderColor} hover:opacity-80`}
-                          onClick={() => {
-                            setSelectedDate(day);
-                            setViewMode('daily');
-                          }}
-                          title={`${persona.nome} - ${format(day, 'dd/MM/yyyy')}\n${dayAppointments.length} appuntamenti\nClicca per dettagli`}
-                        >
+                        <td key={`${dateStr}-${persona.id}`} className={`p-2 text-center cursor-pointer ${bgColor} border-l-4 ${borderColor} hover:opacity-80`}
+                          onClick={() => { setSelectedDate(day); setViewMode('daily'); }}
+                          title={`${persona.nome} - ${format(day, 'dd/MM/yyyy')}\n${dayAppointments.length} appuntamenti\nClicca per dettagli`}>
                           <div className="flex flex-col items-center gap-1">
-                            <span className="text-sm font-bold text-gray-700">
-                              {dayAppointments.length}
-                            </span>
-                            <span className="text-xs text-gray-600">
-                              {availability === 'free'
-                                ? 'Vuoto'
-                                : availability === 'partial'
-                                ? 'App.'
-                                : 'Pieno'}
-                            </span>
+                            <span className="text-sm font-bold text-gray-700">{dayAppointments.length}</span>
+                            <span className="text-xs text-gray-600">{availability === 'free' ? 'Vuoto' : availability === 'partial' ? 'App.' : 'Pieno'}</span>
                           </div>
                         </td>
                       );
@@ -963,129 +614,69 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
 
-  const renderDailyView = () => {
-    return (
-      <div
-        ref={scrollContainerRef}
-        className="overflow-y-auto"
-        style={{ maxHeight: 'calc(100vh - 107px)' }}
-      >
-        <table
-          className="w-full"
-          style={{ borderCollapse: 'separate', borderSpacing: 0 }}
-        >
-          <thead className="sticky top-0 z-20">
-            <tr className="border-b-2 border-[#005CA9]/20">
-              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                <span className="text-[#005CA9]">Orario</span>
+  const renderDailyView = () => (
+    <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
+      <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+        <thead className="sticky top-0 z-20">
+          <tr className="border-b-2 border-[#005CA9]/20">
+            <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+              <span className="text-[#005CA9]">Orario</span>
+            </th>
+            {sedePersone.map(persona => (
+              <th key={persona.id} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]">
+                <div className="flex items-center justify-center gap-1.5">
+                  <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
+                  <span className="text-[#005CA9]">{persona.nome}</span>
+                </div>
               </th>
-              {sedePersone.map(persona => (
-                <th
-                  key={persona.id}
-                  className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]"
-                >
-                  <div className="flex items-center justify-center gap-1.5">
-                    <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center">
-                      <User size={14} className="text-white" />
-                    </div>
-                    <span className="text-[#005CA9]">
-                      {persona.nome}
-                    </span>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleDays.map(day => {
-              const dateStr = formatDate(day);
-              const isToday = formatDate(new Date()) === dateStr;
-
-              return (
-                <React.Fragment key={dateStr}>
-                  <tr data-date={dateStr}>
-                    <td
-                      colSpan={sedePersone.length + 1}
-                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                        isToday
-                          ? 'bg-[#005CA9] text-white'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {visibleDays.map(day => {
+            const dateStr = formatDate(day);
+            const isToday = formatDate(new Date()) === dateStr;
+            return (
+              <React.Fragment key={dateStr}>
+                <tr data-date={dateStr}>
+                  <td colSpan={sedePersone.length + 1} className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${isToday ? 'bg-[#005CA9] text-white' : 'bg-gray-100 text-gray-700'}`}>
+                    {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                  </td>
+                </tr>
+                {TIME_SLOTS.map(slot => (
+                  <tr key={`${dateStr}-${slot.label}`}>
+                    <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                      <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                     </td>
-                  </tr>
-
-                  {TIME_SLOTS.map(slot => {
-                    return (
-                      <tr key={`${dateStr}-${slot.label}`}>
-                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                          <div className="px-1 py-2 text-xs font-semibold text-gray-700">
-                            {slot.label}
-                          </div>
+                    {sedePersone.map(persona => {
+                      const appointmentsInSlot = getAppointmentsForSlot(dateStr, slot.label, persona.id);
+                      const allDayAppointments = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
+                      return (
+                        <td key={`${persona.id}-${slot.label}`} className={`relative p-0 border-r border-gray-100 ${!appointmentsInSlot.length ? 'border-b border-gray-100' : ''}`} style={{ height: '45px' }}>
+                          <TimeSlot
+                            time={slot.label}
+                            appointments={appointmentsInSlot}
+                            allDayAppointments={allDayAppointments}
+                            onClick={appointment => handleSlotClick(dateStr, slot.label, persona.id, appointment)}
+                            onDragStart={handleDragStart}
+                            onDrop={time => handleDrop(dateStr, time, persona.id)}
+                            onDragOver={handleDragOver}
+                            onResizeStart={handleResizeStart}
+                          />
                         </td>
-                        {sedePersone.map(persona => {
-                          const appointmentsInSlot = getAppointmentsForSlot(
-                            dateStr,
-                            slot.label,
-                            persona.id,
-                          );
-
-                          const allDayAppointments = appointments.filter(
-                            apt =>
-                              apt.data === dateStr &&
-                              apt.sede_id === selectedSedeId &&
-                              apt.persona_id === persona.id,
-                          );
-
-                          const hasAppointment =
-                            appointmentsInSlot.length > 0;
-
-                          return (
-                            <td
-                              key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-100 ${
-                                !hasAppointment
-                                  ? 'border-b border-gray-100'
-                                  : ''
-                              }`}
-                              style={{ height: '45px' }}
-                            >
-                              <TimeSlot
-                                time={slot.label}
-                                appointments={appointmentsInSlot}
-                                allDayAppointments={allDayAppointments}
-                                onClick={appointment =>
-                                  handleSlotClick(
-                                    dateStr,
-                                    slot.label,
-                                    persona.id,
-                                    appointment,
-                                  )
-                                }
-                                onDragStart={handleDragStart}
-                                onDrop={time =>
-                                  handleDrop(dateStr, time, persona.id)
-                                }
-                                onDragOver={handleDragOver}
-                                onResizeStart={handleResizeStart}
-                              />
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+                      );
+                    })}
+                  </tr>
+                ))}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   const selectedSede = sedi.find(s => s.id === selectedSedeId);
   const sedePersone = persone.filter(persona =>
@@ -1099,124 +690,67 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
-                  <CalendarIcon className="w-6 h-6 text-white" />
-                </div>
+                <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg"><CalendarIcon className="w-6 h-6 text-white" /></div>
                 <div>
-                  <h1 className="text-2xl font-bold text-[#005CA9]">
-                    Agenda 730
-                  </h1>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    Gestione appuntamenti
-                  </p>
+                  <h1 className="text-2xl font-bold text-[#005CA9]">Agenda 730</h1>
+                  <p className="text-xs text-gray-600 mt-0.5">Gestione appuntamenti</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
 
                 {/* Toggle vista */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
-                  <button
-                    onClick={() => setViewMode('daily')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                      viewMode === 'daily'
-                        ? 'bg-[#005CA9] text-white shadow-md'
-                        : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    <List className="w-4 h-4 inline mr-1" />
-                    Giornaliera
+                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
+                    <List className="w-4 h-4 inline mr-1" />Giornaliera
                   </button>
-                  <button
-                    onClick={() => setViewMode('monthly')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                      viewMode === 'monthly'
-                        ? 'bg-[#005CA9] text-white shadow-md'
-                        : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    <LayoutGrid className="w-4 h-4 inline mr-1" />
-                    Mensile
+                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
+                    <LayoutGrid className="w-4 h-4 inline mr-1" />Mensile
                   </button>
                 </div>
 
+                {/* Freccia sinistra */}
                 {viewMode === 'daily' && (
-                  <button
-                    onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                  >
+                  <button onClick={() => navigateToDate(subDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200">
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
-
                 {viewMode === 'monthly' && (
-                  <button
-                    onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
-                    disabled={selectedDate <= MIN_DATE}
-                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
+                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
 
-                <button
-                  onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer"
-                >
+                {/* Label data */}
+                <button onClick={() => setShowDatePicker(!showDatePicker)} className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer">
                   <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
-                    {viewMode === 'daily'
-                      ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
-                      : format(selectedDate, 'MMMM yyyy', { locale: it })}
+                    {viewMode === 'daily' ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it }) : format(selectedDate, 'MMMM yyyy', { locale: it })}
                   </span>
                 </button>
 
+                {/* Freccia destra + Oggi */}
                 {viewMode === 'daily' && (
                   <>
-                    <button
-                      onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-                      className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                    >
+                    <button onClick={() => navigateToDate(addDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200">
                       <ChevronRight className="w-4 h-4 text-gray-600" />
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedDate(new Date());
-                        setTimeout(scrollToSelectedDate, 100);
-                      }}
-                      className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
-                    >
+                    <button onClick={() => navigateToDate(new Date())} className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium">
                       Oggi
                     </button>
                   </>
                 )}
-
                 {viewMode === 'monthly' && (
-                  <button
-                    onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                  >
+                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200">
                     <ChevronRight className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
 
+                {/* Sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
                   <div className="relative">
-                    <select
-                      value={selectedSedeId}
-                      onChange={e => {
-                        setSelectedSedeId(e.target.value);
-                      }}
-                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
-                    >
-                      {sedi.map(sede => (
-                        <option
-                          key={sede.id}
-                          value={sede.id}
-                          className="text-gray-800 bg-white"
-                        >
-                          {sede.nome}
-                        </option>
-                      ))}
+                    <select value={selectedSedeId} onChange={e => setSelectedSedeId(e.target.value)}
+                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none">
+                      {sedi.map(sede => <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">{sede.nome}</option>)}
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
                   </div>
@@ -1233,48 +767,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-[#005CA9]">
-                Seleziona Data
-              </h3>
-              <button
-                onClick={() => setShowDatePicker(false)}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Data</h3>
+              <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"><X size={20} /></button>
             </div>
-
             <div className="flex items-center justify-between mb-4">
-              <button
-                type="button"
-                onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ChevronLeft size={20} className="text-[#005CA9]" />
-              </button>
-              <h4 className="text-lg font-bold text-gray-800 capitalize">
-                {format(selectedDate, 'MMMM yyyy', { locale: it })}
-              </h4>
-              <button
-                type="button"
-                onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ChevronRight size={20} className="text-[#005CA9]" />
-              </button>
+              <button type="button" onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><ChevronLeft size={20} className="text-[#005CA9]" /></button>
+              <h4 className="text-lg font-bold text-gray-800 capitalize">{format(selectedDate, 'MMMM yyyy', { locale: it })}</h4>
+              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><ChevronRight size={20} className="text-[#005CA9]" /></button>
             </div>
-
             <div className="grid grid-cols-7 gap-2 mb-2">
               {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-                <div
-                  key={day}
-                  className="text-center text-xs font-semibold text-gray-600 py-2"
-                >
-                  {day}
-                </div>
+                <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">{day}</div>
               ))}
             </div>
-
             <div className="grid grid-cols-7 gap-2 mb-6">
               {(() => {
                 const monthStart = startOfMonth(selectedDate);
@@ -1282,65 +787,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
                 const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
                 const days = eachDayOfInterval({ start: startDate, end: endDate });
-
                 return days.map((day, index) => {
                   const isCurrentMonth = isSameMonth(day, selectedDate);
-                  const isSelected =
-                    format(day, 'yyyy-MM-dd') ===
-                    format(selectedDate, 'yyyy-MM-dd');
-                  const isToday =
-                    format(day, 'yyyy-MM-dd') ===
-                    format(new Date(), 'yyyy-MM-dd');
-
+                  const isSelected = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                  const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                   return (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate(day);
-                        setShowDatePicker(false);
-                      }}
-                      className={`
-                        aspect-square rounded-lg text-sm font-medium transition-all
-                        ${
-                          isSelected
-                            ? 'bg-[#005CA9] text-white shadow-md scale-105'
-                            : isToday
-                            ? 'bg-[#E6F2FF] text-[#005CA9] font-bold'
-                            : isCurrentMonth
-                            ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105'
-                            : 'bg-transparent text-gray-300'
-                        }
-                        cursor-pointer
-                      `}
-                    >
+                    <button key={index} type="button"
+                      onClick={() => { navigateToDate(day); setShowDatePicker(false); }}
+                      className={`aspect-square rounded-lg text-sm font-medium transition-all ${ isSelected ? 'bg-[#005CA9] text-white shadow-md scale-105' : isToday ? 'bg-[#E6F2FF] text-[#005CA9] font-bold' : isCurrentMonth ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' : 'bg-transparent text-gray-300'} cursor-pointer`}>
                       {format(day, 'd')}
                     </button>
                   );
                 });
               })()}
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDate(new Date());
-                setShowDatePicker(false);
-              }}
-              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
-            >
-              Vai a Oggi
-            </button>
+            <button type="button" onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
+              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold">Vai a Oggi</button>
           </div>
         </div>
       )}
 
       <AppointmentModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedAppointment(null);
-        }}
+        onClose={() => { setIsModalOpen(false); setSelectedAppointment(null); }}
         onSave={handleCreateAppointment}
         onUpdate={handleUpdateAppointment}
         onDelete={handleDeleteAppointment}
