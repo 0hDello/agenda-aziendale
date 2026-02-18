@@ -40,9 +40,9 @@ interface CalendarProps {
 }
 
 const DAYS_PAST        = 3;
-const DAYS_FUTURE      = 4;
-const MAX_VISIBLE_DAYS = 7;
-const DAYS_TO_LOAD     = 1;
+const DAYS_FUTURE      = 10;
+const MAX_VISIBLE_DAYS = 14;
+const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD = 400;
 
@@ -73,11 +73,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef            = useRef<Date[]>([]);
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
-  // Direzione reale dell'utente — mai sovrascritta dalla compensazione
-  const userScrollDirectionRef  = useRef<'up' | 'down' | null>(null);
-  const lastUserScrollTopRef    = useRef(0);
-  // Quando true il prossimo evento scroll e' compensazione artificiale
-  const isCompensatingRef       = useRef(false);
+  const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
+  const lastUserScrollTopRef      = useRef(0);
+  const isCompensatingRef         = useRef(false);
+  // Ref stabile che punta sempre alla versione aggiornata di handleScroll
+  const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -128,11 +128,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── carica giorni passati ──────────────────────────────────────────────────
-  //
-  // Dopo aver sbloccato il lock (isLoadingRef = false), controlla se siamo
-  // ancora vicini alla cima E la direzione dell'utente era 'up': in quel caso
-  // chiama se stessa di nuovo. Questo gestisce lo scroll veloce in cui durante
-  // il lock arrivano eventi che vengono scartati.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
@@ -177,14 +172,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           scrollSnapshotRef.current = null;
         }
 
-        // Sblocca il lock; poi controlla se serve caricare ancora
         setTimeout(() => {
           isLoadingRef.current = false;
-
-          // Retry basato sulla direzione reale: se l'utente stava ancora
-          // andando su e siamo ancora vicini alla cima, carica un altro giorno.
-          // Non e' un loop cieco: si ferma appena distanceFromTop >= THRESHOLD
-          // o la direzione cambia.
           if (
             userScrollDirectionRef.current === 'up' &&
             container.scrollTop < SCROLL_THRESHOLD
@@ -196,20 +185,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     });
   };
 
-  // ─── handler scroll ─────────────────────────────────────────────────────────
+  // ─── handler scroll (stabile via ref) ──────────────────────────────────────
   //
-  // Se isCompensatingRef e' true: evento artificiale, ignora e reimposta
-  // il riferimento per il prossimo evento reale.
-  // Altrimenti: calcola direzione reale, salva in userScrollDirectionRef,
-  // poi decide se caricare (con debounce 80ms).
+  // handleScrollRef.current viene aggiornato ad ogni render, quindi
+  // il listener DOM chiama sempre la versione fresca senza dover essere
+  // rimosso e ri-attaccato (nessuna closure stale).
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
     const currentScrollTop = container.scrollTop;
 
-    // Evento di compensazione: ignora, reimposta il riferimento e esci
     if (isCompensatingRef.current) {
       isCompensatingRef.current    = false;
       lastUserScrollTopRef.current = currentScrollTop;
@@ -218,7 +205,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     if (isLoadingRef.current) return;
 
-    // Direzione reale dell'utente
     const direction: 'up' | 'down' =
       currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
     lastUserScrollTopRef.current   = currentScrollTop;
@@ -240,9 +226,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         loadMoreDaysBackward();
       }
     }, 80);
-  };
+  }, []);
 
-  // ─── inizializzazione ───────────────────────────────────────────────────────
+  // Mantieni il ref sempre aggiornato
+  useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
+
+  // ─── inizializzazione (una sola volta) ─────────────────────────────────────
 
   useEffect(() => {
     if (!isInitialized) {
@@ -258,8 +247,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
-    container.addEventListener('scroll', handleScroll, { passive: true });
+    // Wrapper stabile: chiama sempre handleScrollRef.current (mai stale)
+    const stableHandler = () => handleScrollRef.current();
+    container.addEventListener('scroll', stableHandler, { passive: true });
     scrollListenerAttachedRef.current = true;
+    // Salva il wrapper per poterlo rimuovere in seguito
+    (container as any).__scrollHandler = stableHandler;
+  };
+
+  const detachScrollListener = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !scrollListenerAttachedRef.current) return;
+    const handler = (container as any).__scrollHandler;
+    if (handler) container.removeEventListener('scroll', handler);
+    scrollListenerAttachedRef.current = false;
+    delete (container as any).__scrollHandler;
   };
 
   useEffect(() => {
@@ -267,28 +269,22 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       attachScrollListener();
     }
     return () => {
-      const container = scrollContainerRef.current;
-      if (container && scrollListenerAttachedRef.current) {
-        container.removeEventListener('scroll', handleScroll);
-        scrollListenerAttachedRef.current = false;
-      }
+      detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     };
   }, [isInitialized]);
 
   useEffect(() => {
-    if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-        scrollListenerAttachedRef.current = false;
-      }
+    if (viewMode === 'monthly') {
+      detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     }
     if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
       setTimeout(() => attachScrollListener(), 100);
     }
   }, [viewMode]);
+
+  // ─── dati ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     loadData();
@@ -580,7 +576,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment(null);
   };
 
-  const handleDragOver   = (e: React.DragEvent) => e.preventDefault();
+  const handleDragOver    = (e: React.DragEvent) => e.preventDefault();
   const handleResizeStart = (appointment: Appuntamento) => setResizingAppointment(appointment);
 
   // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
@@ -678,7 +674,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         <td
                           key={`${dateStr}-${persona.id}`}
                           className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} hover:opacity-80`}
-                          onClick={() => { setSelectedDate(day); setViewMode('daily'); }}
+                          onClick={() => { navigateToDate(day); setViewMode('daily'); }}
                           title={`${persona.nome} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti`}
                         >
                           <div className="flex flex-col items-center gap-1">
