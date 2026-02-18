@@ -12,6 +12,8 @@ import {
   Plus,
   LayoutGrid,
   List,
+  Lock,
+  Trash2,
 } from 'lucide-react';
 import {
   format,
@@ -58,12 +60,22 @@ interface Appointment {
   note?: string;
 }
 
+interface GiornoChiuso {
+  id: number;
+  data: string;
+  operatore_id: string | null; // null = chiuso per tutti
+  motivo: string | null;
+}
+
 const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00',
 ];
 
+// Giorni della settimana in cui MILECE lavora (2=Mar, 3=Mer, 5=Ven)
+const MILECE_WORKING_DAYS = [2, 3, 5];
+
 type ViewMode = 'daily' | 'monthly';
-type DayAvailability = 'free' | 'partial' | 'full';
+type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
 const MAX_VISIBLE_DAYS         = 14;
 const DAYS_PAST                = 3;
@@ -71,8 +83,6 @@ const DAYS_FUTURE              = 10;
 const DAYS_TO_LOAD             = 3;
 const MIN_DATE                 = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD         = 400;
-// Cooldown (ms) applicato SOLO allo scroll verso l'alto dopo la compensazione.
-// Non interferisce mai con lo scroll verso il basso.
 const POST_COMPENSATE_COOLDOWN = 400;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -82,16 +92,22 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedSede, setSelectedSede]       = useState<Sede | null>(null);
   const [visibleDays, setVisibleDays]         = useState<Date[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+  const [giorniChiusi, setGiorniChiusi]       = useState<GiornoChiuso[]>([]);
   const [loading, setLoading]                 = useState(true);
   const [showDatePicker, setShowDatePicker]   = useState(false);
   const [showModal, setShowModal]             = useState(false);
+  const [showGiorniChiusiPanel, setShowGiorniChiusiPanel] = useState(false);
   const [selectedSlot, setSelectedSlot]       = useState<{ date: string; time: string; operator?: string } | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [viewMode, setViewMode]               = useState<ViewMode>('daily');
   const [isInitialized, setIsInitialized]     = useState(false);
 
+  // Stato per aggiunta giorno chiuso
+  const [nuovaDataChiusa, setNuovaDataChiusa]         = useState('');
+  const [nuovoOperatoreChiuso, setNuovoOperatoreChiuso] = useState('');
+  const [nuovoMotivoChiuso, setNuovoMotivoChiuso]     = useState('');
+
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
-  // Lock generico: impedisce chiamate multiple simultanee (forward O backward)
   const isLoadingRef              = useRef(false);
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
@@ -99,21 +115,46 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
-  // Segnala il singolo evento DOM di compensazione posizione
   const isCompensatingRef         = useRef(false);
-  // Blocca SOLO loadMoreDaysBackward per POST_COMPENSATE_COOLDOWN ms.
-  // Non interferisce mai con loadMoreDaysForward.
   const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
-  // Wrapper stabile: punta sempre all'handleScroll più recente (no closure stale)
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
-  const isWorkingDay = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
-  const formatDate   = (date: Date) => format(date, 'yyyy-MM-dd');
+  const isWorkingDay   = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
+  const formatDate     = (date: Date) => format(date, 'yyyy-MM-dd');
+
+  /** Verifica se MILECE lavora in quel giorno (Mar=2, Mer=3, Ven=5) */
+  const isMileceWorkingDay = (date: Date) => MILECE_WORKING_DAYS.includes(getDay(date));
+
+  /** Verifica se un giorno/operatore è chiuso tramite giorni chiusi personalizzati */
+  const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean => {
+    return giorniChiusi.some(
+      g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === operatoreId)
+    );
+  };
+
+  /** Verifica se uno slot ha solo appuntamenti "UFF CHIUSO" */
+  const isUffChiusoSlot = (dateStr: string, time: string, operatoreId: string): boolean => {
+    const slotApts = allAppointments.filter(
+      apt => apt.sede_id === selectedSede?.id && apt.data === dateStr &&
+             apt.ora === time && apt.operatore_id === operatoreId
+    );
+    return slotApts.length > 0 && slotApts.every(a => a.cliente.trim().toUpperCase() === 'UFF CHIUSO');
+  };
+
+  /** Conta gli appuntamenti reali (non UFF CHIUSO) per calcolare disponibilità */
+  const getRealAppointmentsCount = (dateStr: string, operatoreId: string): number => {
+    if (!selectedSede) return 0;
+    return allAppointments.filter(
+      apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
+             apt.operatore_id === operatoreId &&
+             apt.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+    ).length;
+  };
 
   const scrollToDate = (date: Date) => {
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
@@ -141,153 +182,86 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [visibleDays]);
 
-  // ─── carica giorni futuri ────────────────────────────────────────────────────
-  // Lock rilasciato nella rAF successiva al paint: nessun blocco artificiale da 200ms.
+  // ─── scroll ──────────────────────────────────────────────────────────────────
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
-
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
       let updated = [...prev, ...newDays];
-      if (updated.length > MAX_VISIBLE_DAYS)
-        updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        isLoadingRef.current = false;
-      });
-    });
+    requestAnimationFrame(() => { requestAnimationFrame(() => { isLoadingRef.current = false; }); });
   };
-
-  // ─── carica giorni passati ───────────────────────────────────────────────────
-  // backwardCooldownRef blocca SOLO questo metodo, non forward.
-  // isLoadingRef viene rilasciato PRIMA del cooldown: handleScroll può chiamare
-  // loadMoreDaysForward senza essere bloccato durante il cooldown backward.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
     if (backwardCooldownRef.current) return;
-
     const container = scrollContainerRef.current;
     if (!container) return;
-
     const firstDay = visibleDaysRef.current[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
-
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
     if (newDays.length === 0) return;
-
     isLoadingRef.current = true;
-
-    scrollSnapshotRef.current = {
-      scrollTop:    container.scrollTop,
-      scrollHeight: container.scrollHeight,
-    };
-
+    scrollSnapshotRef.current = { scrollTop: container.scrollTop, scrollHeight: container.scrollHeight };
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
-      if (updated.length > MAX_VISIBLE_DAYS)
-        updated = updated.slice(0, MAX_VISIBLE_DAYS);
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
     });
-
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (container && scrollSnapshotRef.current) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
-          if (heightDiff > 0) {
-            isCompensatingRef.current = true;
-            container.scrollTop = snapTop + heightDiff;
-          }
+          if (heightDiff > 0) { isCompensatingRef.current = true; container.scrollTop = snapTop + heightDiff; }
           scrollSnapshotRef.current = null;
         }
-
-        // Rilascia il lock generico PRIMA del cooldown: handleScroll può già
-        // chiamare loadMoreDaysForward senza aspettare la fine del cooldown.
         isLoadingRef.current = false;
-
-        // Cooldown specifico per backward: blocca solo lo scroll in alto
         backwardCooldownRef.current = true;
         if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-        cooldownTimerRef.current = setTimeout(() => {
-          backwardCooldownRef.current = false;
-        }, POST_COMPENSATE_COOLDOWN);
+        cooldownTimerRef.current = setTimeout(() => { backwardCooldownRef.current = false; }, POST_COMPENSATE_COOLDOWN);
       });
     });
   };
 
-  // ─── handler scroll (stabile via ref) ───────────────────────────────────────
-
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-
     const currentScrollTop = container.scrollTop;
-
-    // Evento singolo di compensazione DOM: aggiorna riferimento ed esci
-    if (isCompensatingRef.current) {
-      isCompensatingRef.current    = false;
-      lastUserScrollTopRef.current = currentScrollTop;
-      return;
-    }
-
-    // Durante il cooldown backward: aggiorna il riferimento ma non triggera backward.
-    // Lo scroll verso il basso viene comunque gestito normalmente.
-    if (backwardCooldownRef.current) {
-      lastUserScrollTopRef.current = currentScrollTop;
-      // Permettiamo comunque il debounce per gestire lo scroll in avanti
-    }
-
+    if (isCompensatingRef.current) { isCompensatingRef.current = false; lastUserScrollTopRef.current = currentScrollTop; return; }
+    if (backwardCooldownRef.current) { lastUserScrollTopRef.current = currentScrollTop; }
     if (isLoadingRef.current) return;
-
-    const direction: 'up' | 'down' =
-      currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
-    lastUserScrollTopRef.current   = currentScrollTop;
+    const direction: 'up' | 'down' = currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
+    lastUserScrollTopRef.current = currentScrollTop;
     userScrollDirectionRef.current = direction;
-
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-
     loadTimeoutRef.current = setTimeout(() => {
       if (!container || isLoadingRef.current) return;
-
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromTop    = scrollTop;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
       const dir = userScrollDirectionRef.current;
-
-      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
-        // Forward: mai bloccato dal cooldown backward
-        loadMoreDaysForward();
-      } else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD) {
-        // Backward: bloccato solo dal suo cooldown specifico
-        loadMoreDaysBackward();
-      }
+      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
+      else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD) loadMoreDaysBackward();
     }, 80);
   }, []);
 
-  // Mantieni il ref sempre aggiornato
   useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
-
-  // ─── inizializzazione (una sola volta) ──────────────────────────────────────
 
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      setTimeout(() => {
-        scrollToDate(selectedDate);
-        attachScrollListener();
-      }, 200);
+      setTimeout(() => { scrollToDate(selectedDate); attachScrollListener(); }, 200);
     }
   }, []);
 
@@ -310,9 +284,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   useEffect(() => {
-    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) {
-      attachScrollListener();
-    }
+    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) attachScrollListener();
     return () => {
       detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
@@ -321,13 +293,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   }, [isInitialized]);
 
   useEffect(() => {
-    if (viewMode === 'monthly') {
-      detachScrollListener();
-      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-    }
-    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
-      setTimeout(() => attachScrollListener(), 100);
-    }
+    if (viewMode === 'monthly') { detachScrollListener(); if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current); }
+    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) setTimeout(() => attachScrollListener(), 100);
   }, [viewMode]);
 
   // ─── dati ───────────────────────────────────────────────────────────────────
@@ -344,17 +311,19 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sediRes, opRes, appRes] = await Promise.all([
+      const [sediRes, opRes, appRes, gcRes] = await Promise.all([
         fetch('/api/epasa/sedi'),
         fetch('/api/epasa/operatori'),
         fetch('/api/epasa/appuntamenti'),
+        fetch('/api/epasa/giorni-chiusi'),
       ]);
-      const [sediData, opData, appData] = await Promise.all([
-        sediRes.json(), opRes.json(), appRes.json(),
+      const [sediData, opData, appData, gcData] = await Promise.all([
+        sediRes.json(), opRes.json(), appRes.json(), gcRes.json(),
       ]);
       if (sediData)  setSedi(sediData);
       if (opData)    setOperatori(opData);
       if (appData)   setAllAppointments(appData);
+      if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
       setLoading(false);
     } catch (error) {
       console.error('Errore caricamento dati:', error);
@@ -365,9 +334,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const handleCreateAppointment = async (data: any) => {
     try {
       const res = await fetch('/api/epasa/appuntamenti', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
       const newApt = await res.json();
@@ -378,9 +345,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const handleUpdateAppointment = async (id: string, data: any) => {
     try {
       const res = await fetch(`/api/epasa/appuntamenti/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
@@ -394,6 +359,37 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (!res.ok) throw new Error();
       setAllAppointments(prev => prev.filter(a => a.id !== id));
     } catch { alert("Errore durante l'eliminazione dell'appuntamento"); }
+  };
+
+  // ─── gestione giorni chiusi ─────────────────────────────────────────────────
+
+  const handleAddGiornoChiuso = async () => {
+    if (!nuovaDataChiusa) { alert('Inserisci una data'); return; }
+    try {
+      const res = await fetch('/api/epasa/giorni-chiusi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: nuovaDataChiusa,
+          operatore_id: nuovoOperatoreChiuso || null,
+          motivo: nuovoMotivoChiuso || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const newGc = await res.json();
+      setGiorniChiusi(prev => [...prev, newGc]);
+      setNuovaDataChiusa('');
+      setNuovoOperatoreChiuso('');
+      setNuovoMotivoChiuso('');
+    } catch { alert('Errore aggiunta giorno chiuso'); }
+  };
+
+  const handleDeleteGiornoChiuso = async (id: number) => {
+    try {
+      const res = await fetch(`/api/epasa/giorni-chiusi/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setGiorniChiusi(prev => prev.filter(g => g.id !== id));
+    } catch { alert('Errore eliminazione giorno chiuso'); }
   };
 
   const openModalForNewAppointment = (date: string, time: string, operator: string) => {
@@ -418,9 +414,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
-    const n = allAppointments.filter(apt =>
-      apt.sede_id === selectedSede.id && apt.data === date && apt.operatore_id === operator
-    ).length;
+    const dateObj = new Date(date + 'T12:00:00');
+    // Giorno chiuso per MILECE se non è Mar/Mer/Ven
+    if (operator === 'MILECE' && !isMileceWorkingDay(dateObj)) return 'closed';
+    // Giorno chiuso personalizzato
+    if (isGiornoChiuso(date, operator)) return 'closed';
+    // Contiamo solo appuntamenti reali (non UFF CHIUSO)
+    const n = getRealAppointmentsCount(date, operator);
     if (n === 0) return 'free';
     if (n >= TIME_SLOTS.length * 0.8) return 'full';
     return 'partial';
@@ -431,7 +431,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     for (let i = 0; i < 90; i++) {
       const d = addDays(today, i);
       if (!isWorkingDay(d)) continue;
+      if (operator === 'MILECE' && !isMileceWorkingDay(d)) continue;
       const s = format(d, 'yyyy-MM-dd');
+      if (isGiornoChiuso(s, operator)) continue;
       const av = getDayAvailability(s, operator);
       if (av === 'free' || av === 'partial') return s;
     }
@@ -451,6 +453,102 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
+  // ─── PANNELLO GIORNI CHIUSI ─────────────────────────────────────────────────
+
+  const renderGiorniChiusiPanel = () => (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border-t-4 border-[#005CA9] max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xl font-bold text-[#005CA9] flex items-center gap-2">
+            <Lock size={18} /> Gestione Giorni Chiusi
+          </h3>
+          <button onClick={() => setShowGiorniChiusiPanel(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Form aggiunta */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Aggiungi giorno chiuso</h4>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 mb-1 block">Data *</label>
+                <input
+                  type="date"
+                  value={nuovaDataChiusa}
+                  onChange={e => setNuovaDataChiusa(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 mb-1 block">Operatore (vuoto = tutti)</label>
+                <select
+                  value={nuovoOperatoreChiuso}
+                  onChange={e => setNuovoOperatoreChiuso(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40"
+                >
+                  <option value="">Tutti gli operatori</option>
+                  {operatorsInSede.map(op => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Motivo (opzionale)</label>
+              <input
+                type="text"
+                value={nuovoMotivoChiuso}
+                onChange={e => setNuovoMotivoChiuso(e.target.value)}
+                placeholder="es. Festività, Formazione..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40"
+              />
+            </div>
+            <button
+              onClick={handleAddGiornoChiuso}
+              className="mt-1 w-full py-2 bg-[#005CA9] text-white rounded-lg text-sm font-semibold hover:bg-[#004080] transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus size={16} /> Aggiungi
+            </button>
+          </div>
+        </div>
+
+        {/* Lista giorni chiusi */}
+        <div className="overflow-y-auto flex-1">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Giorni chiusi salvati</h4>
+          {giorniChiusi.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">Nessun giorno chiuso aggiunto</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {giorniChiusi
+                .sort((a, b) => a.data.localeCompare(b.data))
+                .map(gc => (
+                  <div key={gc.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                    <div>
+                      <span className="text-sm font-semibold text-gray-800">
+                        {format(new Date(gc.data + 'T12:00:00'), 'dd/MM/yyyy', { locale: it })}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        {gc.operatore_id ? gc.operatore_id : 'Tutti'}
+                        {gc.motivo ? ` — ${gc.motivo}` : ''}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteGiornoChiuso(gc.id)}
+                      className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
@@ -460,11 +558,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     });
     return (
       <div className="p-4">
-        <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
+        <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200 flex-wrap">
           <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-green-500" /><span className="text-xs font-medium text-gray-700">Libero</span></div>
           <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-yellow-500" /><span className="text-xs font-medium text-gray-700">Parzialmente occupato</span></div>
           <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-500" /><span className="text-xs font-medium text-gray-700">Pieno</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-gray-300" /><span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-gray-400" /><span className="text-xs font-medium text-gray-700">Chiuso / Non disponibile</span></div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full">
@@ -481,7 +579,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
                             <User size={14} className="text-white" />
                           </div>
-                          <span style={{ color }}>{operator}</span>
+                          <span style={{ color }} className="font-bold">{operator}</span>
+                          {operator === 'MILECE' && (
+                            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Mar/Mer/Ven</span>
+                          )}
                         </div>
                         {fa && (
                           <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
@@ -502,28 +603,34 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 const isBefore = day < MIN_DATE;
                 return (
                   <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className={`p-3 font-medium border-r ${isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-200 text-gray-400' : 'text-gray-700'}`}>
+                    <td className={`p-3 font-medium border-r ${
+                      isToday ? 'bg-[#005CA9] text-white' :
+                      isWe    ? 'bg-gray-200 text-gray-400' : 'text-gray-700'
+                    }`}>
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{format(day, 'd')}</span>
                         <span className="text-xs capitalize">{format(day, 'EEE', { locale: it })}</span>
                       </div>
                     </td>
                     {operatorsInSede.map(operator => {
-                      if (isWe) return (
-                        <td key={`${dateStr}-${operator}`} className="p-2 text-center bg-gray-200 opacity-50">
-                          <span className="text-xs text-gray-500">-</span>
+                      const av = getDayAvailability(dateStr, operator);
+                      const isClosed = isWe || av === 'closed';
+
+                      if (isClosed) return (
+                        <td key={`${dateStr}-${operator}`} className="p-2 text-center bg-gray-200 opacity-60 select-none">
+                          <span className="text-xs text-gray-500">{isWe ? 'Chius.' : '—'}</span>
                         </td>
                       );
-                      const av = getDayAvailability(dateStr, operator);
+
                       const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
                       const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
-                      const n  = allAppointments.filter(apt =>
-                        apt.sede_id === selectedSede?.id && apt.data === dateStr && apt.operatore_id === operator
-                      ).length;
+                      const n  = getRealAppointmentsCount(dateStr, operator);
                       return (
                         <td
                           key={`${dateStr}-${operator}`}
-                          className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} ${isBefore ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'}`}
+                          className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} ${
+                            isBefore ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'
+                          }`}
                           onClick={() => { if (!isBefore) { navigateToDate(day); setViewMode('daily'); } }}
                           title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti`}
                         >
@@ -564,6 +671,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                         <User size={14} className="text-white" />
                       </div>
                       <span style={{ color }} className="font-bold">{operator}</span>
+                      {operator === 'MILECE' && (
+                        <span className="text-[9px] bg-red-100 text-red-600 px-1 py-0.5 rounded-full">Mar/Mer/Ven</span>
+                      )}
                     </div>
                   </th>
                 );
@@ -584,7 +694,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   <td
                     colSpan={Math.max(operatorsInSede.length + 1, 2)}
                     className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                      isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-700'
+                      isToday ? 'bg-[#005CA9] text-white' :
+                      isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-700'
                     }`}
                   >
                     {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
@@ -599,9 +710,43 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                     {operatorsInSede.length > 0 ? (
                       operatorsInSede.map(operator => {
                         const slotApts = getAppointmentsForSlot(dateStr, time, operator);
+
+                        // Controlla se questo operatore è disponibile in questo giorno
+                        const isMileceClosed = operator === 'MILECE' && !isMileceWorkingDay(day);
+                        const isManuallyClosedDay = isGiornoChiuso(dateStr, operator);
+                        const isDayClosed = isMileceClosed || isManuallyClosedDay;
+
+                        // Controlla se lo slot è "UFF CHIUSO"
+                        const isUffChiuso = isUffChiusoSlot(dateStr, time, operator);
+
+                        // Cella grigia non cliccabile: giorno chiuso O UFF CHIUSO
+                        if (isDayClosed || isUffChiuso) {
+                          return (
+                            <td
+                              key={`${operator}-${time}`}
+                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                              style={{ height: '45px' }}
+                              title={isDayClosed
+                                ? (isMileceClosed ? 'MILECE non lavora questo giorno' : 'Ufficio chiuso')
+                                : 'Ufficio chiuso (UFF CHIUSO)'}
+                            >
+                              <div className="w-full h-full flex items-center justify-center">
+                                {isDayClosed ? (
+                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                    <Lock size={9} /> chiuso
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        }
+
                         const colors = operator === 'MILECE'
                           ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
                           : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
+
                         return (
                           <td
                             key={`${operator}-${time}`}
@@ -681,15 +826,30 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Toggle vista */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
-                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
+                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
+                  }`}>
                     <List className="w-4 h-4 inline mr-1" />Giornaliera
                   </button>
-                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
+                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
+                  }`}>
                     <LayoutGrid className="w-4 h-4 inline mr-1" />Mensile
                   </button>
                 </div>
 
+                {/* Pulsante giorni chiusi */}
+                <button
+                  onClick={() => setShowGiorniChiusiPanel(true)}
+                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center gap-1.5 font-medium text-gray-700"
+                  title="Gestisci giorni chiusi"
+                >
+                  <Lock size={15} /> Giorni chiusi
+                </button>
+
+                {/* Navigazione */}
                 {viewMode === 'daily' && (
                   <button onClick={handlePreviousDay} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -720,6 +880,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </button>
                 )}
 
+                {/* Sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
                   <div className="relative">
@@ -743,6 +904,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       </div>
 
+      {/* Pannello giorni chiusi */}
+      {showGiorniChiusiPanel && renderGiorniChiusiPanel()}
+
+      {/* Date picker */}
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
@@ -812,6 +977,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       )}
 
+      {/* Modal appuntamento */}
       {showModal && selectedSlot && (
         <EpasaAppointmentModal
           isOpen={showModal}
