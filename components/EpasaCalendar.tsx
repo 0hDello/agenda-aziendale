@@ -108,14 +108,22 @@ const MILECE_START_TIME   = '08:30';
 
 // ─── Regole per BORGO ────────────────────────────────────────────────────────
 /**
- * Borgo: solo il 2° e 3° martedì del mese.
- * Restituisce true se la data è un martedì che è il 2° o 3° del mese.
+ * Borgo: martedì della 2ª e 3ª settimana del mese.
+ *
+ * La settimana del mese è calcolata per blocchi fissi di 7 giorni:
+ *   Settimana 1 → giorni  1–7
+ *   Settimana 2 → giorni  8–14  ← OK per Borgo
+ *   Settimana 3 → giorni 15–21  ← OK per Borgo
+ *   Settimana 4 → giorni 22–28
+ *   Settimana 5 → giorni 29–31
+ *
+ * Questa logica è indipendente da quanti martedì sono già passati nel mese;
+ * conta solo in quale "blocco settimanale" cade il giorno.
  */
 const isBorgoWorkingDay = (date: Date): boolean => {
   if (getDay(date) !== 2) return false; // non è martedì
-  const dayOfMonth  = getDate(date);    // 1-31
-  const weekOfMonth = Math.ceil(dayOfMonth / 7); // 1° martedì=1, 2°=2, 3°=3...
-  return weekOfMonth === 2 || weekOfMonth === 3;
+  const d = getDate(date); // giorno del mese (1-31)
+  return (d >= 8 && d <= 14) || (d >= 15 && d <= 21);
 };
 
 type ViewMode = 'daily' | 'monthly';
@@ -183,7 +191,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   /**
    * Restituisce true se il giorno è strutturalmente chiuso per l'operatore nella sede.
    * - MILECE (IMOLA): solo Mar/Mer/Ven
-   * - BORGO: solo 2° e 3° martedì del mese
+   * - BORGO: solo martedì della 2ª e 3ª settimana (giorni 8-14 e 15-21)
    * - CSPT: tutti i giorni feriali
    */
   const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
@@ -511,7 +519,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
    *
    * Tiene conto degli orari e dei giorni lavorativi specifici per sede:
    * - CSPT  : tutti i giorni feriali, orari pomeriggio
-   * - BORGO : solo 2° e 3° martedì del mese, orari mattina 09-11:30
+   * - BORGO : solo martedì della 2ª e 3ª settimana, orari mattina 09-11:30
    * - IMOLA : tutti i giorni feriali, orari mattina 08-12
    *           (MILECE solo Mar/Mer/Ven e inizia alle 08:30)
    *
@@ -569,7 +577,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const getSedeOrariLabel = (): string => {
     if (!selectedSede) return '';
     if (selectedSede.id === 'cspt')  return 'Lun-Ven 14:00-16:30';
-    if (selectedSede.id === 'borgo') return '2° e 3° Martedì 9:00-11:30';
+    if (selectedSede.id === 'borgo') return 'Martedì (sett. 2 e 3) 9:00-11:30';
     return 'Lun-Ven 8:00-12:00';
   };
 
@@ -739,8 +747,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               const dateStr    = formatDate(day);
               const isToday    = formatDate(new Date()) === dateStr;
               const isWe       = isWeekend(day);
-              // Per BORGO mostriamo solo i giorni lavorativi della sede (no weekend)
-              // ma la riga chiusura la gestiamo per slot
               const slots = currentTimeSlots;
               return (
                 <React.Fragment key={dateStr}>
@@ -772,7 +778,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           if (isDayClosed || isManuallyClose) {
                             const title = isDayClosed
                               ? (selectedSede!.id === 'borgo'
-                                  ? 'Borgo: solo 2\u00b0 e 3\u00b0 marted\u00ec'
+                                  ? 'Borgo: marted\u00ec della 2\u00aa e 3\u00aa settimana'
                                   : operator === 'MILECE'
                                     ? 'MILECE non lavora questo giorno'
                                     : 'Ufficio chiuso')
