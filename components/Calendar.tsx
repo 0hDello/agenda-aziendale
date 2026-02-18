@@ -40,10 +40,10 @@ interface CalendarProps {
 }
 
 // 🔧 CONFIGURAZIONE SCROLL INFINITO
-const MAX_VISIBLE_DAYS = 14; // 2 settimane target
-const DAYS_TO_LOAD = 3; // Carica 3 giorni per volta
+const MAX_VISIBLE_DAYS = 7;   // 1 settimana target (meno DOM = più stabile)
+const DAYS_TO_LOAD = 1;       // Carica 1 giorno per volta (più preciso)
 const MIN_DATE = new Date(2020, 0, 1); // 1 gennaio 2020
-const SCROLL_THRESHOLD = 600; // Pixel dal bordo per attivare il caricamento
+const SCROLL_THRESHOLD = 200; // Pixel dal bordo per attivare il caricamento (abbassato)
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
@@ -103,7 +103,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       
       let updatedDays = [...prev, ...newDays];
       
-      // 🔧 RIMUOVI i giorni vecchi SOLO se supera il limite
+      // Rimuovi i giorni vecchi SOLO se supera il limite
       if (updatedDays.length > MAX_VISIBLE_DAYS) {
         const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
         updatedDays = updatedDays.slice(daysToRemove);
@@ -119,14 +119,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }, 300);
   };
 
-  // 🔧 Funzione per caricare più giorni indietro SENZA rimuovere i futuri
+  // 🔧 Funzione per caricare più giorni indietro
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
 
     setVisibleDays(prev => {
       const firstDay = prev[0];
       
-      // 🔧 CONTROLLO: il primo giorno deve essere DOPO il limite minimo
       if (startOfDay(firstDay) <= startOfDay(MIN_DATE)) {
         console.log('⛔ Limite minimo raggiunto (1 gennaio 2020)');
         isLoadingRef.current = false;
@@ -142,11 +141,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         return prev;
       }
 
-      // 🔧 SALVA la posizione attuale
+      // Salva la posizione attuale PRIMA di modificare il DOM
       const scrollBefore = container.scrollTop;
       const scrollHeightBefore = container.scrollHeight;
 
-      // Calcola i nuovi giorni da aggiungere, rispettando il limite minimo
+      // Calcola i nuovi giorni da aggiungere
       const newDays: Date[] = [];
       for (let i = DAYS_TO_LOAD; i > 0; i--) {
         const newDay = subDays(firstDay, i);
@@ -155,47 +154,40 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }
       }
       
-      // Se non ci sono nuovi giorni validi, esci
       if (newDays.length === 0) {
         console.log('⛔ Nessun giorno valido da aggiungere');
         isLoadingRef.current = false;
         return prev;
       }
       
-      // 🔧 AGGIUNGI i nuovi giorni SENZA rimuovere nulla
+      // Aggiungi i nuovi giorni in cima
       let updatedDays = [...newDays, ...prev];
       
-      // 🔧 RIMUOVI i giorni futuri SOLO se supera un limite ALTO (24 giorni)
-      if (updatedDays.length > MAX_VISIBLE_DAYS + 10) {
+      // Rimuovi giorni futuri SOLO se supera il limite alto
+      if (updatedDays.length > MAX_VISIBLE_DAYS + 3) {
         const daysToRemove = updatedDays.length - MAX_VISIBLE_DAYS;
         updatedDays = updatedDays.slice(0, -daysToRemove);
-        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri (limite alto raggiunto)`);
-      } else {
-        console.log(`✅ Mantieni tutti i ${updatedDays.length} giorni per compensazione scroll`);
+        console.log(`🗑️ Rimossi ${daysToRemove} giorni futuri`);
       }
 
       console.log(`✅ Ora visibili ${updatedDays.length} giorni (da ${format(updatedDays[0], 'dd/MM')} a ${format(updatedDays[updatedDays.length - 1], 'dd/MM')})`);
 
-      // 🔧 COMPENSAZIONE SCROLL con requestAnimationFrame
+      // 🔧 COMPENSAZIONE SCROLL al 100% — evita il salto del giorno
       requestAnimationFrame(() => {
         if (container) {
           const newScrollHeight = container.scrollHeight;
           const heightDiff = newScrollHeight - scrollHeightBefore;
           
-          // 🔧 Compensa il 70% dell'altezza aggiunta per rimanere vicino al top
           if (heightDiff > 0) {
-            const compensation = heightDiff * 0.7;
-            container.scrollTop = scrollBefore + compensation;
-            console.log(`📍 Scroll compensato al 70%: ${scrollBefore} + ${compensation.toFixed(0)} = ${container.scrollTop}`);
-          } else {
-            console.log(`⚠️ Nessuna compensazione necessaria (heightDiff=${heightDiff})`);
+            // Compensazione ESATTA al 100%: lo scroll rimane esattamente dove era
+            container.scrollTop = scrollBefore + heightDiff;
+            console.log(`📍 Scroll compensato al 100%: ${scrollBefore} + ${heightDiff} = ${container.scrollTop}`);
           }
         }
         
-        // 🔧 Delay prima di permettere un nuovo caricamento
         setTimeout(() => {
           isLoadingRef.current = false;
-        }, 500);
+        }, 400);
       });
 
       return updatedDays;
@@ -207,7 +199,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const container = scrollContainerRef.current;
     if (!container || isLoadingRef.current) return;
 
-    // 🔧 CANCELLA timeout precedente (debounce)
     if (loadTimeoutRef.current) {
       clearTimeout(loadTimeoutRef.current);
     }
@@ -219,35 +210,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     const distanceFromTop = scrollTop;
 
-    // 🔧 DEBOUNCE: aspetta 150ms prima di caricare
     loadTimeoutRef.current = setTimeout(() => {
-      // SCROLL VERSO IL BASSO
       if (scrollDirection === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
         loadMoreDaysForward();
-      }
-      // SCROLL VERSO L'ALTO
-      else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD && distanceFromTop > 0) {
+      } else if (scrollDirection === 'up' && distanceFromTop < SCROLL_THRESHOLD && distanceFromTop > 0) {
         loadMoreDaysBackward();
       }
     }, 150);
   };
 
-  // 🔧 INIZIALIZZAZIONE: Carica 14 giorni (2 settimane)
+  // 🔧 INIZIALIZZAZIONE: Carica 7 giorni (1 settimana)
   useEffect(() => {
     console.log('🚀 Inizializzazione calendario 730...');
-    const days = Array.from({ length: 14 }, (_, i) => addDays(selectedDate, i));
+    const days = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
     setVisibleDays(days);
     
     setTimeout(() => {
       scrollToSelectedDate();
       if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
-        console.log('🔗 Attaching scroll listener dopo inizializzazione...');
         attachScrollListener();
       }
     }, 200);
   }, [selectedDate]);
 
-  // 🔧 Funzione per attaccare il listener
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
@@ -257,34 +242,28 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     scrollListenerAttachedRef.current = true;
   };
 
-  // 🔧 useEffect che si attiva SOLO quando il container è pronto E dati caricati
   useEffect(() => {
     if (scrollContainerRef.current && !scrollListenerAttachedRef.current) {
-      console.log('🎯 Container pronto, attacco listener...');
       attachScrollListener();
     }
 
     return () => {
       const container = scrollContainerRef.current;
       if (container && scrollListenerAttachedRef.current) {
-        console.log('🔌 Rimuovo scroll listener');
         container.removeEventListener('scroll', handleScroll);
         scrollListenerAttachedRef.current = false;
       }
-      
-      // 🔧 Pulisci timeout al cleanup
       if (loadTimeoutRef.current) {
         clearTimeout(loadTimeoutRef.current);
       }
     };
   }, []);
 
-  // 🔧 Cleanup quando cambia view mode
+  // Cleanup quando cambia view mode
   useEffect(() => {
     if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
       const container = scrollContainerRef.current;
       if (container) {
-        console.log('🔌 Rimuovo listener (vista mensile)');
         container.removeEventListener('scroll', handleScroll);
         scrollListenerAttachedRef.current = false;
       }
@@ -297,7 +276,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   useEffect(() => {
     loadData();
     
-    // Polling per aggiornamenti automatici (ogni 30 secondi)
     const intervalId = setInterval(() => {
       loadData();
     }, 30000);
@@ -580,22 +558,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const loadData = async () => {
     try {
-      // Carica sedi
       const sediRes = await fetch('/api/sedi');
       const sediData = await sediRes.json();
       if (sediData) setSedi(sediData);
 
-      // Carica persone
       const personeRes = await fetch('/api/persone');
       const personeData = await personeRes.json();
       if (personeData) setPersone(personeData);
 
-      // Carica persona_sede
       const psRes = await fetch('/api/persona-sede');
       const psData = await psRes.json();
       if (psData) setPersonaSede(psData);
 
-      // Carica appuntamenti
       const appRes = await fetch('/api/appuntamenti');
       const appData = await appRes.json();
       if (appData) setAppointments(appData);
@@ -845,7 +819,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     return (
       <div className="p-4">
-        {/* Legenda */}
         <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-green-500"></div>
@@ -1166,7 +1139,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </button>
                 </div>
 
-                {/* Navigazione giornaliera */}
                 {viewMode === 'daily' && (
                   <button
                     onClick={() => setSelectedDate(subDays(selectedDate, 1))}
@@ -1176,7 +1148,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </button>
                 )}
 
-                {/* Navigazione mensile */}
                 {viewMode === 'monthly' && (
                   <button
                     onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
