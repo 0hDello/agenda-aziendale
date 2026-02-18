@@ -73,6 +73,8 @@ const TIME_SLOTS = [
 ];
 
 const MILECE_WORKING_DAYS = [2, 3, 5];
+/** MILECE inizia alle 08:30 — lo slot 08:00 è sempre chiuso per lei */
+const MILECE_START_TIME   = '08:30';
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
@@ -122,6 +124,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const isWorkingDay       = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
   const formatDate         = (date: Date) => format(date, 'yyyy-MM-dd');
   const isMileceWorkingDay = (date: Date) => MILECE_WORKING_DAYS.includes(getDay(date));
+
+  /**
+   * Restituisce true se lo slot è bloccato per via dell'orario di inizio di MILECE.
+   * MILECE inizia alle 08:30 → lo slot 08:00 è sempre chiuso per lei nei suoi giorni lavorativi.
+   */
+  const isMileceTimeBlocked = (operator: string, day: Date, time: string): boolean => {
+    if (operator !== 'MILECE') return false;
+    if (!isMileceWorkingDay(day)) return false; // già gestito da isMileceClosed
+    return TIME_SLOTS.indexOf(time) < TIME_SLOTS.indexOf(MILECE_START_TIME);
+  };
 
   const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean =>
     giorniChiusi.some(g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === operatoreId));
@@ -442,7 +454,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
    * Calcola la disponibilità giornaliera considerando:
    * - slot UFF CHIUSO come "occupati" (non disponibili per prenotazione)
    * - appuntamenti reali come "occupati"
-   * Gli slot liberi = TIME_SLOTS.length - realApts - uffChiusoSlots
+   * - slot bloccati per orario (es. 08:00 per MILECE) come "occupati"
+   * Gli slot disponibili = TIME_SLOTS.length - realApts - uffChiusoSlots - timeBlockedSlots
    */
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
@@ -450,10 +463,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (operator === 'MILECE' && !isMileceWorkingDay(dateObj)) return 'closed';
     if (isGiornoChiuso(date, operator)) return 'closed';
 
-    const realCount    = getRealAppointmentsCount(date, operator);
-    const uffCount     = getUffChiusoSlotsCount(date, operator);
-    const occupiedSlots = realCount + uffCount;
-    const totalSlots    = TIME_SLOTS.length;
+    const realCount        = getRealAppointmentsCount(date, operator);
+    const uffCount         = getUffChiusoSlotsCount(date, operator);
+    // Slot bloccati per orario (es. 08:00 per MILECE)
+    const timeBlockedCount = TIME_SLOTS.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
+    const occupiedSlots    = realCount + uffCount + timeBlockedCount;
+    const totalSlots       = TIME_SLOTS.length;
 
     if (occupiedSlots === 0) return 'free';
     if (occupiedSlots >= totalSlots * 0.8) return 'full';
@@ -560,8 +575,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       );
                       const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
                       const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
-                      // Il numero mostrato sono solo gli appuntamenti reali (non i blocchi UFF CHIUSO)
-                      const n  = getRealAppointmentsCount(dateStr, operator);
+                      const n    = getRealAppointmentsCount(dateStr, operator);
                       const uffN = getUffChiusoSlotsCount(dateStr, operator);
                       return (
                         <td
@@ -634,7 +648,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                         </div>
                         <span style={{ color }} className="font-bold">{operator}</span>
                         {operator === 'MILECE' && (
-                          <span className="text-[9px] bg-red-100 text-red-600 px-1 py-0.5 rounded-full">Mar/Mer/Ven</span>
+                          <span className="text-[9px] bg-red-100 text-red-600 px-1 py-0.5 rounded-full">Mar/Mer/Ven 8:30-12</span>
                         )}
                       </div>
                     </th>
@@ -671,12 +685,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       </td>
                       {operatorsInSede.length > 0 ? (
                         operatorsInSede.map(operator => {
-                          const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
-                          const isMileceClosed  = operator === 'MILECE' && !isMileceWorkingDay(day);
-                          const isManuallyClose = isGiornoChiuso(dateStr, operator);
-                          const isDayClosed     = isMileceClosed || isManuallyClose;
-                          const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
+                          const slotApts           = getAppointmentsForSlot(dateStr, time, operator);
+                          const isMileceClosed     = operator === 'MILECE' && !isMileceWorkingDay(day);
+                          const isManuallyClose    = isGiornoChiuso(dateStr, operator);
+                          const isMileceTimeClosed = isMileceTimeBlocked(operator, day, time);
+                          const isDayClosed        = isMileceClosed || isManuallyClose;
+                          const isUffChiuso        = isUffChiusoSlot(dateStr, time, operator);
 
+                          // Slot bloccato per giorno (MILECE non lavora / giorno chiuso)
                           if (isDayClosed) {
                             return (
                               <td
@@ -684,6 +700,24 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                 className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
                                 style={{ height: '45px' }}
                                 title={isMileceClosed ? 'MILECE non lavora questo giorno' : 'Ufficio chiuso'}
+                              >
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                    <Lock size={9} /> chiuso
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          // Slot bloccato per orario (08:00 per MILECE)
+                          if (isMileceTimeClosed) {
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                                style={{ height: '45px' }}
+                                title="MILECE inizia alle 08:30"
                               >
                                 <div className="w-full h-full flex items-center justify-center">
                                   <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
