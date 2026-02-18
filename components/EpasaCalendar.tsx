@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   List,
   Lock,
+  LockOpen,
   Trash2,
 } from 'lucide-react';
 import {
@@ -63,7 +64,7 @@ interface Appointment {
 interface GiornoChiuso {
   id: number;
   data: string;
-  operatore_id: string | null; // null = chiuso per tutti
+  operatore_id: string | null;
   motivo: string | null;
 }
 
@@ -71,7 +72,6 @@ const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00',
 ];
 
-// Giorni della settimana in cui MILECE lavora (2=Mar, 3=Mer, 5=Ven)
 const MILECE_WORKING_DAYS = [2, 3, 5];
 
 type ViewMode = 'daily' | 'monthly';
@@ -101,11 +101,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [viewMode, setViewMode]               = useState<ViewMode>('daily');
   const [isInitialized, setIsInitialized]     = useState(false);
+  // Modalità modifica: blocca/sblocca slot con un click
+  const [editMode, setEditMode]               = useState(false);
 
-  // Stato per aggiunta giorno chiuso
-  const [nuovaDataChiusa, setNuovaDataChiusa]         = useState('');
+  // Stato per aggiunta giorno chiuso dal pannello
+  const [nuovaDataChiusa, setNuovaDataChiusa]           = useState('');
   const [nuovoOperatoreChiuso, setNuovoOperatoreChiuso] = useState('');
-  const [nuovoMotivoChiuso, setNuovoMotivoChiuso]     = useState('');
+  const [nuovoMotivoChiuso, setNuovoMotivoChiuso]       = useState('');
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -124,29 +126,32 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
-  const isWorkingDay   = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
-  const formatDate     = (date: Date) => format(date, 'yyyy-MM-dd');
-
-  /** Verifica se MILECE lavora in quel giorno (Mar=2, Mer=3, Ven=5) */
+  const isWorkingDay       = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
+  const formatDate         = (date: Date) => format(date, 'yyyy-MM-dd');
   const isMileceWorkingDay = (date: Date) => MILECE_WORKING_DAYS.includes(getDay(date));
 
-  /** Verifica se un giorno/operatore è chiuso tramite giorni chiusi personalizzati */
-  const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean => {
-    return giorniChiusi.some(
-      g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === operatoreId)
+  const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean =>
+    giorniChiusi.some(g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === operatoreId));
+
+  /** Ritorna gli appuntamenti UFF CHIUSO per questo slot */
+  const getUffChiusoApts = (dateStr: string, time: string, operatoreId: string): Appointment[] => {
+    if (!selectedSede) return [];
+    return allAppointments.filter(
+      apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
+             apt.ora === time && apt.operatore_id === operatoreId &&
+             apt.cliente.trim().toUpperCase() === 'UFF CHIUSO'
     );
   };
 
-  /** Verifica se uno slot ha solo appuntamenti "UFF CHIUSO" */
   const isUffChiusoSlot = (dateStr: string, time: string, operatoreId: string): boolean => {
+    if (!selectedSede) return false;
     const slotApts = allAppointments.filter(
-      apt => apt.sede_id === selectedSede?.id && apt.data === dateStr &&
+      apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
              apt.ora === time && apt.operatore_id === operatoreId
     );
     return slotApts.length > 0 && slotApts.every(a => a.cliente.trim().toUpperCase() === 'UFF CHIUSO');
   };
 
-  /** Conta gli appuntamenti reali (non UFF CHIUSO) per calcolare disponibilità */
   const getRealAppointmentsCount = (dateStr: string, operatoreId: string): number => {
     if (!selectedSede) return 0;
     return allAppointments.filter(
@@ -361,7 +366,51 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     } catch { alert("Errore durante l'eliminazione dell'appuntamento"); }
   };
 
-  // ─── gestione giorni chiusi ─────────────────────────────────────────────────
+  // ─── modalità modifica: blocca/sblocca slot ──────────────────────────────────
+
+  /**
+   * In editMode:
+   * - Slot libero → crea appuntamento "UFF CHIUSO" (lo blocca, diventa grigio)
+   * - Slot con appuntamento reale → crea appuntamento "UFF CHIUSO" sopra (blocca)
+   * - Slot già "UFF CHIUSO" → elimina quell'appuntamento (sblocca)
+   */
+  const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
+    if (!selectedSede) return;
+
+    const uffApts = getUffChiusoApts(dateStr, time, operator);
+
+    if (uffApts.length > 0) {
+      // Sblocca: elimina tutti gli UFF CHIUSO in questo slot
+      for (const apt of uffApts) {
+        try {
+          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+        } catch { alert('Errore durante lo sblocco'); return; }
+      }
+      setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
+    } else {
+      // Blocca: crea un appuntamento "UFF CHIUSO"
+      try {
+        const res = await fetch('/api/epasa/appuntamenti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sede_id: selectedSede.id,
+            operatore_id: operator,
+            data: dateStr,
+            ora: time,
+            cliente: 'UFF CHIUSO',
+            mese: dateStr.substring(0, 7),
+          }),
+        });
+        if (!res.ok) throw new Error();
+        const newApt = await res.json();
+        setAllAppointments(prev => [...prev, newApt]);
+      } catch { alert('Errore durante il blocco'); }
+    }
+  };
+
+  // ─── gestione giorni chiusi (pannello) ───────────────────────────────────────
 
   const handleAddGiornoChiuso = async () => {
     if (!nuovaDataChiusa) { alert('Inserisci una data'); return; }
@@ -415,11 +464,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
     const dateObj = new Date(date + 'T12:00:00');
-    // Giorno chiuso per MILECE se non è Mar/Mer/Ven
     if (operator === 'MILECE' && !isMileceWorkingDay(dateObj)) return 'closed';
-    // Giorno chiuso personalizzato
     if (isGiornoChiuso(date, operator)) return 'closed';
-    // Contiamo solo appuntamenti reali (non UFF CHIUSO)
     const n = getRealAppointmentsCount(date, operator);
     if (n === 0) return 'free';
     if (n >= TIME_SLOTS.length * 0.8) return 'full';
@@ -466,8 +512,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             <X size={20} />
           </button>
         </div>
-
-        {/* Form aggiunta */}
         <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
           <h4 className="text-sm font-semibold text-gray-700 mb-3">Aggiungi giorno chiuso</h4>
           <div className="flex flex-col gap-2">
@@ -513,8 +557,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </button>
           </div>
         </div>
-
-        {/* Lista giorni chiusi */}
         <div className="overflow-y-auto flex-1">
           <h4 className="text-sm font-semibold text-gray-700 mb-2">Giorni chiusi salvati</h4>
           {giorniChiusi.length === 0 ? (
@@ -615,13 +657,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                     {operatorsInSede.map(operator => {
                       const av = getDayAvailability(dateStr, operator);
                       const isClosed = isWe || av === 'closed';
-
                       if (isClosed) return (
                         <td key={`${dateStr}-${operator}`} className="p-2 text-center bg-gray-200 opacity-60 select-none">
                           <span className="text-xs text-gray-500">{isWe ? 'Chius.' : '—'}</span>
                         </td>
                       );
-
                       const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
                       const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
                       const n  = getRealAppointmentsCount(dateStr, operator);
@@ -654,140 +694,211 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
 
   const renderDailyView = () => (
-    <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
-      <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-        <thead className="sticky top-0 z-20">
-          <tr className="border-b-2 border-[#005CA9]/20">
-            <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-              <span className="text-[#005CA9]">Orario</span>
-            </th>
-            {operatorsInSede.length > 0 ? (
-              operatorsInSede.map(operator => {
-                const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                return (
-                  <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[200px]">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
-                        <User size={14} className="text-white" />
+    <div>
+      {/* Banner modalità modifica */}
+      {editMode && (
+        <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
+          <div className="flex items-center gap-2">
+            <Lock size={14} className="text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700">
+              Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
+            </span>
+          </div>
+          <button
+            onClick={() => setEditMode(false)}
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
+          >
+            <X size={12} /> Esci
+          </button>
+        </div>
+      )}
+      <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}>
+        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b-2 border-[#005CA9]/20">
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                <span className="text-[#005CA9]">Orario</span>
+              </th>
+              {operatorsInSede.length > 0 ? (
+                operatorsInSede.map(operator => {
+                  const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+                  return (
+                    <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[200px]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
+                          <User size={14} className="text-white" />
+                        </div>
+                        <span style={{ color }} className="font-bold">{operator}</span>
+                        {operator === 'MILECE' && (
+                          <span className="text-[9px] bg-red-100 text-red-600 px-1 py-0.5 rounded-full">Mar/Mer/Ven</span>
+                        )}
                       </div>
-                      <span style={{ color }} className="font-bold">{operator}</span>
-                      {operator === 'MILECE' && (
-                        <span className="text-[9px] bg-red-100 text-red-600 px-1 py-0.5 rounded-full">Mar/Mer/Ven</span>
-                      )}
-                    </div>
-                  </th>
-                );
-              })
-            ) : (
-              <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {visibleDays.map(day => {
-            const dateStr = formatDate(day);
-            const isToday = formatDate(new Date()) === dateStr;
-            const isWe    = isWeekend(day);
-            return (
-              <React.Fragment key={dateStr}>
-                <tr data-epasa-date={dateStr}>
-                  <td
-                    colSpan={Math.max(operatorsInSede.length + 1, 2)}
-                    className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                      isToday ? 'bg-[#005CA9] text-white' :
-                      isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                    {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
-                  </td>
-                </tr>
-                {!isWe && TIME_SLOTS.map(time => (
-                  <tr key={`${dateStr}-${time}`}>
-                    <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                      <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
+                    </th>
+                  );
+                })
+              ) : (
+                <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleDays.map(day => {
+              const dateStr = formatDate(day);
+              const isToday = formatDate(new Date()) === dateStr;
+              const isWe    = isWeekend(day);
+              return (
+                <React.Fragment key={dateStr}>
+                  <tr data-epasa-date={dateStr}>
+                    <td
+                      colSpan={Math.max(operatorsInSede.length + 1, 2)}
+                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
+                        isToday ? 'bg-[#005CA9] text-white' :
+                        isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                      {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
                     </td>
-                    {operatorsInSede.length > 0 ? (
-                      operatorsInSede.map(operator => {
-                        const slotApts = getAppointmentsForSlot(dateStr, time, operator);
+                  </tr>
+                  {!isWe && TIME_SLOTS.map(time => (
+                    <tr key={`${dateStr}-${time}`}>
+                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                        <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
+                      </td>
+                      {operatorsInSede.length > 0 ? (
+                        operatorsInSede.map(operator => {
+                          const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
+                          const isMileceClosed  = operator === 'MILECE' && !isMileceWorkingDay(day);
+                          const isManuallyClose = isGiornoChiuso(dateStr, operator);
+                          const isDayClosed     = isMileceClosed || isManuallyClose;
+                          const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
 
-                        // Controlla se questo operatore è disponibile in questo giorno
-                        const isMileceClosed = operator === 'MILECE' && !isMileceWorkingDay(day);
-                        const isManuallyClosedDay = isGiornoChiuso(dateStr, operator);
-                        const isDayClosed = isMileceClosed || isManuallyClosedDay;
-
-                        // Controlla se lo slot è "UFF CHIUSO"
-                        const isUffChiuso = isUffChiusoSlot(dateStr, time, operator);
-
-                        // Cella grigia non cliccabile: giorno chiuso O UFF CHIUSO
-                        if (isDayClosed || isUffChiuso) {
-                          return (
-                            <td
-                              key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
-                              style={{ height: '45px' }}
-                              title={isDayClosed
-                                ? (isMileceClosed ? 'MILECE non lavora questo giorno' : 'Ufficio chiuso')
-                                : 'Ufficio chiuso (UFF CHIUSO)'}
-                            >
-                              <div className="w-full h-full flex items-center justify-center">
-                                {isDayClosed ? (
+                          // ── Giorno strutturalmente chiuso (MILECE non lavora / giorno chiuso DB)
+                          if (isDayClosed) {
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                                style={{ height: '45px' }}
+                                title={isMileceClosed ? 'MILECE non lavora questo giorno' : 'Ufficio chiuso'}
+                              >
+                                <div className="w-full h-full flex items-center justify-center">
                                   <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
                                     <Lock size={9} /> chiuso
                                   </span>
-                                ) : (
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          // ── Slot UFF CHIUSO
+                          if (isUffChiuso) {
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
+                                  editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                                }`}
+                                style={{ height: '45px' }}
+                                title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                                onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
+                              >
+                                <div className="w-full h-full flex items-center justify-center gap-1">
+                                  <Lock size={9} className="text-gray-400" />
                                   <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                                  {editMode && <LockOpen size={9} className="text-amber-400 ml-1" />}
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          // ── Slot normale con appuntamento reale
+                          if (slotApts.length > 0) {
+                            const colors = operator === 'MILECE'
+                              ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
+                              : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                                style={{ height: '45px' }}
+                              >
+                                <div
+                                  onClick={() => {
+                                    if (editMode) {
+                                      handleEditModeSlotClick(dateStr, time, operator);
+                                    } else {
+                                      openModalForEditAppointment(slotApts[0]);
+                                    }
+                                  }}
+                                  className={`w-full h-full px-2 py-1 ${
+                                    editMode
+                                      ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
+                                      : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
+                                  } transition-all flex items-center`}
+                                  title={editMode ? 'Clicca per bloccare questo slot' : undefined}
+                                >
+                                  <div className="w-full">
+                                    {editMode ? (
+                                      <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                                        <Lock size={9} /> blocca
+                                      </span>
+                                    ) : (
+                                      slotApts.map((apt, idx) => (
+                                        <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
+                                          <User size={10} className={`${colors.text} flex-shrink-0`} />
+                                          <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          // ── Slot libero
+                          return (
+                            <td
+                              key={`${operator}-${time}`}
+                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                              style={{ height: '45px' }}
+                            >
+                              <div
+                                onClick={() => {
+                                  if (editMode) {
+                                    handleEditModeSlotClick(dateStr, time, operator);
+                                  } else {
+                                    openModalForNewAppointment(dateStr, time, operator);
+                                  }
+                                }}
+                                className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
+                                  editMode
+                                    ? 'hover:bg-amber-50 group-hover:bg-amber-50'
+                                    : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
+                                }`}
+                                title={editMode ? 'Clicca per bloccare questo slot' : undefined}
+                              >
+                                {editMode ? (
+                                  <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                ) : (
+                                  <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 )}
                               </div>
                             </td>
                           );
-                        }
-
-                        const colors = operator === 'MILECE'
-                          ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
-                          : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
-
-                        return (
-                          <td
-                            key={`${operator}-${time}`}
-                            className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
-                            style={{ height: '45px' }}
-                          >
-                            {slotApts.length > 0 ? (
-                              <div
-                                onClick={() => openModalForEditAppointment(slotApts[0])}
-                                className={`w-full h-full px-2 py-1 ${colors.bg} ${colors.border} ${colors.hover} transition-all cursor-pointer flex items-center`}
-                              >
-                                <div className="w-full">
-                                  {slotApts.map((apt, idx) => (
-                                    <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`} title={`${apt.cliente} - ${time} (${operator})`}>
-                                      <User size={10} className={`${colors.text} flex-shrink-0`} />
-                                      <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <div
-                                onClick={() => openModalForNewAppointment(dateStr, time, operator)}
-                                className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer flex items-center justify-center group-hover:bg-blue-50"
-                              >
-                                <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })
-                    ) : (
-                      <td className="p-2 text-center text-xs text-gray-400">-</td>
-                    )}
-                  </tr>
-                ))}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                        })
+                      ) : (
+                        <td className="p-2 text-center text-xs text-gray-400">-</td>
+                      )}
+                    </tr>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 
@@ -840,14 +951,38 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </button>
                 </div>
 
-                {/* Pulsante giorni chiusi */}
-                <button
-                  onClick={() => setShowGiorniChiusiPanel(true)}
-                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center gap-1.5 font-medium text-gray-700"
-                  title="Gestisci giorni chiusi"
-                >
-                  <Lock size={15} /> Giorni chiusi
-                </button>
+                {/* Tasto lock circolare — modalità modifica */}
+                <div className="relative group">
+                  <button
+                    onClick={() => setEditMode(e => !e)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
+                      editMode
+                        ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
+                        : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
+                    }`}
+                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica (blocca/sblocca slot)'}
+                  >
+                    {editMode ? <LockOpen size={16} /> : <Lock size={16} />}
+                  </button>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
+                    {editMode ? 'Esci dalla modifica' : 'Modifica slot'}
+                  </div>
+                </div>
+
+                {/* Tasto gestione giorni chiusi (pannello) */}
+                <div className="relative group">
+                  <button
+                    onClick={() => setShowGiorniChiusiPanel(true)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center shadow border-2 bg-white border-gray-300 text-gray-500 hover:border-[#005CA9] hover:text-[#005CA9] transition-all"
+                    title="Gestisci giorni chiusi"
+                  >
+                    <CalendarIcon size={16} />
+                  </button>
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
+                    Giorni chiusi
+                  </div>
+                </div>
 
                 {/* Navigazione */}
                 {viewMode === 'daily' && (
@@ -904,10 +1039,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       </div>
 
-      {/* Pannello giorni chiusi */}
       {showGiorniChiusiPanel && renderGiorniChiusiPanel()}
 
-      {/* Date picker */}
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
@@ -977,7 +1110,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       )}
 
-      {/* Modal appuntamento */}
       {showModal && selectedSlot && (
         <EpasaAppointmentModal
           isOpen={showModal}
