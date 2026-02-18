@@ -9,6 +9,8 @@ import {
   User,
   ChevronDown,
   X,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   format,
@@ -22,6 +24,8 @@ import {
   subMonths,
   startOfWeek,
   endOfWeek,
+  isWeekend,
+  getDay,
   startOfDay,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -41,8 +45,12 @@ const DAYS_TO_LOAD = 3; // Carica 3 giorni per volta
 const MIN_DATE = new Date(2020, 0, 1); // 1 gennaio 2020
 const SCROLL_THRESHOLD = 600; // Pixel dal bordo per attivare il caricamento
 
+type ViewMode = 'daily' | 'monthly';
+type DayAvailability = 'free' | 'partial' | 'full';
+
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [visibleDays, setVisibleDays] = useState<Date[]>([]);
   const [appointments, setAppointments] = useState<Appuntamento[]>([]);
   const [persone, setPersone] = useState<Persona[]>([]);
@@ -271,6 +279,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, []);
 
+  // 🔧 Cleanup quando cambia view mode
+  useEffect(() => {
+    if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        console.log('🔌 Rimuovo listener (vista mensile)');
+        container.removeEventListener('scroll', handleScroll);
+        scrollListenerAttachedRef.current = false;
+      }
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    }
+  }, [viewMode]);
+
   useEffect(() => {
     loadData();
     
@@ -283,12 +306,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   }, []);
 
   useEffect(() => {
-  if (sedi.length > 0 && !selectedSedeId) {
-    
-    const imolaSede = sedi.find(s => s.nome.toLowerCase().includes('imola'));
-    setSelectedSedeId(imolaSede ? imolaSede.id : sedi[0].id);
-  }
-}, [sedi, selectedSedeId]);
+    if (sedi.length > 0 && !selectedSedeId) {
+      const imolaSede = sedi.find(s => s.nome.toLowerCase().includes('imola'));
+      setSelectedSedeId(imolaSede ? imolaSede.id : sedi[0].id);
+    }
+  }, [sedi, selectedSedeId]);
 
   useEffect(() => {
     const handleMouseEnter = (e: Event) => {
@@ -784,6 +806,314 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setResizingAppointment(appointment);
   };
 
+  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
+
+  const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
+    const dayAppointments = appointments.filter(
+      apt =>
+        apt.sede_id === selectedSedeId &&
+        apt.data === dateStr &&
+        apt.persona_id === personaId,
+    );
+
+    const totalSlots = TIME_SLOTS.length;
+    const occupiedSlots = dayAppointments.length;
+
+    if (occupiedSlots === 0) return 'free';
+    if (occupiedSlots >= totalSlots * 0.8) return 'full';
+    return 'partial';
+  };
+
+  const getFirstAvailableDay = (personaId: string): string | null => {
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+      const checkDate = addDays(today, i);
+      if (isWeekend(checkDate)) continue;
+      const dateStr = format(checkDate, 'yyyy-MM-dd');
+      const availability = getDayAvailability(dateStr, personaId);
+      if (availability === 'free' || availability === 'partial') {
+        return dateStr;
+      }
+    }
+    return null;
+  };
+
+  const renderMonthlyView = () => {
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+    return (
+      <div className="p-4">
+        {/* Legenda */}
+        <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-green-500"></div>
+            <span className="text-xs font-medium text-gray-700">Libero</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-yellow-500"></div>
+            <span className="text-xs font-medium text-gray-700">Parzialmente occupato</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-red-500"></div>
+            <span className="text-xs font-medium text-gray-700">Pieno</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-gray-300"></div>
+            <span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">
+                  Giorno
+                </th>
+                {sedePersone.map(persona => {
+                  const firstAvailable = getFirstAvailableDay(persona.id);
+                  return (
+                    <th
+                      key={persona.id}
+                      className="p-3 text-center text-sm font-semibold border-b"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-[#005CA9] flex items-center justify-center">
+                            <User size={14} className="text-white" />
+                          </div>
+                          <span className="text-[#005CA9]">{persona.nome}</span>
+                        </div>
+                        {firstAvailable && (
+                          <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                            Primo libero: {format(new Date(firstAvailable), 'dd/MM')}
+                          </div>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {days.map(day => {
+                const dateStr = formatDate(day);
+                const isToday = formatDate(new Date()) === dateStr;
+                const isWeekendDay = isWeekend(day);
+
+                return (
+                  <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
+                    <td
+                      className={`p-3 font-medium border-r ${
+                        isToday
+                          ? 'bg-[#005CA9] text-white'
+                          : isWeekendDay
+                          ? 'bg-gray-200 text-gray-400'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{format(day, 'd')}</span>
+                        <span className="text-xs capitalize">
+                          {format(day, 'EEE', { locale: it })}
+                        </span>
+                      </div>
+                    </td>
+
+                    {sedePersone.map(persona => {
+                      if (isWeekendDay) {
+                        return (
+                          <td
+                            key={`${dateStr}-${persona.id}`}
+                            className="p-2 text-center bg-gray-200 opacity-50"
+                          >
+                            <span className="text-xs text-gray-500">-</span>
+                          </td>
+                        );
+                      }
+
+                      const availability = getDayAvailability(dateStr, persona.id);
+                      const bgColor =
+                        availability === 'free'
+                          ? 'bg-green-100'
+                          : availability === 'partial'
+                          ? 'bg-yellow-100'
+                          : 'bg-red-100';
+                      const borderColor =
+                        availability === 'free'
+                          ? 'border-green-500'
+                          : availability === 'partial'
+                          ? 'border-yellow-500'
+                          : 'border-red-500';
+
+                      const dayAppointments = appointments.filter(
+                        apt =>
+                          apt.sede_id === selectedSedeId &&
+                          apt.data === dateStr &&
+                          apt.persona_id === persona.id,
+                      );
+
+                      return (
+                        <td
+                          key={`${dateStr}-${persona.id}`}
+                          className={`p-2 text-center cursor-pointer ${bgColor} border-l-4 ${borderColor} hover:opacity-80`}
+                          onClick={() => {
+                            setSelectedDate(day);
+                            setViewMode('daily');
+                          }}
+                          title={`${persona.nome} - ${format(day, 'dd/MM/yyyy')}\n${dayAppointments.length} appuntamenti\nClicca per dettagli`}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-sm font-bold text-gray-700">
+                              {dayAppointments.length}
+                            </span>
+                            <span className="text-xs text-gray-600">
+                              {availability === 'free'
+                                ? 'Vuoto'
+                                : availability === 'partial'
+                                ? 'App.'
+                                : 'Pieno'}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
+
+  const renderDailyView = () => {
+    return (
+      <div
+        ref={scrollContainerRef}
+        className="overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - 107px)' }}
+      >
+        <table
+          className="w-full"
+          style={{ borderCollapse: 'separate', borderSpacing: 0 }}
+        >
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b-2 border-[#005CA9]/20">
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                <span className="text-[#005CA9]">Orario</span>
+              </th>
+              {sedePersone.map(persona => (
+                <th
+                  key={persona.id}
+                  className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]"
+                >
+                  <div className="flex items-center justify-center gap-1.5">
+                    <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center">
+                      <User size={14} className="text-white" />
+                    </div>
+                    <span className="text-[#005CA9]">
+                      {persona.nome}
+                    </span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleDays.map(day => {
+              const dateStr = formatDate(day);
+              const isToday = formatDate(new Date()) === dateStr;
+
+              return (
+                <React.Fragment key={dateStr}>
+                  <tr data-date={dateStr}>
+                    <td
+                      colSpan={sedePersone.length + 1}
+                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
+                        isToday
+                          ? 'bg-[#005CA9] text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                    </td>
+                  </tr>
+
+                  {TIME_SLOTS.map(slot => {
+                    return (
+                      <tr key={`${dateStr}-${slot.label}`}>
+                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                          <div className="px-1 py-2 text-xs font-semibold text-gray-700">
+                            {slot.label}
+                          </div>
+                        </td>
+                        {sedePersone.map(persona => {
+                          const appointmentsInSlot = getAppointmentsForSlot(
+                            dateStr,
+                            slot.label,
+                            persona.id,
+                          );
+
+                          const allDayAppointments = appointments.filter(
+                            apt =>
+                              apt.data === dateStr &&
+                              apt.sede_id === selectedSedeId &&
+                              apt.persona_id === persona.id,
+                          );
+
+                          const hasAppointment =
+                            appointmentsInSlot.length > 0;
+
+                          return (
+                            <td
+                              key={`${persona.id}-${slot.label}`}
+                              className={`relative p-0 border-r border-gray-100 ${
+                                !hasAppointment
+                                  ? 'border-b border-gray-100'
+                                  : ''
+                              }`}
+                              style={{ height: '45px' }}
+                            >
+                              <TimeSlot
+                                time={slot.label}
+                                appointments={appointmentsInSlot}
+                                allDayAppointments={allDayAppointments}
+                                onClick={appointment =>
+                                  handleSlotClick(
+                                    dateStr,
+                                    slot.label,
+                                    persona.id,
+                                    appointment,
+                                  )
+                                }
+                                onDragStart={handleDragStart}
+                                onDrop={time =>
+                                  handleDrop(dateStr, time, persona.id)
+                                }
+                                onDragOver={handleDragOver}
+                                onResizeStart={handleResizeStart}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const selectedSede = sedi.find(s => s.id === selectedSedeId);
   const sedePersone = persone.filter(persona =>
     personaSede.some(ps => ps.persona_id === persona.id && ps.sede_id === selectedSedeId),
@@ -809,35 +1139,93 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-                  className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                >
-                  <ChevronLeft className="w-4 h-4 text-gray-600" />
-                </button>
+
+                {/* Toggle vista */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
+                  <button
+                    onClick={() => setViewMode('daily')}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      viewMode === 'daily'
+                        ? 'bg-[#005CA9] text-white shadow-md'
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <List className="w-4 h-4 inline mr-1" />
+                    Giornaliera
+                  </button>
+                  <button
+                    onClick={() => setViewMode('monthly')}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      viewMode === 'monthly'
+                        ? 'bg-[#005CA9] text-white shadow-md'
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4 inline mr-1" />
+                    Mensile
+                  </button>
+                </div>
+
+                {/* Navigazione giornaliera */}
+                {viewMode === 'daily' && (
+                  <button
+                    onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-600" />
+                  </button>
+                )}
+
+                {/* Navigazione mensile */}
+                {viewMode === 'monthly' && (
+                  <button
+                    onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
+                    disabled={selectedDate <= MIN_DATE}
+                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-600" />
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer"
                 >
                   <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
-                    {format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })}
+                    {viewMode === 'daily'
+                      ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
+                      : format(selectedDate, 'MMMM yyyy', { locale: it })}
                   </span>
                 </button>
-                <button
-                  onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-                  className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                >
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedDate(new Date());
-                    setTimeout(scrollToSelectedDate, 100);
-                  }}
-                  className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
-                >
-                  Oggi
-                </button>
+
+                {viewMode === 'daily' && (
+                  <>
+                    <button
+                      onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+                      className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedDate(new Date());
+                        setTimeout(scrollToSelectedDate, 100);
+                      }}
+                      className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
+                    >
+                      Oggi
+                    </button>
+                  </>
+                )}
+
+                {viewMode === 'monthly' && (
+                  <button
+                    onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
+                  >
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                  </button>
+                )}
 
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
@@ -866,125 +1254,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             </div>
           </div>
 
-          {selectedSede && (
-            <div
-              ref={scrollContainerRef}
-              className="overflow-y-auto"
-              style={{ maxHeight: 'calc(100vh - 107px)' }}
-            >
-              <table
-                className="w-full"
-                style={{ borderCollapse: 'separate', borderSpacing: 0 }}
-              >
-                <thead className="sticky top-0 z-20">
-                  <tr className="border-b-2 border-[#005CA9]/20">
-                    <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                      <span className="text-[#005CA9]">Orario</span>
-                    </th>
-                    {sedePersone.map(persona => (
-                      <th
-                        key={persona.id}
-                        className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]"
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center">
-                            <User size={14} className="text-white" />
-                          </div>
-                          <span className="text-[#005CA9]">
-                            {persona.nome}
-                          </span>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleDays.map(day => {
-                    const dateStr = formatDate(day);
-                    const isToday = formatDate(new Date()) === dateStr;
-
-                    return (
-                      <React.Fragment key={dateStr}>
-                        <tr data-date={dateStr}>
-                          <td
-                            colSpan={sedePersone.length + 1}
-                            className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                              isToday
-                                ? 'bg-[#005CA9] text-white'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                          </td>
-                        </tr>
-
-                        {TIME_SLOTS.map(slot => {
-                          return (
-                            <tr key={`${dateStr}-${slot.label}`}>
-                              <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                                <div className="px-1 py-2 text-xs font-semibold text-gray-700">
-                                  {slot.label}
-                                </div>
-                              </td>
-                              {sedePersone.map(persona => {
-                                const appointmentsInSlot = getAppointmentsForSlot(
-                                  dateStr,
-                                  slot.label,
-                                  persona.id,
-                                );
-
-                                const allDayAppointments = appointments.filter(
-                                  apt =>
-                                    apt.data === dateStr &&
-                                    apt.sede_id === selectedSedeId &&
-                                    apt.persona_id === persona.id,
-                                );
-
-                                const hasAppointment =
-                                  appointmentsInSlot.length > 0;
-
-                                return (
-                                  <td
-                                    key={`${persona.id}-${slot.label}`}
-                                    className={`relative p-0 border-r border-gray-100 ${
-                                      !hasAppointment
-                                        ? 'border-b border-gray-100'
-                                        : ''
-                                    }`}
-                                    style={{ height: '45px' }}
-                                  >
-                                    <TimeSlot
-                                      time={slot.label}
-                                      appointments={appointmentsInSlot}
-                                      allDayAppointments={allDayAppointments}
-                                      onClick={appointment =>
-                                        handleSlotClick(
-                                          dateStr,
-                                          slot.label,
-                                          persona.id,
-                                          appointment,
-                                        )
-                                      }
-                                      onDragStart={handleDragStart}
-                                      onDrop={time =>
-                                        handleDrop(dateStr, time, persona.id)
-                                      }
-                                      onDragOver={handleDragOver}
-                                      onResizeStart={handleResizeStart}
-                                    />
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
         </div>
       </div>
 
