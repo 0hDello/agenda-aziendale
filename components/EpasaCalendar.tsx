@@ -65,12 +65,13 @@ const TIME_SLOTS = [
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
 
-const MAX_VISIBLE_DAYS  = 14;
-const DAYS_PAST         = 3;
-const DAYS_FUTURE       = 10;
-const DAYS_TO_LOAD      = 3;
-const MIN_DATE          = new Date(2026, 0, 1);
-const SCROLL_THRESHOLD  = 400;
+const MAX_VISIBLE_DAYS         = 14;
+const DAYS_PAST                = 3;
+const DAYS_FUTURE              = 10;
+const DAYS_TO_LOAD             = 3;
+const MIN_DATE                 = new Date(2026, 0, 1);
+const SCROLL_THRESHOLD         = 400;
+const POST_COMPENSATE_COOLDOWN = 400;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -95,7 +96,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
+  // Blocca il singolo evento DOM di compensazione
   const isCompensatingRef         = useRef(false);
+  // Blocca lo scroll inerziale residuo per POST_COMPENSATE_COOLDOWN ms
+  const inCooldownRef             = useRef(false);
+  const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
+  // Ref stabile che punta sempre alla versione aggiornata di handleScroll (no closure stale)
+  const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -130,7 +137,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [visibleDays]);
 
-  // ─── carica giorni futuri ────────────────────────────────────────────────
+  // ─── carica giorni futuri ───────────────────────────────────────────────────────
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
@@ -146,10 +153,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     setTimeout(() => { isLoadingRef.current = false; }, 200);
   };
 
-  // ─── carica giorni passati ───────────────────────────────────────────────
+  // ─── carica giorni passati ──────────────────────────────────────────────────
+  //
+  // Niente retry ricorsivo: dopo il cooldown, se l'utente è ancora
+  // in cima handleScroll lo richiamerà da solo tramite debounce.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
+    if (inCooldownRef.current) return;
 
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -186,29 +197,43 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           if (heightDiff > 0) {
             isCompensatingRef.current = true;
             container.scrollTop = snapTop + heightDiff;
+
+            // Avvia cooldown: blocca scroll inerziale residuo
+            inCooldownRef.current = true;
+            if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+            cooldownTimerRef.current = setTimeout(() => {
+              inCooldownRef.current = false;
+            }, POST_COMPENSATE_COOLDOWN);
           }
           scrollSnapshotRef.current = null;
         }
         setTimeout(() => {
           isLoadingRef.current = false;
-          if (userScrollDirectionRef.current === 'up' && container.scrollTop < SCROLL_THRESHOLD) {
-            loadMoreDaysBackward();
-          }
         }, 100);
       });
     });
   };
 
-  // ─── handler scroll ──────────────────────────────────────────────────────
+  // ─── handler scroll (stabile via ref) ──────────────────────────────────────
+  //
+  // Il listener DOM chiama sempre handleScrollRef.current,
+  // che viene aggiornato ad ogni render: nessuna closure stale.
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
     const currentScrollTop = container.scrollTop;
 
+    // Singolo evento di compensazione DOM: aggiorna riferimento ed esci
     if (isCompensatingRef.current) {
       isCompensatingRef.current    = false;
+      lastUserScrollTopRef.current = currentScrollTop;
+      return;
+    }
+
+    // Dentro il cooldown: aggiorna solo il riferimento senza triggerare caricamenti
+    if (inCooldownRef.current) {
       lastUserScrollTopRef.current = currentScrollTop;
       return;
     }
@@ -223,7 +248,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
     loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingRef.current) return;
+      if (!container || isLoadingRef.current || inCooldownRef.current) return;
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromTop    = scrollTop;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
@@ -235,13 +260,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         loadMoreDaysBackward();
       }
     }, 80);
-  };
+  }, []);
 
-  // ─── inizializzazione (una sola volta) ───────────────────────────────────
-  //
-  // CRITICO: NON mettere selectedDate nelle dipendenze.
-  // Se lo si fa, ogni cambio di data resetta visibleDays e ri-attacca
-  // un listener stale, rompendo lo scroll in entrambe le direzioni.
+  // Mantieni il ref sempre aggiornato
+  useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
+
+  // ─── inizializzazione (una sola volta) ─────────────────────────────────────
 
   useEffect(() => {
     if (!isInitialized) {
@@ -257,8 +281,20 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
-    container.addEventListener('scroll', handleScroll, { passive: true });
+    // Wrapper stabile: chiama sempre handleScrollRef.current (mai stale)
+    const stableHandler = () => handleScrollRef.current();
+    container.addEventListener('scroll', stableHandler, { passive: true });
     scrollListenerAttachedRef.current = true;
+    (container as any).__scrollHandler = stableHandler;
+  };
+
+  const detachScrollListener = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !scrollListenerAttachedRef.current) return;
+    const handler = (container as any).__scrollHandler;
+    if (handler) container.removeEventListener('scroll', handler);
+    scrollListenerAttachedRef.current = false;
+    delete (container as any).__scrollHandler;
   };
 
   useEffect(() => {
@@ -266,22 +302,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       attachScrollListener();
     }
     return () => {
-      const container = scrollContainerRef.current;
-      if (container && scrollListenerAttachedRef.current) {
-        container.removeEventListener('scroll', handleScroll);
-        scrollListenerAttachedRef.current = false;
-      }
+      detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
     };
   }, [isInitialized]);
 
   useEffect(() => {
-    if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-        scrollListenerAttachedRef.current = false;
-      }
+    if (viewMode === 'monthly') {
+      detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     }
     if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
@@ -289,7 +318,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [viewMode]);
 
-  // ─── dati ───────────────────────────────────────────────────────────────
+  // ─── dati ──────────────────────────────────────────────────────────────────
 
   useEffect(() => { loadData(); }, []);
 
@@ -410,7 +439,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
     const days = eachDayOfInterval({
@@ -503,7 +532,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
