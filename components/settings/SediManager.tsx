@@ -52,7 +52,7 @@ export default function SediManager() {
 
     try {
       if (editingSede) {
-        // Update esistente
+        
         const response = await fetch(`/api/sedi/${editingSede.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -69,7 +69,7 @@ export default function SediManager() {
           throw new Error(errorMsg);
         }
       } else {
-        // Insert nuovo
+        
         console.log('📤 Invio richiesta POST a /api/sedi');
         const response = await fetch('/api/sedi', {
           method: 'POST',

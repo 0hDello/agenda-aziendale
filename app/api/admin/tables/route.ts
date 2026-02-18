@@ -3,7 +3,7 @@ import { query } from '@/lib/postgres';
 
 export async function GET() {
   try {
-    // Ottieni lista tabelle
+    
     const tablesResult = await query(`
       SELECT table_name 
       FROM information_schema.tables 
@@ -14,7 +14,7 @@ export async function GET() {
 
     const tables = await Promise.all(
       tablesResult.rows.map(async (table: any) => {
-        // Conta righe per ogni tabella
+        
         const countResult = await query(`SELECT COUNT(*) as count FROM ${table.table_name}`);
         
         return {

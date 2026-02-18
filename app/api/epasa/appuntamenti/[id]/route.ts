@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'; // ✅ Aggiunto NextRequest
+import { NextRequest, NextResponse } from 'next/server'; 
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 
 export async function PUT(
-  request: NextRequest, // ✅ MODIFICATO: Request → NextRequest
+  request: NextRequest, 
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -12,7 +12,7 @@ export async function PUT(
     const body = await request.json();
     const { sede_id, operatore_id, data, ora, cliente, mese, note } = body;
 
-    // Validazione campi obbligatori
+    
     if (!sede_id || !operatore_id || !data || !ora || !cliente) {
       return NextResponse.json(
         { error: 'Campi obbligatori mancanti' },
@@ -50,7 +50,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest, // ✅ MODIFICATO: Request → NextRequest
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -58,7 +58,7 @@ export async function DELETE(
     
     const result = await query('DELETE FROM epasa_appuntamenti WHERE id = $1', [id]);
     
-    // Verifica se è stato eliminato qualcosa
+    
     if (result.rowCount === 0) {
       return NextResponse.json(
         { error: 'Appuntamento non trovato' },

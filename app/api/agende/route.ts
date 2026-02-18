@@ -9,7 +9,7 @@ const DEFAULT_AGENDE = [
 
 export async function GET() {
   try {
-    // Includi anche il campo active
+    
     const result = await query(
       'SELECT id, nome, descrizione, active, created_at, updated_at FROM agende ORDER BY nome'
     );

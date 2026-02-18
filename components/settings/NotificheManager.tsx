@@ -68,7 +68,7 @@ export default function NotificheManager() {
       return;
     }
 
-    // Qui andrebbe implementata la logica per inviare la notifica
+    
     alert('Funzionalità di invio notifiche in sviluppo. La notifica verrebbe inviata a: ' + formData.destinatari);
     setIsModalOpen(false);
     setFormData({ tipo: 'info', messaggio: '', destinatari: '' });

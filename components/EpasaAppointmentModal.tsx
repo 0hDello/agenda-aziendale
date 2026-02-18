@@ -71,7 +71,7 @@ export default function EpasaAppointmentModal({
       return;
     }
 
-    // Calcola il mese dal campo data
+    
     const date = new Date(formData.data);
     const monthNames = [
       'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',

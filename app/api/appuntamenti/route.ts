@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 
-// GET - Carica appuntamenti
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -21,19 +21,19 @@ export async function GET(request: Request) {
 
     const result = await query(sql, params);
     
-    //  AGGIUNGI NORMALIZZAZIONE
+    
     if (result.rows) {
       const normalized = result.rows.map(apt => ({
         ...apt,
-        // Normalizza data
+        
         data: apt.data instanceof Date 
           ? format(apt.data, 'yyyy-MM-dd') 
           : (typeof apt.data === 'string' ? apt.data.split('T')[0] : apt.data),
-        // Normalizza ora_inizio
+        
         ora_inizio: typeof apt.ora_inizio === 'string' 
           ? apt.ora_inizio.substring(0, 5) 
           : apt.ora_inizio,
-        // Normalizza ora_fine
+        
         ora_fine: typeof apt.ora_fine === 'string' 
           ? apt.ora_fine.substring(0, 5) 
           : apt.ora_fine,
@@ -48,13 +48,13 @@ export async function GET(request: Request) {
   }
 }
 
-// POST - Crea appuntamento
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note } = body;
 
-    // Validazione
+    
     if (!persona_id || !sede_id || !data || !ora_inizio || !ora_fine) {
       return NextResponse.json(
         { error: 'Tutti i campi obbligatori devono essere compilati' },
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       [persona_id, sede_id, data, ora_inizio, ora_fine, cliente || null, note || null]
     );
 
-    //  AGGIUNGI NORMALIZZAZIONE
+    
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],

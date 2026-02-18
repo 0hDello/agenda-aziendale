@@ -555,7 +555,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       const isClosed = isWe || av === 'closed';
                       if (isClosed) return (
                         <td key={`${dateStr}-${operator}`} className="p-2 text-center bg-gray-200 opacity-60 select-none">
-                          <span className="text-xs text-gray-500">{isWe ? 'Chius.' : '—'}</span>
+                          <span className="text-xs text-gray-500">{isWe ? '—' : '—'}</span>
                         </td>
                       );
                       const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
@@ -575,7 +575,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-sm font-bold text-gray-700">{n}</span>
                             <span className="text-xs text-gray-600">
-                              {av === 'free' ? 'Vuoto' : av === 'partial' ? 'Parziale' : 'Pieno'}
+                              {av === 'free' ? 'Vuoto' : av === 'partial' ? 'App.' : 'Pieno'}
                             </span>
                             {uffN > 0 && (
                               <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
@@ -657,7 +657,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       colSpan={Math.max(operatorsInSede.length + 1, 2)}
                       className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
                         isToday ? 'bg-[#005CA9] text-white' :
-                        isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-700'
+                        isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
                       }`}
                     >
                       {format(day, 'EEEE dd MMMM yyyy', { locale: it })}

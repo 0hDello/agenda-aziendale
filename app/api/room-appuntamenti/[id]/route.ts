@@ -56,7 +56,7 @@ export async function PUT(
     const body = await request.json();
     const { sala_id, data, ora_inizio, ora_fine, titolo, mese } = body;
 
-    // Verifica se l'appuntamento esiste
+    
     const existing = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
       [id]
@@ -69,7 +69,7 @@ export async function PUT(
       );
     }
 
-    // Verifica conflitti orari (escludendo l'appuntamento corrente)
+    
     if (sala_id && data && ora_inizio && ora_fine) {
       const conflictCheck = await query(
         `SELECT id FROM room_appuntamenti
@@ -91,7 +91,7 @@ export async function PUT(
       }
     }
 
-    // Prepara i campi da aggiornare
+    
     const updates = [];
     const values = [];
     let paramIndex = 1;
@@ -164,7 +164,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    // Verifica se l'appuntamento esiste
+    
     const existing = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
       [id]

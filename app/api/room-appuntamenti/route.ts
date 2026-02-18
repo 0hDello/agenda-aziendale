@@ -9,11 +9,11 @@ export async function GET() {
     if (result.rows) {
       const normalized = result.rows.map(apt => ({
         ...apt,
-        //  CORRETTO: Normalizza la data in formato yyyy-MM-dd
+        
         data: apt.data instanceof Date 
           ? format(apt.data, 'yyyy-MM-dd') 
           : (typeof apt.data === 'string' ? apt.data.split('T')[0] : apt.data),
-        //  CORRETTO: Normalizza l'ora
+        
         ora_inizio: typeof apt.ora_inizio === 'string' 
           ? apt.ora_inizio.substring(0, 5) 
           : apt.ora_inizio,
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { sala_id, data, ora_inizio, ora_fine, titolo, mese } = body;
 
-    // Validazione campi obbligatori
+    
     if (!sala_id || !data || !ora_inizio || !ora_fine || !titolo) {
       return NextResponse.json(
         { error: 'Tutti i campi obbligatori devono essere compilati' },
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verifica conflitti orari
+    
     const conflictCheck = await query(
       `SELECT id FROM room_appuntamenti
        WHERE sala_id = $1 
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],
-        //  CORRETTO: Normalizza la data in formato yyyy-MM-dd
+        
         data: result.rows[0].data instanceof Date 
           ? format(result.rows[0].data, 'yyyy-MM-dd') 
           : (typeof result.rows[0].data === 'string' 

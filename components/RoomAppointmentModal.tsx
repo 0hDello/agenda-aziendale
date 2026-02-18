@@ -52,7 +52,7 @@ export default function RoomAppointmentModal({
   useEffect(() => {
     if (isOpen) {
       if (existingAppointment) {
-        // Verifica se è una delle opzioni predefinite
+        
         if (APPOINTMENT_OPTIONS.includes(existingAppointment)) {
           setSelectedOption(existingAppointment);
           setUseCustom(false);
@@ -63,7 +63,7 @@ export default function RoomAppointmentModal({
           setUseCustom(true);
         }
         
-        // Imposta ora fine esistente
+        
         if (existingEndTime) {
           setEndTime(existingEndTime);
         }
@@ -72,7 +72,7 @@ export default function RoomAppointmentModal({
         setCustomTitle('');
         setUseCustom(false);
         
-        // Ora fine di default = +2 ore (4 slot da 30min)
+        
         const startIdx = TIME_SLOTS.indexOf(selectedTime);
         if (startIdx !== -1 && startIdx + 4 < TIME_SLOTS.length) {
           setEndTime(TIME_SLOTS[startIdx + 4]);
@@ -83,11 +83,11 @@ export default function RoomAppointmentModal({
     }
   }, [isOpen, existingAppointment, existingEndTime, selectedTime]);
 
-  // Filtra solo gli orari validi (dopo l'ora di inizio)
+  
   const getAvailableEndTimes = () => {
     const startIdx = TIME_SLOTS.indexOf(selectedTime);
     if (startIdx === -1) return TIME_SLOTS;
-    return TIME_SLOTS.slice(startIdx + 1); // Solo orari dopo l'inizio
+    return TIME_SLOTS.slice(startIdx + 1); 
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -118,7 +118,7 @@ export default function RoomAppointmentModal({
   const dateObj = parseISO(selectedDate);
   const formattedDate = format(dateObj, "EEEE dd MMMM yyyy", { locale: it });
   
-  // Calcola durata in ore
+  
   const calculateDuration = () => {
     const startIdx = TIME_SLOTS.indexOf(selectedTime);
     const endIdx = TIME_SLOTS.indexOf(endTime);

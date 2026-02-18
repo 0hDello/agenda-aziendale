@@ -12,21 +12,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validazione base per sicurezza
+    
     const dangerousKeywords = ['DROP', 'TRUNCATE', 'DELETE', 'ALTER'];
     const queryUpper = sqlQuery.toUpperCase();
     
-    // Opzionale: blocca query pericolose (commentalo se vuoi libertà totale)
-    /*
-    for (const keyword of dangerousKeywords) {
-      if (queryUpper.includes(keyword)) {
-        return NextResponse.json(
-          { error: `Query non permessa: contiene ${keyword}` },
-          { status: 403 }
-        );
-      }
-    }
-    */
+    
 
     const result = await query(sqlQuery);
 

@@ -21,24 +21,24 @@ export default function AgendeManager() {
     loadData();
   }, []);
 
-  //  CORRETTO: Usa fetch invece di query diretta
+  
   const loadData = async () => {
     try {
-      // Carica persona_sede
+     
       const psRes = await fetch('/api/persona-sede');
       const psData = await psRes.json();
 
-      // Carica persone
+      
       const personeRes = await fetch('/api/persone');
       const personeData = await personeRes.json();
       setPersone(personeData || []);
 
-      // Carica sedi
+      
       const sediRes = await fetch('/api/sedi');
       const sediData = await sediRes.json();
       setSedi(sediData || []);
 
-      // Combina i dati
+      
       if (psData) {
         const agendeFormatted = psData.map((ps: PersonaSede) => ({
           ...ps,
@@ -62,14 +62,14 @@ export default function AgendeManager() {
     setFormData({ persona_id: '', sede_id: '' });
   };
 
-  //  CORRETTO: Usa fetch invece di query diretta
+  
   const handleSave = async () => {
     if (!formData.persona_id || !formData.sede_id) {
       alert('Seleziona sia la persona che la sede');
       return;
     }
 
-    // Verifica se esiste già questa associazione
+    
     const exists = agende.some(
       (a) => a.persona_id === formData.persona_id && a.sede_id === formData.sede_id
     );
@@ -103,7 +103,7 @@ export default function AgendeManager() {
     }
   };
 
-  //  CORRETTO: Usa fetch invece di query diretta
+ 
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa associazione?')) return;
 

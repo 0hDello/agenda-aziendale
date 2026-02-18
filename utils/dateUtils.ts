@@ -15,7 +15,7 @@ export const formatDateDisplay = (date: Date) => {
 };
 
 export const TIME_SLOTS = [
-  // MATTINA: 09:00 - 12:00
+  
   { hour: 9, minute: 0, label: '09:00' },
   { hour: 9, minute: 30, label: '09:30' },
   { hour: 10, minute: 0, label: '10:00' },
@@ -24,9 +24,9 @@ export const TIME_SLOTS = [
   { hour: 11, minute: 30, label: '11:30' },
   { hour: 12, minute: 0, label: '12:00' },
   
-  // PAUSA PRANZO - rimossi 12:30, 13:00, 13:30
   
-  // POMERIGGIO: 14:00 - 17:30
+  
+  
   { hour: 14, minute: 0, label: '14:00' },
   { hour: 14, minute: 30, label: '14:30' },
   { hour: 15, minute: 0, label: '15:00' },

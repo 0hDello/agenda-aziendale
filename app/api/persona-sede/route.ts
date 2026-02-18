@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verifica che non esista già
+    
     const existing = await query(
       'SELECT id FROM persona_sede WHERE persona_id = $1 AND sede_id = $2',
       [persona_id, sede_id]

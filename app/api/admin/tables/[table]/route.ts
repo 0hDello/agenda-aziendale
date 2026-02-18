@@ -6,12 +6,12 @@ export async function GET(
   context: { params: Promise<{ table: string }> }
 ) {
   try {
-    // In Next.js 15+, params è una Promise
+    
     const { table: tableName } = await context.params;
 
     console.log('Richiesta per tabella:', tableName);
 
-    // Validazione nome tabella
+    
     const validTables = await query(`
       SELECT table_name 
       FROM information_schema.tables 
@@ -28,7 +28,7 @@ export async function GET(
       );
     }
 
-    // Ottieni dati tabella
+    
     const result = await query(`SELECT * FROM ${tableName} LIMIT 100`);
 
     return NextResponse.json({

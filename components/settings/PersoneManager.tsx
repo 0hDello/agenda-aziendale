@@ -15,7 +15,7 @@ export default function PersoneManager() {
     loadPersone();
   }, []);
 
-  //  CORRETTO: Usa fetch invece di query diretta
+  
   const loadPersone = async () => {
     try {
       const response = await fetch('/api/persone');
@@ -43,7 +43,7 @@ export default function PersoneManager() {
     setFormData({ nome: '' });
   };
 
-  //  CORRETTO: Usa fetch invece di query diretta
+ 
   const handleSave = async () => {
     if (!formData.nome.trim()) {
       alert('Inserisci un nome valido');
@@ -54,7 +54,7 @@ export default function PersoneManager() {
 
     try {
       if (editingPersona) {
-        // Update esistente
+        
         const response = await fetch(`/api/persone/${editingPersona.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -63,7 +63,7 @@ export default function PersoneManager() {
 
         if (!response.ok) throw new Error('Errore aggiornamento');
       } else {
-        // Insert nuovo
+        
         const response = await fetch('/api/persone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -83,7 +83,7 @@ export default function PersoneManager() {
     }
   };
 
-  //  CORRETTO: Usa fetch invece di query diretta
+  
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa persona?')) return;
 
