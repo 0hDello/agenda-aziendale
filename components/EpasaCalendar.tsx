@@ -13,7 +13,7 @@ import {
   LayoutGrid,
   List,
   Lock,
-  LockOpen,
+  Unlock,
   Trash2,
 } from 'lucide-react';
 import {
@@ -806,7 +806,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                 <div className="w-full h-full flex items-center justify-center gap-1">
                                   <Lock size={9} className="text-gray-400" />
                                   <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                                  {editMode && <LockOpen size={9} className="text-amber-400 ml-1" />}
+                                  {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
                                 </div>
                               </td>
                             );
@@ -962,7 +962,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                     }`}
                     title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica (blocca/sblocca slot)'}
                   >
-                    {editMode ? <LockOpen size={16} /> : <Lock size={16} />}
+                    {editMode ? <Unlock size={16} /> : <Lock size={16} />}
                   </button>
                   {/* Tooltip */}
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
