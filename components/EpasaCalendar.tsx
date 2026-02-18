@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,6 +20,7 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
+  isSameDay,
   addMonths,
   subMonths,
   isWeekend,
@@ -64,10 +65,12 @@ const TIME_SLOTS = [
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full';
 
-const MAX_VISIBLE_DAYS = 14;
-const DAYS_TO_LOAD    = 3;
-const MIN_DATE        = new Date(2026, 0, 1);
-const SCROLL_THRESHOLD = 400;
+const MAX_VISIBLE_DAYS  = 14;
+const DAYS_PAST         = 3;
+const DAYS_FUTURE       = 10;
+const DAYS_TO_LOAD      = 3;
+const MIN_DATE          = new Date(2026, 0, 1);
+const SCROLL_THRESHOLD  = 400;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -82,6 +85,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedSlot, setSelectedSlot]       = useState<{ date: string; time: string; operator?: string } | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [viewMode, setViewMode]               = useState<ViewMode>('daily');
+  const [isInitialized, setIsInitialized]     = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -89,37 +93,48 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef            = useRef<Date[]>([]);
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
-  // Direzione reale dell'utente — mai sovrascritta dalla compensazione
-  const userScrollDirectionRef = useRef<'up' | 'down' | null>(null);
-  const lastUserScrollTopRef   = useRef(0);
-  // Quando true il prossimo evento scroll è compensazione artificiale
-  const isCompensatingRef      = useRef(false);
+  const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
+  const lastUserScrollTopRef      = useRef(0);
+  const isCompensatingRef         = useRef(false);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
-  const isWorkingDay = (date: Date): boolean => {
-    const day = getDay(date);
-    return day !== 0 && day !== 6;
+  const isWorkingDay = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
+  const formatDate   = (date: Date) => format(date, 'yyyy-MM-dd');
+
+  const scrollToDate = (date: Date) => {
+    const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
+    if (el && scrollContainerRef.current) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const formatDate = (date: Date): string => format(date, 'yyyy-MM-dd');
-
-  const scrollToSelectedDate = () => {
-    const dateElement = document.querySelector<HTMLElement>(
-      `[data-epasa-date="${format(selectedDate, 'yyyy-MM-dd')}"]`,
-    );
-    if (dateElement && scrollContainerRef.current)
-      dateElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const buildWindowAround = (center: Date): Date[] => {
+    const days: Date[] = [];
+    for (let i = DAYS_PAST; i > 0; i--) {
+      const d = subDays(center, i);
+      if (startOfDay(d) >= startOfDay(MIN_DATE)) days.push(d);
+    }
+    days.push(center);
+    for (let i = 1; i <= DAYS_FUTURE; i++) days.push(addDays(center, i));
+    return days;
   };
 
-  // ─── carica giorni futuri ─────────────────────────────────────────────────
+  const navigateToDate = useCallback((date: Date) => {
+    setSelectedDate(date);
+    if (visibleDays.some(d => isSameDay(d, date))) {
+      setTimeout(() => scrollToDate(date), 50);
+    } else {
+      setVisibleDays(buildWindowAround(date));
+      setTimeout(() => scrollToDate(date), 200);
+    }
+  }, [visibleDays]);
+
+  // ─── carica giorni futuri ────────────────────────────────────────────────
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
-
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
@@ -128,15 +143,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-
-    setTimeout(() => { isLoadingRef.current = false; }, 300);
+    setTimeout(() => { isLoadingRef.current = false; }, 200);
   };
 
-  // ─── carica giorni passati ────────────────────────────────────────────────
-  //
-  // Dopo aver sbloccato il lock controlla se siamo ancora vicini alla cima
-  // E la direzione era 'up': in quel caso chiama se stessa.
-  // Gestisce lo scroll veloce in cui durante il lock arrivano eventi scartati.
+  // ─── carica giorni passati ───────────────────────────────────────────────
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
@@ -156,7 +166,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     isLoadingRef.current = true;
 
-    // Snapshot sincrono PRIMA del setState
     scrollSnapshotRef.current = {
       scrollTop:    container.scrollTop,
       scrollHeight: container.scrollHeight,
@@ -164,7 +173,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
-      if (updated.length > MAX_VISIBLE_DAYS + 10)
+      if (updated.length > MAX_VISIBLE_DAYS)
         updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
     });
@@ -180,26 +189,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           }
           scrollSnapshotRef.current = null;
         }
-
-        // Sblocca il lock; poi controlla se serve caricare ancora
         setTimeout(() => {
           isLoadingRef.current = false;
-
-          if (
-            userScrollDirectionRef.current === 'up' &&
-            container.scrollTop < SCROLL_THRESHOLD
-          ) {
+          if (userScrollDirectionRef.current === 'up' && container.scrollTop < SCROLL_THRESHOLD) {
             loadMoreDaysBackward();
           }
-        }, 150);
+        }, 100);
       });
     });
   };
 
-  // ─── handler scroll ───────────────────────────────────────────────────────
-  //
-  // Se isCompensatingRef è true: evento artificiale, ignora e reimposta
-  // il riferimento per il prossimo evento reale.
+  // ─── handler scroll ──────────────────────────────────────────────────────
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -207,7 +207,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     const currentScrollTop = container.scrollTop;
 
-    // Evento di compensazione: ignora, reimposta il riferimento e esci
     if (isCompensatingRef.current) {
       isCompensatingRef.current    = false;
       lastUserScrollTopRef.current = currentScrollTop;
@@ -216,7 +215,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     if (isLoadingRef.current) return;
 
-    // Direzione reale dell'utente
     const direction: 'up' | 'down' =
       currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
     lastUserScrollTopRef.current   = currentScrollTop;
@@ -226,7 +224,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     loadTimeoutRef.current = setTimeout(() => {
       if (!container || isLoadingRef.current) return;
-
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromTop    = scrollTop;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
@@ -240,16 +237,22 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }, 80);
   };
 
-  // ─── inizializzazione ─────────────────────────────────────────────────────
+  // ─── inizializzazione (una sola volta) ───────────────────────────────────
+  //
+  // CRITICO: NON mettere selectedDate nelle dipendenze.
+  // Se lo si fa, ogni cambio di data resetta visibleDays e ri-attacca
+  // un listener stale, rompendo lo scroll in entrambe le direzioni.
 
   useEffect(() => {
-    const days = Array.from({ length: 14 }, (_, i) => addDays(selectedDate, i));
-    setVisibleDays(days);
-    setTimeout(() => {
-      scrollToSelectedDate();
-      attachScrollListener();
-    }, 200);
-  }, [selectedDate]);
+    if (!isInitialized) {
+      setVisibleDays(buildWindowAround(selectedDate));
+      setIsInitialized(true);
+      setTimeout(() => {
+        scrollToDate(selectedDate);
+        attachScrollListener();
+      }, 200);
+    }
+  }, []);
 
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
@@ -259,7 +262,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   useEffect(() => {
-    if (!loading && scrollContainerRef.current && viewMode === 'daily' && !scrollListenerAttachedRef.current) {
+    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) {
       attachScrollListener();
     }
     return () => {
@@ -270,7 +273,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       }
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     };
-  }, [loading, viewMode]);
+  }, [isInitialized]);
 
   useEffect(() => {
     if (viewMode === 'monthly' && scrollListenerAttachedRef.current) {
@@ -281,9 +284,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       }
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     }
+    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
+      setTimeout(() => attachScrollListener(), 100);
+    }
   }, [viewMode]);
 
-  // ─── dati ─────────────────────────────────────────────────────────────────
+  // ─── dati ───────────────────────────────────────────────────────────────
 
   useEffect(() => { loadData(); }, []);
 
@@ -396,7 +402,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const handlePreviousDay = () => {
     const d = subDays(selectedDate, 1);
-    if (d >= MIN_DATE) setSelectedDate(d);
+    if (d >= MIN_DATE) navigateToDate(d);
   };
 
   const handlePreviousMonth = () => {
@@ -404,7 +410,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
     const days = eachDayOfInterval({
@@ -449,10 +455,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </thead>
             <tbody>
               {days.map(day => {
-                const dateStr   = formatDate(day);
-                const isToday   = formatDate(new Date()) === dateStr;
-                const isWe      = isWeekend(day);
-                const isBefore  = day < MIN_DATE;
+                const dateStr  = formatDate(day);
+                const isToday  = formatDate(new Date()) === dateStr;
+                const isWe     = isWeekend(day);
+                const isBefore = day < MIN_DATE;
                 return (
                   <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
                     <td className={`p-3 font-medium border-r ${isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-200 text-gray-400' : 'text-gray-700'}`}>
@@ -477,7 +483,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                         <td
                           key={`${dateStr}-${operator}`}
                           className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} ${isBefore ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'}`}
-                          onClick={() => { if (!isBefore) { setSelectedDate(day); setViewMode('daily'); } }}
+                          onClick={() => { if (!isBefore) { navigateToDate(day); setViewMode('daily'); } }}
                           title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti`}
                         >
                           <div className="flex flex-col items-center gap-1">
@@ -497,7 +503,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
@@ -528,9 +534,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </thead>
         <tbody>
           {visibleDays.map(day => {
-            const dateStr  = formatDate(day);
-            const isToday  = formatDate(new Date()) === dateStr;
-            const isWe     = isWeekend(day);
+            const dateStr = formatDate(day);
+            const isToday = formatDate(new Date()) === dateStr;
+            const isWe    = isWeekend(day);
             return (
               <React.Fragment key={dateStr}>
                 <tr data-epasa-date={dateStr}>
@@ -663,7 +669,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </button>
 
                 {viewMode === 'daily' && (
-                  <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
+                  <button onClick={() => navigateToDate(addDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
                     <ChevronRight className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
@@ -721,8 +727,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
             <div className="grid grid-cols-7 gap-2 mb-6">
               {(() => {
-                const ms  = startOfMonth(selectedDate);
-                const me  = endOfMonth(selectedDate);
+                const ms   = startOfMonth(selectedDate);
+                const me   = endOfMonth(selectedDate);
                 const days = eachDayOfInterval({ start: ms, end: me });
                 const firstDow = (getDay(ms) + 6) % 7;
                 return (
@@ -736,7 +742,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       return (
                         <button
                           key={i} type="button"
-                          onClick={() => { if (!isBef) { setSelectedDate(day); setShowDatePicker(false); } }}
+                          onClick={() => { if (!isBef) { navigateToDate(day); setShowDatePicker(false); } }}
                           disabled={isBef}
                           className={`aspect-square rounded-lg text-sm font-medium transition-all ${
                             isBef ? 'bg-transparent text-gray-300 cursor-not-allowed' :
@@ -756,7 +762,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
             <button
               type="button"
-              onClick={() => { setSelectedDate(new Date()); setShowDatePicker(false); }}
+              onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
               className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
             >
               Vai a Oggi
