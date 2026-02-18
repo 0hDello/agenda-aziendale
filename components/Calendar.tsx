@@ -45,8 +45,8 @@ const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD = 400;
-// Tempo (ms) in cui gli eventi scroll vengono ignorati dopo una compensazione.
-// Impedisce che lo scroll inerziale del browser ri-triggeri loadMoreDaysBackward.
+// Cooldown (ms) applicato SOLO allo scroll verso l'alto dopo la compensazione.
+// Non viene mai usato per bloccare lo scroll verso il basso.
 const POST_COMPENSATE_COOLDOWN = 400;
 
 type ViewMode = 'daily' | 'monthly';
@@ -71,6 +71,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
+  // Lock generico: impedisce chiamate multiple simultanee (forward O backward)
   const isLoadingRef              = useRef(false);
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
@@ -78,12 +79,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
-  // true durante l'evento singolo di compensazione DOM
+  // Segnala il singolo evento DOM di compensazione posizione
   const isCompensatingRef         = useRef(false);
-  // true per POST_COMPENSATE_COOLDOWN ms dopo la compensazione:
-  // blocca lo scroll inerziale residuo che altrimenti ri-triggera il caricamento
-  const inCooldownRef             = useRef(false);
+  // Blocca SOLO loadMoreDaysBackward per POST_COMPENSATE_COOLDOWN ms dopo la compensazione.
+  // Non interferisce mai con loadMoreDaysForward.
+  const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
+  // Wrapper stabile: punta sempre all'handleScroll più recente (no closure stale)
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
@@ -117,6 +119,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   }, [visibleDays]);
 
   // ─── carica giorni futuri ───────────────────────────────────────────────────
+  // Il lock viene rilasciato nella rAF successiva al paint, non dopo 200ms fissi.
+  // Questo consente scroll veloci verso il basso senza blocchi artificiali.
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
@@ -131,18 +135,22 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       return updated;
     });
 
-    setTimeout(() => { isLoadingRef.current = false; }, 200);
+    // Rilascia il lock dopo il prossimo paint: nessun blocco artificiale da 200ms
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        isLoadingRef.current = false;
+      });
+    });
   };
 
   // ─── carica giorni passati ──────────────────────────────────────────────────
-  //
-  // NIENTE retry ricorsivo: dopo lo sblocco del lock, il normale handleScroll
-  // si occupa di richiamare loadMoreDaysBackward se siamo ancora in cima.
-  // Il cooldown impedisce che lo scroll inerziale lo faccia troppo presto.
+  // Il cooldown (backwardCooldownRef) blocca SOLO questo metodo, non forward.
+  // isLoadingRef viene rilasciato PRIMA dell'avvio del cooldown, così handleScroll
+  // può chiamare loadMoreDaysForward senza essere bloccato durante il cooldown.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
-    if (inCooldownRef.current) return;
+    if (backwardCooldownRef.current) return;
 
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -159,7 +167,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     isLoadingRef.current = true;
 
-    // Snapshot sincrono PRIMA del setState
     scrollSnapshotRef.current = {
       scrollTop:    container.scrollTop,
       scrollHeight: container.scrollHeight,
@@ -178,27 +185,23 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
           if (heightDiff > 0) {
-            // Segnala compensazione singola
             isCompensatingRef.current = true;
             container.scrollTop = snapTop + heightDiff;
-
-            // Avvia cooldown: ignora scroll inerziale per POST_COMPENSATE_COOLDOWN ms
-            inCooldownRef.current = true;
-            if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-            cooldownTimerRef.current = setTimeout(() => {
-              inCooldownRef.current = false;
-            }, POST_COMPENSATE_COOLDOWN);
           }
           scrollSnapshotRef.current = null;
         }
 
-        setTimeout(() => {
-          isLoadingRef.current = false;
-          // NON richiamiamo qui loadMoreDaysBackward:
-          // il cooldown garantisce che handleScroll non scatti subito,
-          // e dopo il cooldown se l'utente e' ancora in cima handleScroll
-          // lo richiamera' da solo tramite il debounce normale.
-        }, 100);
+        // Rilascia il lock generico PRIMA di avviare il cooldown:
+        // in questo modo handleScroll può già chiamare loadMoreDaysForward
+        // senza aspettare la fine del cooldown.
+        isLoadingRef.current = false;
+
+        // Avvia il cooldown specifico per backward: blocca solo lo scroll in alto
+        backwardCooldownRef.current = true;
+        if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = setTimeout(() => {
+          backwardCooldownRef.current = false;
+        }, POST_COMPENSATE_COOLDOWN);
       });
     });
   };
@@ -211,18 +214,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     const currentScrollTop = container.scrollTop;
 
-    // Evento singolo di compensazione DOM: reimposta riferimento ed esci
+    // Evento singolo di compensazione DOM: aggiorna riferimento ed esci
     if (isCompensatingRef.current) {
       isCompensatingRef.current    = false;
       lastUserScrollTopRef.current = currentScrollTop;
       return;
     }
 
-    // Dentro il cooldown post-compensazione: aggiorna solo il riferimento
-    // senza triggerare caricamenti (blocca lo scroll inerziale residuo)
-    if (inCooldownRef.current) {
+    // Durante il cooldown backward: aggiorna il riferimento ma non triggera backward.
+    // Lo scroll verso il basso viene comunque gestito normalmente.
+    if (backwardCooldownRef.current) {
       lastUserScrollTopRef.current = currentScrollTop;
-      return;
+      // Permettiamo comunque il debounce per gestire lo scroll in avanti
     }
 
     if (isLoadingRef.current) return;
@@ -235,7 +238,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
     loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingRef.current || inCooldownRef.current) return;
+      if (!container || isLoadingRef.current) return;
 
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromTop    = scrollTop;
@@ -243,8 +246,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const dir = userScrollDirectionRef.current;
 
       if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
+        // Forward: mai bloccato dal cooldown backward
         loadMoreDaysForward();
       } else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD) {
+        // Backward: bloccato solo dal suo cooldown specifico
         loadMoreDaysBackward();
       }
     }, 80);

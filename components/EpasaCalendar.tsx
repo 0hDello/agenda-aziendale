@@ -71,6 +71,8 @@ const DAYS_FUTURE              = 10;
 const DAYS_TO_LOAD             = 3;
 const MIN_DATE                 = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD         = 400;
+// Cooldown (ms) applicato SOLO allo scroll verso l'alto dopo la compensazione.
+// Non interferisce mai con lo scroll verso il basso.
 const POST_COMPENSATE_COOLDOWN = 400;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -89,6 +91,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [isInitialized, setIsInitialized]     = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
+  // Lock generico: impedisce chiamate multiple simultanee (forward O backward)
   const isLoadingRef              = useRef(false);
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
@@ -96,17 +99,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
-  // Blocca il singolo evento DOM di compensazione
+  // Segnala il singolo evento DOM di compensazione posizione
   const isCompensatingRef         = useRef(false);
-  // Blocca lo scroll inerziale residuo per POST_COMPENSATE_COOLDOWN ms
-  const inCooldownRef             = useRef(false);
+  // Blocca SOLO loadMoreDaysBackward per POST_COMPENSATE_COOLDOWN ms.
+  // Non interferisce mai con loadMoreDaysForward.
+  const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
-  // Ref stabile che punta sempre alla versione aggiornata di handleScroll (no closure stale)
+  // Wrapper stabile: punta sempre all'handleScroll più recente (no closure stale)
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
-  // ─── helpers ──────────────────────────────────────────────────────────────
+  // ─── helpers ────────────────────────────────────────────────────────────────
 
   const isWorkingDay = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
   const formatDate   = (date: Date) => format(date, 'yyyy-MM-dd');
@@ -137,11 +141,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [visibleDays]);
 
-  // ─── carica giorni futuri ───────────────────────────────────────────────────────
+  // ─── carica giorni futuri ────────────────────────────────────────────────────
+  // Lock rilasciato nella rAF successiva al paint: nessun blocco artificiale da 200ms.
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
+
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
@@ -150,17 +156,22 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-    setTimeout(() => { isLoadingRef.current = false; }, 200);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        isLoadingRef.current = false;
+      });
+    });
   };
 
-  // ─── carica giorni passati ──────────────────────────────────────────────────
-  //
-  // Niente retry ricorsivo: dopo il cooldown, se l'utente è ancora
-  // in cima handleScroll lo richiamerà da solo tramite debounce.
+  // ─── carica giorni passati ───────────────────────────────────────────────────
+  // backwardCooldownRef blocca SOLO questo metodo, non forward.
+  // isLoadingRef viene rilasciato PRIMA del cooldown: handleScroll può chiamare
+  // loadMoreDaysForward senza essere bloccato durante il cooldown backward.
 
   const loadMoreDaysBackward = () => {
     if (isLoadingRef.current) return;
-    if (inCooldownRef.current) return;
+    if (backwardCooldownRef.current) return;
 
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -197,27 +208,25 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           if (heightDiff > 0) {
             isCompensatingRef.current = true;
             container.scrollTop = snapTop + heightDiff;
-
-            // Avvia cooldown: blocca scroll inerziale residuo
-            inCooldownRef.current = true;
-            if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-            cooldownTimerRef.current = setTimeout(() => {
-              inCooldownRef.current = false;
-            }, POST_COMPENSATE_COOLDOWN);
           }
           scrollSnapshotRef.current = null;
         }
-        setTimeout(() => {
-          isLoadingRef.current = false;
-        }, 100);
+
+        // Rilascia il lock generico PRIMA del cooldown: handleScroll può già
+        // chiamare loadMoreDaysForward senza aspettare la fine del cooldown.
+        isLoadingRef.current = false;
+
+        // Cooldown specifico per backward: blocca solo lo scroll in alto
+        backwardCooldownRef.current = true;
+        if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = setTimeout(() => {
+          backwardCooldownRef.current = false;
+        }, POST_COMPENSATE_COOLDOWN);
       });
     });
   };
 
-  // ─── handler scroll (stabile via ref) ──────────────────────────────────────
-  //
-  // Il listener DOM chiama sempre handleScrollRef.current,
-  // che viene aggiornato ad ogni render: nessuna closure stale.
+  // ─── handler scroll (stabile via ref) ───────────────────────────────────────
 
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
@@ -225,17 +234,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     const currentScrollTop = container.scrollTop;
 
-    // Singolo evento di compensazione DOM: aggiorna riferimento ed esci
+    // Evento singolo di compensazione DOM: aggiorna riferimento ed esci
     if (isCompensatingRef.current) {
       isCompensatingRef.current    = false;
       lastUserScrollTopRef.current = currentScrollTop;
       return;
     }
 
-    // Dentro il cooldown: aggiorna solo il riferimento senza triggerare caricamenti
-    if (inCooldownRef.current) {
+    // Durante il cooldown backward: aggiorna il riferimento ma non triggera backward.
+    // Lo scroll verso il basso viene comunque gestito normalmente.
+    if (backwardCooldownRef.current) {
       lastUserScrollTopRef.current = currentScrollTop;
-      return;
+      // Permettiamo comunque il debounce per gestire lo scroll in avanti
     }
 
     if (isLoadingRef.current) return;
@@ -248,15 +258,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
 
     loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingRef.current || inCooldownRef.current) return;
+      if (!container || isLoadingRef.current) return;
+
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromTop    = scrollTop;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
       const dir = userScrollDirectionRef.current;
 
       if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
+        // Forward: mai bloccato dal cooldown backward
         loadMoreDaysForward();
       } else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD) {
+        // Backward: bloccato solo dal suo cooldown specifico
         loadMoreDaysBackward();
       }
     }, 80);
@@ -265,7 +278,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   // Mantieni il ref sempre aggiornato
   useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
 
-  // ─── inizializzazione (una sola volta) ─────────────────────────────────────
+  // ─── inizializzazione (una sola volta) ──────────────────────────────────────
 
   useEffect(() => {
     if (!isInitialized) {
@@ -281,7 +294,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
-    // Wrapper stabile: chiama sempre handleScrollRef.current (mai stale)
     const stableHandler = () => handleScrollRef.current();
     container.addEventListener('scroll', stableHandler, { passive: true });
     scrollListenerAttachedRef.current = true;
@@ -318,7 +330,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [viewMode]);
 
-  // ─── dati ──────────────────────────────────────────────────────────────────
+  // ─── dati ───────────────────────────────────────────────────────────────────
 
   useEffect(() => { loadData(); }, []);
 
@@ -439,7 +451,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
     const days = eachDayOfInterval({
@@ -532,7 +544,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
