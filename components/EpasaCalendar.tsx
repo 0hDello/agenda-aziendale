@@ -102,73 +102,79 @@ const MILECE_WORKING_DAYS = [2, 3, 5]; // Mar, Mer, Ven
 const MILECE_START_TIME   = '08:30';
 
 // ─── Regole BORGO ─────────────────────────────────────────────────────────────
-/**
- * Converte una Date (qualsiasi ora) in un oggetto {y, m, d} usando
- * esclusivamente valori locali, evitando qualsiasi problema di timezone/DST.
- */
-const toLocalYMD = (date: Date): { y: number; m: number; d: number } => ({
-  y: date.getFullYear(),
-  m: date.getMonth(),      // 0-based
-  d: date.getDate(),
-});
 
 /**
- * Costruisce una Date a mezzogiorno locale partendo da y/m/d locali.
- * Usare sempre mezzogiorno evita ambiguità DST a mezzanotte.
+ * Converte una stringa "yyyy-MM-dd" in un Date a mezzogiorno locale.
+ * Evita lo shift UTC→locale di new Date("yyyy-MM-dd") che interpreta
+ * la stringa come UTC midnight (= giorno precedente alle 23:00 in CET).
  */
-const fromLocalYMD = (y: number, m: number, d: number): Date =>
-  new Date(y, m, d, 12, 0, 0, 0);
+const dateStrToLocal = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+};
 
 /**
- * Restituisce il numero di settimana ISO del mese (1-based, settimane Lun–Dom).
+ * Numero di settimana nel mese, contando dal primo lunedì che cade NEL mese.
  *
- * Logica:
- *   1. Trova il lunedì della settimana del giorno dato.
- *   2. Trova il lunedì della settimana che contiene il 1° del mese.
- *   3. Conta le settimane di distanza → +1.
+ * Regola:
+ *   - Settimana 1 = la settimana (Lun–Dom) che contiene il primo lunedì del mese
+ *   - Settimana 2 = quella successiva, ecc.
+ *   - Se il giorno appartiene a una settimana che precede il primo lunedì del mese
+ *     (es. domenica 1 feb 2026), restituisce 0 (non usato da Borgo).
  *
- * Tutto viene fatto in giorni puri (niente ore/minuti) per evitare DST.
+ * Esempi verificati:
+ *   Gennaio 2026 (1 gen = giovedì) → primo lun in mese = 5 gen
+ *     6 gen (mar) → sett 1 → Borgo: NO
+ *    13 gen (mar) → sett 2 → Borgo: SÌ ✔
+ *    20 gen (mar) → sett 3 → Borgo: SÌ ✔
+ *    27 gen (mar) → sett 4 → Borgo: NO
  *
- * Esempio – Aprile 2026 (inizia mercoledì 1):
- *   Sett. 1: lun 30/mar – dom  5/apr  → martedì = 31/mar (fuori mese)
- *   Sett. 2: lun  6/apr – dom 12/apr  → martedì =  7 apr  ✔
- *   Sett. 3: lun 13/apr – dom 19/apr  → martedì = 14 apr  ✔
+ *   Febbraio 2026 (1 feb = domenica) → primo lun in mese = 2 feb
+ *     3 feb (mar) → sett 1 → Borgo: NO
+ *    10 feb (mar) → sett 2 → Borgo: SÌ ✔
+ *    17 feb (mar) → sett 3 → Borgo: SÌ ✔
+ *    24 feb (mar) → sett 4 → Borgo: NO
  *
- * Esempio – Febbraio 2026 (inizia domenica 1):
- *   Sett. 1: lun 26/gen – dom  1/feb  → martedì = 27/gen (fuori mese)
- *   Sett. 2: lun  2/feb – dom  8/feb  → martedì =  3 feb  ✔
- *   Sett. 3: lun  9/feb – dom 15/feb  → martedì = 10 feb  ✔
+ *   Aprile 2026 (1 apr = mercoledì) → primo lun in mese = 6 apr
+ *     7 apr (mar) → sett 1 → Borgo: NO  (martedì PRIMA del lunedì 6)
+ *    14 apr (mar) → sett 2 → Borgo: SÌ ✔
+ *    21 apr (mar) → sett 3 → Borgo: SÌ ✔
+ *    28 apr (mar) → sett 4 → Borgo: NO
+ *
+ * Tutto calcolato con date locali (noon) per evitare DST.
  */
-const getWeekOfMonthISO = (date: Date): number => {
-  const { y, m, d } = toLocalYMD(date);
+const getWeekOfMonthFromFirstMonday = (date: Date): number => {
+  const y   = date.getFullYear();
+  const m   = date.getMonth(); // 0-based
+  const d   = date.getDate();
 
-  // Giorno della settimana locale (0=dom … 6=sab)
-  const dow = new Date(y, m, d, 12, 0, 0).getDay();
-  // Offset da lunedì (0=lun … 6=dom)
-  const offsetFromMon = (dow + 6) % 7;
-  // Numero del lunedì della settimana corrente (può essere nel mese precedente)
-  const mondayD = d - offsetFromMon;
+  // Lunedì della settimana del giorno dato (ISO: lun=0...dom=6)
+  const dow        = new Date(y, m, d, 12).getDay();       // 0=dom…6=sab
+  const offsetMon  = (dow + 6) % 7;                         // 0=lun…6=dom
+  const mondayD    = d - offsetMon;                         // può essere <1 (mese prec.)
 
-  // Giorno della settimana del 1° del mese
-  const dowFirst = new Date(y, m, 1, 12, 0, 0).getDay();
-  const offsetFromMonFirst = (dowFirst + 6) % 7;
-  // Numero del lunedì della settimana che contiene il 1° del mese
-  const firstMondayD = 1 - offsetFromMonFirst;
+  // Primo lunedì che cade NEL mese corrente (giorno >= 1)
+  const dowFirst         = new Date(y, m, 1, 12).getDay(); // giorno sett del 1°
+  const offsetMonFirst   = (dowFirst + 6) % 7;
+  // Se il 1° è lunedì offsetMonFirst=0 → firstMondayD=1; altrimenti saltiamo avanti
+  const firstMondayD     = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
 
-  // Differenza in giorni tra i due lunedì → diviso 7 = numero settimana (0-based)
   const diffDays = mondayD - firstMondayD;
+  if (diffDays < 0) return 0; // settimana prima del primo lunedì del mese
   return Math.round(diffDays / 7) + 1; // 1-based
 };
 
 /**
- * Borgo lavora solo il martedì della 2ª e 3ª settimana ISO del mese.
- * Input: qualsiasi oggetto Date (l'ora viene ignorata).
+ * Borgo: aperto il martedì della 2ª e 3ª settimana del mese
+ * (contando le settimane dal primo lunedì nel mese).
  */
 const isBorgoWorkingDay = (date: Date): boolean => {
-  const { y, m, d } = toLocalYMD(date);
-  const dow = new Date(y, m, d, 12, 0, 0).getDay();
-  if (dow !== 2) return false; // non è martedì
-  const week = getWeekOfMonthISO(date);
+  const y  = date.getFullYear();
+  const m  = date.getMonth();
+  const d  = date.getDate();
+  const dow = new Date(y, m, d, 12).getDay(); // 0=dom,2=mar
+  if (dow !== 2) return false;                  // non è martedì
+  const week = getWeekOfMonthFromFirstMonday(date);
   return week === 2 || week === 3;
 };
 
@@ -228,24 +234,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return TIME_SLOTS_IMOLA.indexOf(time) < TIME_SLOTS_IMOLA.indexOf(MILECE_START_TIME);
   };
 
-  /**
-   * Giorno strutturalmente chiuso per sede/operatore.
-   * Accetta qualsiasi Date – usa sempre isBorgoWorkingDay() che è timezone-safe.
-   */
   const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
     if (isWeekend(day)) return true;
     if (sedeId === 'borgo') return !isBorgoWorkingDay(day);
     if (sedeId === 'imola' && operator === 'MILECE') return !isMileceWorkingDay(day);
     return false;
-  };
-
-  /**
-   * Converte una stringa "yyyy-MM-dd" in un Date a mezzogiorno locale,
-   * evitando lo shift UTC→locale che si verifica con new Date("yyyy-MM-dd").
-   */
-  const dateStrToLocal = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return fromLocalYMD(y, m - 1, d); // m-1 perché Date usa 0-based
   };
 
   const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean =>
@@ -558,20 +551,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
-    // ✅ Usa dateStrToLocal per evitare shift UTC→locale
     const dateObj = dateStrToLocal(date);
-
     if (isSedeOperatorDayClosed(selectedSede.id, operator, dateObj)) return 'closed';
     if (isGiornoChiuso(date, operator)) return 'closed';
-
     const slots = getTimeSlotsForSede(selectedSede.id);
     const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
     const totalSlots = slots.length - timeBlockedCount;
-
     const realCount     = getRealAppointmentsCount(date, operator);
     const uffCount      = getUffChiusoSlotsCount(date, operator);
     const occupiedSlots = realCount + uffCount;
-
     if (occupiedSlots === 0)         return 'free';
     if (occupiedSlots >= totalSlots) return 'full';
     return 'partial';
@@ -795,7 +783,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       {operatorsInSede.length > 0 ? (
                         operatorsInSede.map(operator => {
                           const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
-                          // ✅ Usa dateStrToLocal invece di usare day direttamente
                           const dayLocal        = dateStrToLocal(dateStr);
                           const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
                           const isManuallyClose = isGiornoChiuso(dateStr, operator);
