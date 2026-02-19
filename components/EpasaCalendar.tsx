@@ -84,6 +84,13 @@ const TIME_SLOTS_BORGO: string[] = [
   '09:00','09:30','10:00','10:30','11:00','11:30',
 ];
 
+/**
+ * Slot speciali per sede Imola: visibili in agenda ma NON conteggiati
+ * come slot regolari nel calcolo della disponibilità mensile.
+ * L'08:00 è uno slot eccezionale (non prenotabile normalmente).
+ */
+const IMOLA_SPECIAL_SLOTS: string[] = ['08:00'];
+
 const getTimeSlotsForSede = (sedeId: string): string[] => {
   if (sedeId === 'cspt')  return TIME_SLOTS_CSPT;
   if (sedeId === 'borgo') return TIME_SLOTS_BORGO;
@@ -566,7 +573,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (isGiornoChiuso(date, operator)) return 'closed';
     const slots = getTimeSlotsForSede(selectedSede.id);
     const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
-    const totalSlots = slots.length - timeBlockedCount;
+    // Slot speciali (es. 08:00 per Imola) non conteggiati come slot regolari
+    // per gli operatori non-MILECE (MILECE li gestisce già via isMileceTimeBlocked)
+    const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
+      ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
+      : 0;
+    const totalSlots    = slots.length - timeBlockedCount - specialSlotCount;
     const realCount     = getRealAppointmentsCount(date, operator);
     const uffCount      = getUffChiusoSlotsCount(date, operator);
     const occupiedSlots = realCount + uffCount;
