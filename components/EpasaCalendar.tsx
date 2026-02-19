@@ -178,13 +178,11 @@ const isBorgoWorkingDay = (date: Date): boolean => {
   const dow = new Date(y, m, d, 12).getDay(); // 0=dom, 2=mar
   if (dow !== 2) return false;                 // non è martedì
 
-  // Controlla se esiste un'eccezione per questo anno/mese
-  const exKey = `${y}-${m + 1}`; // chiave con mese 1-based
+  const exKey = `${y}-${m + 1}`;
   if (BORGO_EXCEPTIONS[exKey] !== undefined) {
     return BORGO_EXCEPTIONS[exKey].includes(d);
   }
 
-  // Regola standard: sett. 2 e 3 a partire dal primo lunedì nel mese
   const week = getWeekOfMonthFromFirstMonday(date);
   return week === 2 || week === 3;
 };
@@ -247,6 +245,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
     if (isWeekend(day)) return true;
+    if (sedeId === 'cspt')  return getDay(day) !== 1;          // CSPT: solo lunedì (getDay === 1)
     if (sedeId === 'borgo') return !isBorgoWorkingDay(day);
     if (sedeId === 'imola' && operator === 'MILECE') return !isMileceWorkingDay(day);
     return false;
@@ -600,7 +599,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const getSedeOrariLabel = (): string => {
     if (!selectedSede) return '';
-    if (selectedSede.id === 'cspt')  return 'Lun-Ven 14:00-16:30';
+    if (selectedSede.id === 'cspt')  return 'Lunedì 14:00-16:30';
     if (selectedSede.id === 'borgo') return 'Martedì (sett. 2 e 3) 9:00-11:30';
     return 'Lun-Ven 8:00-12:00';
   };
@@ -802,11 +801,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
                           if (isDayClosed || isManuallyClose) {
                             const title = isDayClosed
-                              ? (selectedSede!.id === 'borgo'
-                                  ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
-                                  : operator === 'MILECE'
-                                    ? 'MILECE non lavora questo giorno'
-                                    : 'Ufficio chiuso')
+                              ? (selectedSede!.id === 'cspt'
+                                  ? 'CSPT: aperto solo il lunedì pomeriggio'
+                                  : selectedSede!.id === 'borgo'
+                                    ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
+                                    : operator === 'MILECE'
+                                      ? 'MILECE non lavora questo giorno'
+                                      : 'Ufficio chiuso')
                               : 'Ufficio chiuso';
                             return (
                               <td
