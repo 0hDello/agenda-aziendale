@@ -72,10 +72,6 @@ interface GiornoChiuso {
 }
 
 // ─── Slot per sede ────────────────────────────────────────────────────────────
-// IMOLA  : mattina 08:00–12:00 (slot ogni 30min, ultimo alle 12:00)
-// CSPT   : pomeriggio 14:00–16:30 (slot ogni 30min, l'ultimo appuntamento finisce alle 17)
-// BORGO  : mattina 09:00–11:30 (slot ogni 30min, l'ultimo appuntamento finisce alle 12)
-
 const TIME_SLOTS_IMOLA: string[] = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
 ];
@@ -88,15 +84,12 @@ const TIME_SLOTS_BORGO: string[] = [
   '09:00','09:30','10:00','10:30','11:00','11:30',
 ];
 
-/** Restituisce gli slot corretti in base alla sede */
 const getTimeSlotsForSede = (sedeId: string): string[] => {
   if (sedeId === 'cspt')  return TIME_SLOTS_CSPT;
   if (sedeId === 'borgo') return TIME_SLOTS_BORGO;
   return TIME_SLOTS_IMOLA;
 };
 
-/** Restituisce gli operatori consentiti per la sede.
- *  CSPT e Borgo → solo LOREDANA; IMOLA → tutti (filtrato dal DB). */
 const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[] => {
   if (sedeId === 'cspt' || sedeId === 'borgo') {
     return allOperators.filter(op => op.toUpperCase() === 'LOREDANA');
@@ -104,52 +97,77 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
   return allOperators;
 };
 
-// ─── Regole per MILECE (solo IMOLA) ──────────────────────────────────────────
+// ─── Regole MILECE ────────────────────────────────────────────────────────────
 const MILECE_WORKING_DAYS = [2, 3, 5]; // Mar, Mer, Ven
 const MILECE_START_TIME   = '08:30';
 
-// ─── Regole per BORGO ────────────────────────────────────────────────────────
+// ─── Regole BORGO ─────────────────────────────────────────────────────────────
 /**
- * Borgo: martedì della 2ª e 3ª settimana del mese.
+ * Converte una Date (qualsiasi ora) in un oggetto {y, m, d} usando
+ * esclusivamente valori locali, evitando qualsiasi problema di timezone/DST.
+ */
+const toLocalYMD = (date: Date): { y: number; m: number; d: number } => ({
+  y: date.getFullYear(),
+  m: date.getMonth(),      // 0-based
+  d: date.getDate(),
+});
+
+/**
+ * Costruisce una Date a mezzogiorno locale partendo da y/m/d locali.
+ * Usare sempre mezzogiorno evita ambiguità DST a mezzanotte.
+ */
+const fromLocalYMD = (y: number, m: number, d: number): Date =>
+  new Date(y, m, d, 12, 0, 0, 0);
+
+/**
+ * Restituisce il numero di settimana ISO del mese (1-based, settimane Lun–Dom).
  *
- * La settimana è calcolata come blocco Lun–Dom reale:
- * si trova il lunedì di inizio della settimana ISO del giorno dato,
- * poi si calcola quante settimane (Lun–Dom) complete del mese
- * precedono quel lunedì: il numero che ne risulta (+1) è il numero di settimana del mese.
+ * Logica:
+ *   1. Trova il lunedì della settimana del giorno dato.
+ *   2. Trova il lunedì della settimana che contiene il 1° del mese.
+ *   3. Conta le settimane di distanza → +1.
+ *
+ * Tutto viene fatto in giorni puri (niente ore/minuti) per evitare DST.
  *
  * Esempio – Aprile 2026 (inizia mercoledì 1):
- *   Sett. 1: lun 30/mar – dom  5/apr  → martedì  della settimana = 31/mar (fuori mese, non conta)
+ *   Sett. 1: lun 30/mar – dom  5/apr  → martedì = 31/mar (fuori mese)
  *   Sett. 2: lun  6/apr – dom 12/apr  → martedì =  7 apr  ✔
  *   Sett. 3: lun 13/apr – dom 19/apr  → martedì = 14 apr  ✔
- *   Sett. 4: lun 20/apr – dom 26/apr  → chiuso
- *   Sett. 5: lun 27/apr – dom 30/apr  → chiuso
+ *
+ * Esempio – Febbraio 2026 (inizia domenica 1):
+ *   Sett. 1: lun 26/gen – dom  1/feb  → martedì = 27/gen (fuori mese)
+ *   Sett. 2: lun  2/feb – dom  8/feb  → martedì =  3 feb  ✔
+ *   Sett. 3: lun  9/feb – dom 15/feb  → martedì = 10 feb  ✔
  */
 const getWeekOfMonthISO = (date: Date): number => {
-  // Trovo il lunedì della settimana corrente (ISO: settimana inizia lunedì)
-  const dow = getDay(date); // 0=dom,1=lun,...,6=sab
-  const daysSinceMon = (dow + 6) % 7; // 0=lun, 1=mar, ..., 6=dom
-  const monday = new Date(date);
-  monday.setDate(date.getDate() - daysSinceMon);
-  monday.setHours(0, 0, 0, 0);
+  const { y, m, d } = toLocalYMD(date);
 
-  // Primo giorno del mese
-  const firstOfMonth = new Date(getYear(date), getMonth(date), 1, 0, 0, 0, 0);
+  // Giorno della settimana locale (0=dom … 6=sab)
+  const dow = new Date(y, m, d, 12, 0, 0).getDay();
+  // Offset da lunedì (0=lun … 6=dom)
+  const offsetFromMon = (dow + 6) % 7;
+  // Numero del lunedì della settimana corrente (può essere nel mese precedente)
+  const mondayD = d - offsetFromMon;
 
-  // Lunedì della settimana che contiene il 1° del mese
-  const dowFirst = getDay(firstOfMonth);
-  const daysSinceMonFirst = (dowFirst + 6) % 7;
-  const firstMonday = new Date(firstOfMonth);
-  firstMonday.setDate(firstOfMonth.getDate() - daysSinceMonFirst);
-  firstMonday.setHours(0, 0, 0, 0);
+  // Giorno della settimana del 1° del mese
+  const dowFirst = new Date(y, m, 1, 12, 0, 0).getDay();
+  const offsetFromMonFirst = (dowFirst + 6) % 7;
+  // Numero del lunedì della settimana che contiene il 1° del mese
+  const firstMondayD = 1 - offsetFromMonFirst;
 
-  // Numero di settimane tra il primo lunedì e il lunedì del giorno dato
-  const diffMs = monday.getTime() - firstMonday.getTime();
-  const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
-  return diffWeeks + 1; // settimana 1-based
+  // Differenza in giorni tra i due lunedì → diviso 7 = numero settimana (0-based)
+  const diffDays = mondayD - firstMondayD;
+  return Math.round(diffDays / 7) + 1; // 1-based
 };
 
+/**
+ * Borgo lavora solo il martedì della 2ª e 3ª settimana ISO del mese.
+ * Input: qualsiasi oggetto Date (l'ora viene ignorata).
+ */
 const isBorgoWorkingDay = (date: Date): boolean => {
-  if (getDay(date) !== 2) return false; // non è martedì
+  const { y, m, d } = toLocalYMD(date);
+  const dow = new Date(y, m, d, 12, 0, 0).getDay();
+  if (dow !== 2) return false; // non è martedì
   const week = getWeekOfMonthISO(date);
   return week === 2 || week === 3;
 };
@@ -199,17 +217,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
-  const isWorkingDay       = (date: Date) => { const d = getDay(date); return d !== 0 && d !== 6; };
   const formatDate         = (date: Date) => format(date, 'yyyy-MM-dd');
   const isMileceWorkingDay = (date: Date) => MILECE_WORKING_DAYS.includes(getDay(date));
 
-  /** Gli slot TIME_SLOTS corretti per la sede attiva */
   const currentTimeSlots = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
 
-  /**
-   * Restituisce true se lo slot è bloccato per via dell'orario di inizio di MILECE.
-   * Solo per IMOLA.
-   */
   const isMileceTimeBlocked = (operator: string, day: Date, time: string): boolean => {
     if (operator !== 'MILECE') return false;
     if (!isMileceWorkingDay(day)) return false;
@@ -217,16 +229,23 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   /**
-   * Restituisce true se il giorno è strutturalmente chiuso per l'operatore nella sede.
-   * - MILECE (IMOLA): solo Mar/Mer/Ven
-   * - BORGO: solo martedì della 2ª e 3ª settimana ISO del mese (Lun–Dom)
-   * - CSPT: tutti i giorni feriali
+   * Giorno strutturalmente chiuso per sede/operatore.
+   * Accetta qualsiasi Date – usa sempre isBorgoWorkingDay() che è timezone-safe.
    */
   const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
     if (isWeekend(day)) return true;
     if (sedeId === 'borgo') return !isBorgoWorkingDay(day);
     if (sedeId === 'imola' && operator === 'MILECE') return !isMileceWorkingDay(day);
     return false;
+  };
+
+  /**
+   * Converte una stringa "yyyy-MM-dd" in un Date a mezzogiorno locale,
+   * evitando lo shift UTC→locale che si verifica con new Date("yyyy-MM-dd").
+   */
+  const dateStrToLocal = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return fromLocalYMD(y, m - 1, d); // m-1 perché Date usa 0-based
   };
 
   const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean =>
@@ -250,7 +269,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return slotApts.length > 0 && slotApts.every(a => a.cliente.trim().toUpperCase() === 'UFF CHIUSO');
   };
 
-  /** Conta solo gli appuntamenti reali (esclude UFF CHIUSO) */
   const getRealAppointmentsCount = (dateStr: string, operatoreId: string): number => {
     if (!selectedSede) return 0;
     return allAppointments.filter(
@@ -260,7 +278,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     ).length;
   };
 
-  /** Conta gli slot UFF CHIUSO per giorno/operatore usando gli slot della sede attiva. */
   const getUffChiusoSlotsCount = (dateStr: string, operatoreId: string): number => {
     if (!selectedSede) return 0;
     const slots = getTimeSlotsForSede(selectedSede.id);
@@ -472,13 +489,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     } catch { alert("Errore durante l'eliminazione dell'appuntamento"); }
   };
 
-  // ─── modalità modifica: blocca/sblocca slot ──────────────────────────────────
+  // ─── modalità modifica ───────────────────────────────────────────────────────
 
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
-
     const uffApts = getUffChiusoApts(dateStr, time, operator);
-
     if (uffApts.length > 0) {
       for (const apt of uffApts) {
         try {
@@ -501,7 +516,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         } catch { alert('Errore durante il blocco'); return; }
       }
       setAllAppointments(prev => prev.filter(a => !deletedIds.includes(a.id)));
-
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -542,30 +556,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
-  /**
-   * Calcola la disponibilità giornaliera.
-   *
-   * Tiene conto degli orari e dei giorni lavorativi specifici per sede:
-   * - CSPT  : tutti i giorni feriali, orari pomeriggio
-   * - BORGO : solo martedì della 2ª e 3ª settimana ISO, orari mattina 09-11:30
-   * - IMOLA : tutti i giorni feriali, orari mattina 08-12
-   *           (MILECE solo Mar/Mer/Ven e inizia alle 08:30)
-   *
-   * Soglie colore:
-   *   - 0 occupati          → verde  (free)
-   *   - 1..totalSlots-1     → giallo (partial)
-   *   - totalSlots occupati → rosso  (full)
-   */
   const getDayAvailability = (date: string, operator: string): DayAvailability => {
     if (!selectedSede) return 'free';
-    const dateObj = new Date(date + 'T12:00:00');
+    // ✅ Usa dateStrToLocal per evitare shift UTC→locale
+    const dateObj = dateStrToLocal(date);
 
     if (isSedeOperatorDayClosed(selectedSede.id, operator, dateObj)) return 'closed';
     if (isGiornoChiuso(date, operator)) return 'closed';
 
     const slots = getTimeSlotsForSede(selectedSede.id);
-
-    // Slot strutturalmente bloccati per orario (solo MILECE in IMOLA)
     const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
     const totalSlots = slots.length - timeBlockedCount;
 
@@ -593,7 +592,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return null;
   };
 
-  /** Operatori filtrati per sede */
   const getOperatorsForSede = () => {
     if (!selectedSede) return [];
     const all = operatori.map(op => op.id).sort();
@@ -601,7 +599,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
   const operatorsInSede = getOperatorsForSede();
 
-  /** Etichetta orari nella toolbar */
   const getSedeOrariLabel = (): string => {
     if (!selectedSede) return '';
     if (selectedSede.id === 'cspt')  return 'Lun-Ven 14:00-16:30';
@@ -653,7 +650,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                         </div>
                         {fa && (
                           <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                            Primo libero: {format(new Date(fa), 'dd/MM')}
+                            Primo libero: {format(dateStrToLocal(fa), 'dd/MM')}
                           </div>
                         )}
                       </div>
@@ -798,15 +795,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       {operatorsInSede.length > 0 ? (
                         operatorsInSede.map(operator => {
                           const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
-                          const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, day);
+                          // ✅ Usa dateStrToLocal invece di usare day direttamente
+                          const dayLocal        = dateStrToLocal(dateStr);
+                          const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
                           const isManuallyClose = isGiornoChiuso(dateStr, operator);
-                          const isMileceTC      = isMileceTimeBlocked(operator, day, time);
+                          const isMileceTC      = isMileceTimeBlocked(operator, dayLocal, time);
                           const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
 
                           if (isDayClosed || isManuallyClose) {
                             const title = isDayClosed
                               ? (selectedSede!.id === 'borgo'
-                                  ? 'Borgo: marted\u00ec della 2\u00aa e 3\u00aa settimana del mese'
+                                  ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
                                   : operator === 'MILECE'
                                     ? 'MILECE non lavora questo giorno'
                                     : 'Ufficio chiuso')
@@ -981,7 +980,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Toggle vista */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
@@ -995,7 +993,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </button>
                 </div>
 
-                {/* Tasto lock circolare — modalità modifica */}
                 <div className="relative group">
                   <button
                     onClick={() => setEditMode(e => !e)}
@@ -1013,7 +1010,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </div>
                 </div>
 
-                {/* Navigazione */}
                 {viewMode === 'daily' && (
                   <button onClick={handlePreviousDay} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -1044,7 +1040,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </button>
                 )}
 
-                {/* Sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
                   <div className="relative">
