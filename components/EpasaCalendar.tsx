@@ -119,61 +119,72 @@ const dateStrToLocal = (dateStr: string): Date => {
  * Regola:
  *   - Settimana 1 = la settimana (Lun–Dom) che contiene il primo lunedì del mese
  *   - Settimana 2 = quella successiva, ecc.
- *   - Se il giorno appartiene a una settimana che precede il primo lunedì del mese
- *     (es. domenica 1 feb 2026), restituisce 0 (non usato da Borgo).
+ *   - Se il giorno appartiene a una settimana che precede il primo lunedì del mese,
+ *     restituisce 0 (non usato da Borgo).
  *
- * Esempi verificati:
- *   Gennaio 2026 (1 gen = giovedì) → primo lun in mese = 5 gen
- *     6 gen (mar) → sett 1 → Borgo: NO
+ * Esempi:
+ *   Gennaio 2026  (1 gen = giovedì) → 1° lun del mese =  5 gen
  *    13 gen (mar) → sett 2 → Borgo: SÌ ✔
  *    20 gen (mar) → sett 3 → Borgo: SÌ ✔
- *    27 gen (mar) → sett 4 → Borgo: NO
  *
- *   Febbraio 2026 (1 feb = domenica) → primo lun in mese = 2 feb
- *     3 feb (mar) → sett 1 → Borgo: NO
+ *   Febbraio 2026 (1 feb = domenica) → 1° lun del mese =  2 feb
  *    10 feb (mar) → sett 2 → Borgo: SÌ ✔
  *    17 feb (mar) → sett 3 → Borgo: SÌ ✔
- *    24 feb (mar) → sett 4 → Borgo: NO
- *
- *   Aprile 2026 (1 apr = mercoledì) → primo lun in mese = 6 apr
- *     7 apr (mar) → sett 1 → Borgo: NO  (martedì PRIMA del lunedì 6)
- *    14 apr (mar) → sett 2 → Borgo: SÌ ✔
- *    21 apr (mar) → sett 3 → Borgo: SÌ ✔
- *    28 apr (mar) → sett 4 → Borgo: NO
- *
- * Tutto calcolato con date locali (noon) per evitare DST.
  */
 const getWeekOfMonthFromFirstMonday = (date: Date): number => {
-  const y   = date.getFullYear();
-  const m   = date.getMonth(); // 0-based
-  const d   = date.getDate();
+  const y  = date.getFullYear();
+  const m  = date.getMonth(); // 0-based
+  const d  = date.getDate();
 
-  // Lunedì della settimana del giorno dato (ISO: lun=0...dom=6)
-  const dow        = new Date(y, m, d, 12).getDay();       // 0=dom…6=sab
-  const offsetMon  = (dow + 6) % 7;                         // 0=lun…6=dom
-  const mondayD    = d - offsetMon;                         // può essere <1 (mese prec.)
+  const dow       = new Date(y, m, d, 12).getDay();   // 0=dom…6=sab
+  const offsetMon = (dow + 6) % 7;                     // 0=lun…6=dom
+  const mondayD   = d - offsetMon;
 
-  // Primo lunedì che cade NEL mese corrente (giorno >= 1)
-  const dowFirst         = new Date(y, m, 1, 12).getDay(); // giorno sett del 1°
-  const offsetMonFirst   = (dowFirst + 6) % 7;
-  // Se il 1° è lunedì offsetMonFirst=0 → firstMondayD=1; altrimenti saltiamo avanti
-  const firstMondayD     = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
+  const dowFirst       = new Date(y, m, 1, 12).getDay();
+  const offsetMonFirst = (dowFirst + 6) % 7;
+  const firstMondayD   = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
 
   const diffDays = mondayD - firstMondayD;
-  if (diffDays < 0) return 0; // settimana prima del primo lunedì del mese
-  return Math.round(diffDays / 7) + 1; // 1-based
+  if (diffDays < 0) return 0;
+  return Math.round(diffDays / 7) + 1;
+};
+
+/**
+ * Eccezioni al calendario standard di Borgo per l'anno 2026.
+ * La chiave è nel formato "yyyy-M" (mese 1-based senza zero).
+ * Il valore è l'array dei giorni (getDate()) aperti quel mese.
+ *
+ * Settembre 2026: 8 e 15 (anziché 15 e 22)
+ * Ottobre   2026: 6 e 20 (anziché 13 e 20)
+ * Dicembre  2026: solo 15 (anziché 15 e 22)
+ */
+const BORGO_EXCEPTIONS: Record<string, number[]> = {
+  '2026-9':  [8, 15],
+  '2026-10': [6, 20],
+  '2026-12': [15],
 };
 
 /**
  * Borgo: aperto il martedì della 2ª e 3ª settimana del mese
  * (contando le settimane dal primo lunedì nel mese).
+ *
+ * Per i mesi con eccezioni definite in BORGO_EXCEPTIONS,
+ * il controllo viene sostituito dalla lista esplicita di giorni aperti.
  */
 const isBorgoWorkingDay = (date: Date): boolean => {
-  const y  = date.getFullYear();
-  const m  = date.getMonth();
-  const d  = date.getDate();
-  const dow = new Date(y, m, d, 12).getDay(); // 0=dom,2=mar
-  if (dow !== 2) return false;                  // non è martedì
+  const y   = date.getFullYear();
+  const m   = date.getMonth();   // 0-based
+  const d   = date.getDate();
+  const dow = new Date(y, m, d, 12).getDay(); // 0=dom, 2=mar
+  if (dow !== 2) return false;                 // non è martedì
+
+  // Controlla se esiste un'eccezione per questo anno/mese
+  const exKey = `${y}-${m + 1}`; // chiave con mese 1-based
+  if (BORGO_EXCEPTIONS[exKey] !== undefined) {
+    return BORGO_EXCEPTIONS[exKey].includes(d);
+  }
+
+  // Regola standard: sett. 2 e 3 a partire dal primo lunedì nel mese
   const week = getWeekOfMonthFromFirstMonday(date);
   return week === 2 || week === 3;
 };
