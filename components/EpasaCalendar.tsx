@@ -427,11 +427,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const es = new EventSource('/api/epasa/events');
 
     es.addEventListener('update', () => {
-      // Debounce: evita ricariche multiple ravvicinate
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
         try {
-          // Ricarica solo appuntamenti e giorni chiusi (sedi/operatori non cambiano)
           const [appRes, gcRes] = await Promise.all([
             fetch('/api/epasa/appuntamenti'),
             fetch('/api/epasa/giorni-chiusi'),
@@ -439,18 +437,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           const [appData, gcData] = await Promise.all([appRes.json(), gcRes.json()]);
           if (appData) setAllAppointments(appData);
           if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
-          // Flash visivo per notificare l'utente
           setRealtimeFlash(true);
           setTimeout(() => setRealtimeFlash(false), 1500);
         } catch {
-          // Errore silenzioso: l'utente può sempre ricaricare manualmente
+          // errore silenzioso
         }
       }, SSE_RELOAD_DEBOUNCE);
     });
 
-    es.onerror = () => {
-      // Riconnessione automatica gestita dal browser
-    };
+    es.onerror = () => {};
 
     return () => {
       es.close();
@@ -664,7 +659,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
     return (
       <div className="p-3 md:p-4">
-        {/* Selezione operatore + legenda */}
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           {operatorsInSede.length > 1 && (
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
@@ -729,9 +723,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           </div>
         </div>
 
-        {/* Griglia calendario */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          {/* Intestazione giorni */}
           <div className="grid grid-cols-7 border-b border-gray-200">
             {DAY_NAMES.map((name, idx) => (
               <div
@@ -745,7 +737,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             ))}
           </div>
 
-          {/* Righe settimane */}
           {weeks.map((week, wIdx) => (
             <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
               {week.map((day, dIdx) => {
@@ -755,7 +746,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 const isWe        = isWeekend(day);
                 const isBefore    = day < MIN_DATE;
 
-                // Giorno fuori dal mese corrente: cella vuota
                 if (!isThisMonth) {
                   return (
                     <div
@@ -770,7 +760,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 const av       = getDayAvailability(dateStr, operator);
                 const isClosed = isWe || av === 'closed';
 
-                // Calcola slot liberi
                 let freeSlots = 0;
                 if (!isClosed && selectedSede) {
                   const slots = getTimeSlotsForSede(selectedSede.id);
@@ -820,7 +809,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           : `${operator} - ${format(day, 'dd/MM/yyyy')} - Pieno`
                     }
                   >
-                    {/* Numero del giorno + pallino stato */}
                     <div className="flex items-start justify-between mb-1">
                       <span
                         className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
@@ -838,7 +826,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       )}
                     </div>
 
-                    {/* Testo slot liberi: in basso a sinistra, solo se ci sono slot liberi */}
                     {!isClosed && freeSlots > 0 && (
                       <div className="absolute bottom-1.5 left-1.5">
                         <div className="flex items-center gap-1">
@@ -1113,28 +1100,33 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+
+              {/* ─── SINISTRA: icona + titolo + badge Live ─── */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <CalendarIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-[#005CA9]">EPASA - {selectedSede.nome}</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-[#005CA9]">EPASA - {selectedSede.nome}</h1>
+                    {/* Badge Live accanto al titolo */}
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                      realtimeFlash
+                        ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                        : 'bg-gray-50 text-gray-400 border border-gray-200'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                      }`} />
+                      {realtimeFlash ? 'Aggiornato' : 'Live'}
+                    </div>
+                  </div>
                   <p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Indicatore aggiornamento in tempo reale */}
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold transition-all duration-500 ${
-                  realtimeFlash
-                    ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
-                    : 'bg-gray-50 text-gray-400 border border-gray-200'
-                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-                  }`} />
-                  {realtimeFlash ? 'Aggiornato' : 'Live'}
-                </div>
 
+              {/* ─── DESTRA: controlli ─── */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
