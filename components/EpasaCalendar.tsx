@@ -1157,18 +1157,20 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </div>
                 </div>
 
-                {viewMode === 'daily' && (
-                  <button onClick={handlePreviousDay} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <ChevronLeft className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
-                {viewMode === 'monthly' && (
-                  <button onClick={handlePreviousMonth} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <ChevronLeft className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
+                {/* Freccia sinistra: sempre visibile, cambia funzione in base alla vista */}
+                <button
+                  onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
+                  disabled={selectedDate <= MIN_DATE}
+                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-600" />
+                </button>
 
-                <button onClick={() => setShowDatePicker(!showDatePicker)} className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer">
+                {/* Bottone data: larghezza fissa per non spostare il layout al cambio vista */}
+                <button
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center"
+                >
                   <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
                     {viewMode === 'daily'
                       ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
@@ -1176,16 +1178,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </span>
                 </button>
 
-                {viewMode === 'daily' && (
-                  <button onClick={() => navigateToDate(addDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
-                {viewMode === 'monthly' && (
-                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
+                {/* Freccia destra: sempre visibile, cambia funzione in base alla vista */}
+                <button
+                  onClick={() => viewMode === 'daily'
+                    ? navigateToDate(addDays(selectedDate, 1))
+                    : setSelectedDate(addMonths(selectedDate, 1))
+                  }
+                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                </button>
 
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
