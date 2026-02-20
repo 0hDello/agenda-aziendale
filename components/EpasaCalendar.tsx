@@ -713,16 +713,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 const isWe        = isWeekend(day);
                 const isBefore    = day < MIN_DATE;
 
+                // Giorno fuori dal mese corrente: cella vuota
                 if (!isThisMonth) {
                   return (
                     <div
                       key={dateStr}
-                      className={`p-1.5 border-r border-gray-100 last:border-r-0 bg-gray-50 opacity-40 ${
-                        dIdx >= 5 ? 'bg-gray-100' : ''
+                      className={`p-1.5 border-r border-gray-100 last:border-r-0 ${
+                        dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
                       }`}
-                    >
-                      <span className="text-xs text-gray-400 font-medium">{format(day, 'd')}</span>
-                    </div>
+                    />
                   );
                 }
 
