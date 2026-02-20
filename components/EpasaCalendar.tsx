@@ -32,6 +32,8 @@ import {
   getDate,
   getMonth,
   getYear,
+  startOfWeek,
+  endOfWeek,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import React from 'react';
@@ -122,21 +124,6 @@ const dateStrToLocal = (dateStr: string): Date => {
 
 /**
  * Numero di settimana nel mese, contando dal primo lunedì che cade NEL mese.
- *
- * Regola:
- *   - Settimana 1 = la settimana (Lun–Dom) che contiene il primo lunedì del mese
- *   - Settimana 2 = quella successiva, ecc.
- *   - Se il giorno appartiene a una settimana che precede il primo lunedì del mese,
- *     restituisce 0 (non usato da Borgo).
- *
- * Esempi:
- *   Gennaio 2026  (1 gen = giovedì) → 1° lun del mese =  5 gen
- *    13 gen (mar) → sett 2 → Borgo: SÌ ✔
- *    20 gen (mar) → sett 3 → Borgo: SÌ ✔
- *
- *   Febbraio 2026 (1 feb = domenica) → 1° lun del mese =  2 feb
- *    10 feb (mar) → sett 2 → Borgo: SÌ ✔
- *    17 feb (mar) → sett 3 → Borgo: SÌ ✔
  */
 const getWeekOfMonthFromFirstMonday = (date: Date): number => {
   const y  = date.getFullYear();
@@ -158,12 +145,6 @@ const getWeekOfMonthFromFirstMonday = (date: Date): number => {
 
 /**
  * Eccezioni al calendario standard di Borgo per l'anno 2026.
- * La chiave è nel formato "yyyy-M" (mese 1-based senza zero).
- * Il valore è l'array dei giorni (getDate()) aperti quel mese.
- *
- * Settembre 2026: 8 e 15 (anziché 15 e 22)
- * Ottobre   2026: 6 e 20 (anziché 13 e 20)
- * Dicembre  2026: solo 15 (anziché 15 e 22)
  */
 const BORGO_EXCEPTIONS: Record<string, number[]> = {
   '2026-9':  [8, 15],
@@ -173,10 +154,6 @@ const BORGO_EXCEPTIONS: Record<string, number[]> = {
 
 /**
  * Borgo: aperto il martedì della 2ª e 3ª settimana del mese
- * (contando le settimane dal primo lunedì nel mese).
- *
- * Per i mesi con eccezioni definite in BORGO_EXCEPTIONS,
- * il controllo viene sostituito dalla lista esplicita di giorni aperti.
  */
 const isBorgoWorkingDay = (date: Date): boolean => {
   const y   = date.getFullYear();
@@ -221,6 +198,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [viewMode, setViewMode]               = useState<ViewMode>('daily');
   const [isInitialized, setIsInitialized]     = useState(false);
   const [editMode, setEditMode]               = useState(false);
+  // Operatore selezionato per la vista mensile (null = tutti)
+  const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -573,8 +552,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (isGiornoChiuso(date, operator)) return 'closed';
     const slots = getTimeSlotsForSede(selectedSede.id);
     const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
-    // Slot speciali (es. 08:00 per Imola) non conteggiati come slot regolari
-    // per gli operatori non-MILECE (MILECE li gestisce già via isMileceTimeBlocked)
     const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
       ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
       : 0;
@@ -609,6 +586,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
   const operatorsInSede = getOperatorsForSede();
 
+  // Operatore attivo nella vista mensile: se null o non valido usa il primo disponibile
+  const activeMonthlyOperator = selectedMonthlyOperator && operatorsInSede.includes(selectedMonthlyOperator)
+    ? selectedMonthlyOperator
+    : operatorsInSede[0] ?? null;
+
   const getSedeOrariLabel = (): string => {
     if (!selectedSede) return '';
     if (selectedSede.id === 'cspt')  return 'Lunedì 14:00-16:30';
@@ -626,107 +608,251 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ORIZZONTALE ───────────────────────────────────────────────
 
   const renderMonthlyView = () => {
-    const days = eachDayOfInterval({
-      start: startOfMonth(selectedDate),
-      end:   endOfMonth(selectedDate),
-    });
+    if (!activeMonthlyOperator) return null;
+
+    const operator = activeMonthlyOperator;
+    const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+    const fa = getFirstAvailableDay(operator);
+
+    // Costruisci le settimane del mese come un calendario tradizionale
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd   = endOfMonth(selectedDate);
+    // Prima settimana: parte dal lunedì della settimana che contiene il 1° del mese
+    const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEnd   = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+    const allCalDays = eachDayOfInterval({ start: calStart, end: calEnd });
+
+    // Raggruppa per settimane (array di array da 7)
+    const weeks: Date[][] = [];
+    for (let i = 0; i < allCalDays.length; i += 7) {
+      weeks.push(allCalDays.slice(i, i + 7));
+    }
+
+    const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+
     return (
-      <div className="p-4">
-        <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200 flex-wrap">
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-green-500" /><span className="text-xs font-medium text-gray-700">Libero</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-yellow-500" /><span className="text-xs font-medium text-gray-700">Parzialmente occupato</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-500" /><span className="text-xs font-medium text-gray-700">Pieno</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-gray-400" /><span className="text-xs font-medium text-gray-700">Chiuso / Non disponibile</span></div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">Giorno</th>
-                {operatorsInSede.map(operator => {
-                  const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                  const fa = getFirstAvailableDay(operator);
+      <div className="p-3 md:p-4">
+        {/* Selezione operatore + legenda */}
+        <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          {/* Selettore operatore (visibile solo se ci sono più operatori per la sede) */}
+          {operatorsInSede.length > 1 && (
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+              <User size={16} className="text-gray-500" />
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Operatore</span>
+              <div className="flex items-center gap-1">
+                {operatorsInSede.map(op => {
+                  const col = op === 'MILECE' ? '#DC2626' : '#16A34A';
+                  const isActive = op === activeMonthlyOperator;
                   return (
-                    <th key={operator} className="p-3 text-center text-sm font-semibold border-b">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
-                            <User size={14} className="text-white" />
-                          </div>
-                          <span style={{ color }} className="font-bold">{operator}</span>
-                        </div>
-                        {fa && (
-                          <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                            Primo libero: {format(dateStrToLocal(fa), 'dd/MM')}
-                          </div>
-                        )}
+                    <button
+                      key={op}
+                      onClick={() => setSelectedMonthlyOperator(op)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        isActive
+                          ? 'text-white shadow-md scale-105'
+                          : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                      }`}
+                      style={isActive ? { backgroundColor: col } : {}}
+                    >
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : col }}
+                      >
+                        <User size={11} className="text-white" />
                       </div>
-                    </th>
+                      {op}
+                    </button>
                   );
                 })}
-              </tr>
-            </thead>
-            <tbody>
-              {days.map(day => {
-                const dateStr  = formatDate(day);
-                const isToday  = formatDate(new Date()) === dateStr;
-                const isWe     = isWeekend(day);
-                const isBefore = day < MIN_DATE;
+              </div>
+            </div>
+          )}
+
+          {/* Info operatore singolo + primo libero */}
+          {operatorsInSede.length === 1 && (
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: operatorColor }}
+              >
+                <User size={14} className="text-white" />
+              </div>
+              <span className="font-bold text-sm" style={{ color: operatorColor }}>{operator}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4 flex-wrap">
+            {fa && (
+              <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+                <CalendarIcon size={12} className="text-blue-600" />
+                <span className="text-xs font-semibold text-blue-700">
+                  Primo libero: {format(dateStrToLocal(fa), 'dd/MM', { locale: it })}
+                </span>
+              </div>
+            )}
+            {/* Legenda */}
+            <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-200">
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-500" /><span className="text-[11px] text-gray-600">Libero</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-400" /><span className="text-[11px] text-gray-600">Parziale</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-500" /><span className="text-[11px] text-gray-600">Pieno</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-gray-300" /><span className="text-[11px] text-gray-600">Chiuso</span></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Griglia calendario */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          {/* Intestazione giorni */}
+          <div className="grid grid-cols-7 border-b border-gray-200">
+            {DAY_NAMES.map((name, idx) => (
+              <div
+                key={name}
+                className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${
+                  idx >= 5 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600'
+                }`}
+              >
+                {name}
+              </div>
+            ))}
+          </div>
+
+          {/* Righe settimane */}
+          {weeks.map((week, wIdx) => (
+            <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
+              {week.map((day, dIdx) => {
+                const dateStr    = formatDate(day);
+                const isThisMonth = getMonth(day) === getMonth(selectedDate);
+                const isToday    = formatDate(new Date()) === dateStr;
+                const isWe       = isWeekend(day);
+                const isBefore   = day < MIN_DATE;
+
+                if (!isThisMonth) {
+                  // Giorno fuori dal mese corrente: cella vuota semi-trasparente
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`p-1.5 border-r border-gray-100 last:border-r-0 bg-gray-50 opacity-40 ${
+                        dIdx >= 5 ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      <span className="text-xs text-gray-400 font-medium">{format(day, 'd')}</span>
+                    </div>
+                  );
+                }
+
+                const av       = getDayAvailability(dateStr, operator);
+                const isClosed = isWe || av === 'closed';
+                const n        = isClosed ? 0 : getRealAppointmentsCount(dateStr, operator);
+                const uffN     = isClosed ? 0 : getUffChiusoSlotsCount(dateStr, operator);
+
+                // Calcola slot totali e liberi per mostrare il badge
+                let freeSlots = 0;
+                if (!isClosed && selectedSede) {
+                  const slots = getTimeSlotsForSede(selectedSede.id);
+                  const dateObj = dateStrToLocal(dateStr);
+                  const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
+                  const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
+                    ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
+                    : 0;
+                  const totalSlots = slots.length - timeBlockedCount - specialSlotCount;
+                  freeSlots = Math.max(0, totalSlots - n - uffN);
+                }
+
+                const avBg =
+                  isClosed ? (isWe ? 'bg-gray-100' : 'bg-gray-50') :
+                  av === 'free'    ? 'bg-green-50' :
+                  av === 'partial' ? 'bg-yellow-50' :
+                  'bg-red-50';
+
+                const avBorder =
+                  isClosed ? '' :
+                  av === 'free'    ? 'border-t-2 border-green-400' :
+                  av === 'partial' ? 'border-t-2 border-yellow-400' :
+                  'border-t-2 border-red-500';
+
+                const avDot =
+                  av === 'free'    ? 'bg-green-500' :
+                  av === 'partial' ? 'bg-yellow-400' :
+                  av === 'full'    ? 'bg-red-500' :
+                  'bg-gray-300';
+
                 return (
-                  <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className={`p-3 font-medium border-r ${
-                      isToday ? 'bg-[#005CA9] text-white' :
-                      isWe    ? 'bg-gray-200 text-gray-400' : 'text-gray-700'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{format(day, 'd')}</span>
-                        <span className="text-xs capitalize">{format(day, 'EEE', { locale: it })}</span>
+                  <div
+                    key={dateStr}
+                    onClick={() => {
+                      if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); }
+                    }}
+                    className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${
+                      !isClosed && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
+                    } ${isBefore && !isClosed ? 'opacity-40' : ''}`}
+                    title={
+                      isClosed
+                        ? 'Chiuso'
+                        : `${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti, ${uffN} slot bloccati, ${freeSlots} liberi`
+                    }
+                  >
+                    {/* Numero del giorno */}
+                    <div className="flex items-start justify-between mb-1">
+                      <span
+                        className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                          isToday
+                            ? 'bg-[#005CA9] text-white'
+                            : isWe
+                              ? 'text-gray-400'
+                              : 'text-gray-700'
+                        }`}
+                      >
+                        {format(day, 'd')}
+                      </span>
+                      {!isClosed && (
+                        <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />
+                      )}
+                    </div>
+
+                    {/* Contenuto della cella */}
+                    {isClosed ? (
+                      <div className="flex items-center justify-center h-8">
+                        <span className="text-[10px] text-gray-400">—</span>
                       </div>
-                    </td>
-                    {operatorsInSede.map(operator => {
-                      const av = getDayAvailability(dateStr, operator);
-                      const isClosed = isWe || av === 'closed';
-                      if (isClosed) return (
-                        <td key={`${dateStr}-${operator}`} className="p-2 text-center bg-gray-200 opacity-60 select-none">
-                          <span className="text-xs text-gray-500">—</span>
-                        </td>
-                      );
-                      const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
-                      const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
-                      const n    = getRealAppointmentsCount(dateStr, operator);
-                      const uffN = getUffChiusoSlotsCount(dateStr, operator);
-                      return (
-                        <td
-                          key={`${dateStr}-${operator}`}
-                          className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} ${
-                            isBefore ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'
-                          }`}
-                          onClick={() => { if (!isBefore) { navigateToDate(day); setViewMode('daily'); } }}
-                          title={`${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti reali, ${uffN} slot bloccati`}
-                        >
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-sm font-bold text-gray-700">{n}</span>
-                            <span className="text-xs text-gray-600">
-                              {av === 'free' ? 'Vuoto' : av === 'partial' ? 'App.' : 'Pieno'}
-                            </span>
-                            {uffN > 0 && (
-                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                                <Lock size={8} />{uffN}
-                              </span>
-                            )}
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        {n > 0 && (
+                          <div className="flex items-center gap-1">
+                            <User size={9} className="text-gray-500 flex-shrink-0" />
+                            <span className="text-[11px] font-semibold text-gray-700">{n} app.</span>
                           </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
+                        )}
+                        {freeSlots > 0 && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                            <span className="text-[10px] text-green-700 font-medium">{freeSlots} liberi</span>
+                          </div>
+                        )}
+                        {uffN > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Lock size={8} className="text-gray-400 flex-shrink-0" />
+                            <span className="text-[10px] text-gray-400">{uffN} bloccat{uffN === 1 ? 'o' : 'i'}</span>
+                          </div>
+                        )}
+                        {n === 0 && freeSlots === 0 && uffN === 0 && (
+                          <span className="text-[10px] text-gray-400">Vuoto</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+          ))}
         </div>
+
+        <p className="mt-2 text-[11px] text-gray-400 text-center">
+          Clicca su un giorno per aprire la vista giornaliera
+        </p>
       </div>
     );
   };
