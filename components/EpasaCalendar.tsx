@@ -114,8 +114,6 @@ const MILECE_START_TIME   = '08:30';
 
 /**
  * Converte una stringa "yyyy-MM-dd" in un Date a mezzogiorno locale.
- * Evita lo shift UTC→locale di new Date("yyyy-MM-dd") che interpreta
- * la stringa come UTC midnight (= giorno precedente alle 23:00 in CET).
  */
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -127,11 +125,11 @@ const dateStrToLocal = (dateStr: string): Date => {
  */
 const getWeekOfMonthFromFirstMonday = (date: Date): number => {
   const y  = date.getFullYear();
-  const m  = date.getMonth(); // 0-based
+  const m  = date.getMonth();
   const d  = date.getDate();
 
-  const dow       = new Date(y, m, d, 12).getDay();   // 0=dom…6=sab
-  const offsetMon = (dow + 6) % 7;                     // 0=lun…6=dom
+  const dow       = new Date(y, m, d, 12).getDay();
+  const offsetMon = (dow + 6) % 7;
   const mondayD   = d - offsetMon;
 
   const dowFirst       = new Date(y, m, 1, 12).getDay();
@@ -143,24 +141,18 @@ const getWeekOfMonthFromFirstMonday = (date: Date): number => {
   return Math.round(diffDays / 7) + 1;
 };
 
-/**
- * Eccezioni al calendario standard di Borgo per l'anno 2026.
- */
 const BORGO_EXCEPTIONS: Record<string, number[]> = {
   '2026-9':  [8, 15],
   '2026-10': [6, 20],
   '2026-12': [15],
 };
 
-/**
- * Borgo: aperto il martedì della 2ª e 3ª settimana del mese
- */
 const isBorgoWorkingDay = (date: Date): boolean => {
   const y   = date.getFullYear();
-  const m   = date.getMonth();   // 0-based
+  const m   = date.getMonth();
   const d   = date.getDate();
-  const dow = new Date(y, m, d, 12).getDay(); // 0=dom, 2=mar
-  if (dow !== 2) return false;                 // non è martedì
+  const dow = new Date(y, m, d, 12).getDay();
+  if (dow !== 2) return false;
 
   const exKey = `${y}-${m + 1}`;
   if (BORGO_EXCEPTIONS[exKey] !== undefined) {
@@ -198,7 +190,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [viewMode, setViewMode]               = useState<ViewMode>('daily');
   const [isInitialized, setIsInitialized]     = useState(false);
   const [editMode, setEditMode]               = useState(false);
-  // Operatore selezionato per la vista mensile (null = tutti)
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
@@ -231,7 +222,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
     if (isWeekend(day)) return true;
-    if (sedeId === 'cspt')  return getDay(day) !== 1;          // CSPT: solo lunedì (getDay === 1)
+    if (sedeId === 'cspt')  return getDay(day) !== 1;
     if (sedeId === 'borgo') return !isBorgoWorkingDay(day);
     if (sedeId === 'imola' && operator === 'MILECE') return !isMileceWorkingDay(day);
     return false;
@@ -586,7 +577,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
   const operatorsInSede = getOperatorsForSede();
 
-  // Operatore attivo nella vista mensile: se null o non valido usa il primo disponibile
   const activeMonthlyOperator = selectedMonthlyOperator && operatorsInSede.includes(selectedMonthlyOperator)
     ? selectedMonthlyOperator
     : operatorsInSede[0] ?? null;
@@ -617,16 +607,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
     const fa = getFirstAvailableDay(operator);
 
-    // Costruisci le settimane del mese come un calendario tradizionale
     const monthStart = startOfMonth(selectedDate);
     const monthEnd   = endOfMonth(selectedDate);
-    // Prima settimana: parte dal lunedì della settimana che contiene il 1° del mese
-    const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calEnd   = endOfWeek(monthEnd, { weekStartsOn: 1 });
-
+    const calStart   = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEnd     = endOfWeek(monthEnd, { weekStartsOn: 1 });
     const allCalDays = eachDayOfInterval({ start: calStart, end: calEnd });
 
-    // Raggruppa per settimane (array di array da 7)
     const weeks: Date[][] = [];
     for (let i = 0; i < allCalDays.length; i += 7) {
       weeks.push(allCalDays.slice(i, i + 7));
@@ -638,7 +624,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       <div className="p-3 md:p-4">
         {/* Selezione operatore + legenda */}
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          {/* Selettore operatore (visibile solo se ci sono più operatori per la sede) */}
           {operatorsInSede.length > 1 && (
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
               <User size={16} className="text-gray-500" />
@@ -672,7 +657,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
           )}
 
-          {/* Info operatore singolo + primo libero */}
           {operatorsInSede.length === 1 && (
             <div className="flex items-center gap-2">
               <div
@@ -694,7 +678,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </span>
               </div>
             )}
-            {/* Legenda */}
             <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-200">
               <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-500" /><span className="text-[11px] text-gray-600">Libero</span></div>
               <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-400" /><span className="text-[11px] text-gray-600">Parziale</span></div>
@@ -724,14 +707,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           {weeks.map((week, wIdx) => (
             <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
               {week.map((day, dIdx) => {
-                const dateStr    = formatDate(day);
+                const dateStr     = formatDate(day);
                 const isThisMonth = getMonth(day) === getMonth(selectedDate);
-                const isToday    = formatDate(new Date()) === dateStr;
-                const isWe       = isWeekend(day);
-                const isBefore   = day < MIN_DATE;
+                const isToday     = formatDate(new Date()) === dateStr;
+                const isWe        = isWeekend(day);
+                const isBefore    = day < MIN_DATE;
 
                 if (!isThisMonth) {
-                  // Giorno fuori dal mese corrente: cella vuota semi-trasparente
                   return (
                     <div
                       key={dateStr}
@@ -746,14 +728,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
                 const av       = getDayAvailability(dateStr, operator);
                 const isClosed = isWe || av === 'closed';
-                const n        = isClosed ? 0 : getRealAppointmentsCount(dateStr, operator);
-                const uffN     = isClosed ? 0 : getUffChiusoSlotsCount(dateStr, operator);
 
-                // Calcola slot totali e liberi per mostrare il badge
+                // Calcola slot liberi
                 let freeSlots = 0;
                 if (!isClosed && selectedSede) {
                   const slots = getTimeSlotsForSede(selectedSede.id);
                   const dateObj = dateStrToLocal(dateStr);
+                  const n    = getRealAppointmentsCount(dateStr, operator);
+                  const uffN = getUffChiusoSlotsCount(dateStr, operator);
                   const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
                   const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
                     ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
@@ -792,7 +774,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                     title={
                       isClosed
                         ? 'Chiuso'
-                        : `${operator} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti, ${uffN} slot bloccati, ${freeSlots} liberi`
+                        : freeSlots > 0
+                          ? `${operator} - ${format(day, 'dd/MM/yyyy')} - ${freeSlots} slot liberi`
+                          : `${operator} - ${format(day, 'dd/MM/yyyy')} - Pieno`
                     }
                   >
                     {/* Numero del giorno */}
@@ -813,33 +797,19 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       )}
                     </div>
 
-                    {/* Contenuto della cella */}
+                    {/* Contenuto della cella: solo slot liberi o Pieno */}
                     {isClosed ? (
                       <div className="flex items-center justify-center h-8">
                         <span className="text-[10px] text-gray-400">—</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-0.5">
-                        {n > 0 && (
-                          <div className="flex items-center gap-1">
-                            <User size={9} className="text-gray-500 flex-shrink-0" />
-                            <span className="text-[11px] font-semibold text-gray-700">{n} app.</span>
-                          </div>
-                        )}
-                        {freeSlots > 0 && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                            <span className="text-[10px] text-green-700 font-medium">{freeSlots} liberi</span>
-                          </div>
-                        )}
-                        {uffN > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Lock size={8} className="text-gray-400 flex-shrink-0" />
-                            <span className="text-[10px] text-gray-400">{uffN} bloccat{uffN === 1 ? 'o' : 'i'}</span>
-                          </div>
-                        )}
-                        {n === 0 && freeSlots === 0 && uffN === 0 && (
-                          <span className="text-[10px] text-gray-400">Vuoto</span>
+                      <div className="flex items-center justify-center h-8">
+                        {freeSlots > 0 ? (
+                          <span className="text-[12px] font-bold text-green-700">
+                            {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-red-600">Pieno</span>
                         )}
                       </div>
                     )}
