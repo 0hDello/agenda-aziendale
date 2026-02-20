@@ -36,14 +36,14 @@ export function broadcastEpasaUpdate(eventType: string = 'update', data: object 
   const encoded = new TextEncoder().encode(message);
   const toRemove: SSEController[] = [];
 
-  for (const controller of clients) {
+  clients.forEach(controller => {
     try {
       controller.enqueue(encoded);
     } catch {
       // Client disconnesso: lo rimuoviamo
       toRemove.push(controller);
     }
-  }
+  });
 
   toRemove.forEach(c => clients.delete(c));
 }
