@@ -843,9 +843,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           ))}
         </div>
 
-        <p className="mt-2 text-[11px] text-gray-400 text-center">
-          Clicca su un giorno per aprire la vista giornaliera
-        </p>
+        
       </div>
     );
   };

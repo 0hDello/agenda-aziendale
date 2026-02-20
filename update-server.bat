@@ -1,20 +1,13 @@
 @echo off
 SETLOCAL ENABLEDELAYEDEXPANSION
 
-:: ============================================================
-::  update-server.bat
-::  Controlla se il progetto e' aggiornato all'ultimo commit.
-::  Se non lo e': fa git pull, npm install, build e avvia.
-::  Se e' gia' aggiornato: avvia direttamente (se non in esecuzione).
-:: ============================================================
 
-:: --- CONFIGURAZIONE (modifica questi valori) ----------------
 SET APP_DIR=C:\agenda-aziendale
 SET BRANCH=MIGRAZIONE_POSTGRESSQL
 SET PORT=3000
 SET NODE_ENV=production
 SET LOG_FILE=%APP_DIR%\update-server.log
-:: ------------------------------------------------------------
+
 
 echo ============================================================ >> "%LOG_FILE%"
 echo [%DATE% %TIME%] Avvio controllo aggiornamenti >> "%LOG_FILE%"
@@ -56,7 +49,7 @@ IF "%LOCAL_COMMIT%"=="%REMOTE_COMMIT%" (
     GOTO :AVVIA
 )
 
-:: ---- AGGIORNAMENTO NECESSARIO --------------------------------
+::AGGIORNAMENTO NECESSARIO 
 echo.
 echo [!] Trovato nuovo commit. Avvio aggiornamento...
 echo [%DATE% %TIME%] Nuovo commit trovato, avvio aggiornamento >> "%LOG_FILE%"
@@ -101,7 +94,7 @@ IF ERRORLEVEL 1 (
 )
 echo [%DATE% %TIME%] Build completata >> "%LOG_FILE%"
 
-:: ---- AVVIO --------------------------------------------------
+::  AVVIO 
 :AVVIA
 echo.
 echo [AVVIO] Avvio il server Next.js sulla porta %PORT%...
