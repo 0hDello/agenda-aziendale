@@ -775,11 +775,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       isClosed
                         ? 'Chiuso'
                         : freeSlots > 0
-                          ? `${operator} - ${format(day, 'dd/MM/yyyy')} - ${freeSlots} slot liberi`
+                          ? `${operator} - ${format(day, 'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots === 1 ? 'o' : 'i'}`
                           : `${operator} - ${format(day, 'dd/MM/yyyy')} - Pieno`
                     }
                   >
-                    {/* Numero del giorno */}
+                    {/* Numero del giorno + pallino stato */}
                     <div className="flex items-start justify-between mb-1">
                       <span
                         className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
@@ -797,20 +797,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       )}
                     </div>
 
-                    {/* Contenuto della cella: solo slot liberi o Pieno */}
-                    {isClosed ? (
-                      <div className="flex items-center justify-center h-8">
-                        <span className="text-[10px] text-gray-400">—</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-8">
-                        {freeSlots > 0 ? (
-                          <span className="text-[12px] font-bold text-green-700">
+                    {/* Testo slot liberi: in basso a sinistra, solo se ci sono slot liberi */}
+                    {!isClosed && freeSlots > 0 && (
+                      <div className="absolute bottom-1.5 left-1.5">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                          <span className="text-[10px] font-semibold text-green-700">
                             {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
                           </span>
-                        ) : (
-                          <span className="text-[11px] font-bold text-red-600">Pieno</span>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>
