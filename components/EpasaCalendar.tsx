@@ -174,6 +174,9 @@ const MIN_DATE                 = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD         = 400;
 const POST_COMPENSATE_COOLDOWN = 400;
 
+// Debounce minimo tra due ricariche SSE (ms) per evitare flood
+const SSE_RELOAD_DEBOUNCE = 800;
+
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
   const [sedi, setSedi]                       = useState<Sede[]>([]);
@@ -191,6 +194,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [isInitialized, setIsInitialized]     = useState(false);
   const [editMode, setEditMode]               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
+  // Indicatore visivo aggiornamento in tempo reale
+  const [realtimeFlash, setRealtimeFlash]     = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -204,6 +209,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
   const handleScrollRef           = useRef<() => void>(() => {});
+  const sseReloadTimerRef         = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -415,6 +421,42 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       setSelectedSede(imola || sedi[0]);
     }
   }, [sedi, selectedSede]);
+
+  // ─── SSE: aggiornamento in tempo reale ───────────────────────────────────────
+  useEffect(() => {
+    const es = new EventSource('/api/epasa/events');
+
+    es.addEventListener('update', () => {
+      // Debounce: evita ricariche multiple ravvicinate
+      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
+      sseReloadTimerRef.current = setTimeout(async () => {
+        try {
+          // Ricarica solo appuntamenti e giorni chiusi (sedi/operatori non cambiano)
+          const [appRes, gcRes] = await Promise.all([
+            fetch('/api/epasa/appuntamenti'),
+            fetch('/api/epasa/giorni-chiusi'),
+          ]);
+          const [appData, gcData] = await Promise.all([appRes.json(), gcRes.json()]);
+          if (appData) setAllAppointments(appData);
+          if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
+          // Flash visivo per notificare l'utente
+          setRealtimeFlash(true);
+          setTimeout(() => setRealtimeFlash(false), 1500);
+        } catch {
+          // Errore silenzioso: l'utente può sempre ricaricare manualmente
+        }
+      }, SSE_RELOAD_DEBOUNCE);
+    });
+
+    es.onerror = () => {
+      // Riconnessione automatica gestita dal browser
+    };
+
+    return () => {
+      es.close();
+      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
+    };
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -1081,6 +1123,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Indicatore aggiornamento in tempo reale */}
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                  realtimeFlash
+                    ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                    : 'bg-gray-50 text-gray-400 border border-gray-200'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                  }`} />
+                  {realtimeFlash ? 'Aggiornato' : 'Live'}
+                </div>
+
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
