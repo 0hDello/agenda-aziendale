@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
+import { broadcastEpasaUpdate } from '@/lib/sse';
 
 // GET: ritorna tutti i giorni chiusi
 export async function GET() {
@@ -47,6 +48,10 @@ export async function POST(request: Request) {
       [data, operatore_id || null, motivo || null]
     );
     const row = result.rows[0];
+
+    // Notifica tutti i client SSE connessi
+    broadcastEpasaUpdate('update', { action: 'giorno-chiuso' });
+
     return NextResponse.json({
       ...row,
       data: row.data instanceof Date ? row.data.toISOString().split('T')[0] : row.data.toString().split('T')[0],

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'; 
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
+import { broadcastEpasaUpdate } from '@/lib/sse';
 
 export async function PUT(
   request: NextRequest, 
@@ -12,7 +13,6 @@ export async function PUT(
     const body = await request.json();
     const { sede_id, operatore_id, data, ora, cliente, mese, note } = body;
 
-    
     if (!sede_id || !operatore_id || !data || !ora || !cliente) {
       return NextResponse.json(
         { error: 'Campi obbligatori mancanti' },
@@ -39,6 +39,10 @@ export async function PUT(
           ? result.rows[0].ora.substring(0, 5) 
           : result.rows[0].ora,
       };
+
+      // Notifica tutti i client SSE connessi
+      broadcastEpasaUpdate('update', { action: 'update', id });
+
       return NextResponse.json(normalized);
     }
 
@@ -58,13 +62,15 @@ export async function DELETE(
     
     const result = await query('DELETE FROM epasa_appuntamenti WHERE id = $1', [id]);
     
-    
     if (result.rowCount === 0) {
       return NextResponse.json(
         { error: 'Appuntamento non trovato' },
         { status: 404 }
       );
     }
+
+    // Notifica tutti i client SSE connessi
+    broadcastEpasaUpdate('update', { action: 'delete', id });
     
     return NextResponse.json({ success: true });
   } catch (error) {
