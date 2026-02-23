@@ -635,7 +635,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ORIZZONTALE ───────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
@@ -842,8 +842,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
           ))}
         </div>
-
-        
       </div>
     );
   };
@@ -868,20 +866,43 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           </button>
         </div>
       )}
-      <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}>
-        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+      <div
+        ref={scrollContainerRef}
+        className="overflow-y-auto"
+        style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}
+      >
+        {/*
+          table-layout: fixed + w-full garantisce che il browser distribuisca
+          le colonne in modo uniforme basandosi solo sulle larghezze definite
+          nell'intestazione, ignorando il contenuto delle celle. La colonna
+          orario ha una larghezza fissa di 60px; le restanti (operatori) si
+          dividono equamente lo spazio rimanente. Questo non crea problemi di
+          scrollHeight perché la tabella occupa comunque il 100% della larghezza
+          del contenitore e cresce in altezza con i giorni caricati.
+        */}
+        <table
+          className="w-full"
+          style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}
+        >
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
-              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+              {/* Colonna orario: larghezza fissa, il resto va agli operatori */}
+              <th
+                className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200"
+                style={{ width: '60px' }}
+              >
                 <span className="text-[#005CA9]">Orario</span>
               </th>
               {operatorsInSede.length > 0 ? (
                 operatorsInSede.map(operator => {
                   const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
                   return (
-                    <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[200px]">
+                    <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]">
                       <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: color }}
+                        >
                           <User size={14} className="text-white" />
                         </div>
                         <span style={{ color }} className="font-bold">{operator}</span>
@@ -896,10 +917,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           </thead>
           <tbody>
             {visibleDays.map(day => {
-              const dateStr    = formatDate(day);
-              const isToday    = formatDate(new Date()) === dateStr;
-              const isWe       = isWeekend(day);
-              const slots = currentTimeSlots;
+              const dateStr = formatDate(day);
+              const isToday = formatDate(new Date()) === dateStr;
+              const isWe    = isWeekend(day);
+              const slots   = currentTimeSlots;
               return (
                 <React.Fragment key={dateStr}>
                   <tr data-epasa-date={dateStr}>
@@ -916,7 +937,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </tr>
                   {!isWe && slots.map(time => (
                     <tr key={`${dateStr}-${time}`}>
-                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                      <td
+                        className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100"
+                        style={{ width: '60px', height: '45px' }}
+                      >
                         <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
                       </td>
                       {operatorsInSede.length > 0 ? (
@@ -1099,7 +1123,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
 
-              {/* ─── SINISTRA: icona + titolo + badge Live ─── */}
+              {/* ─── SINISTRA ─── */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <CalendarIcon className="w-6 h-6 text-white" />
@@ -1107,7 +1131,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold text-[#005CA9]">EPASA - {selectedSede.nome}</h1>
-                    {/* Badge Live accanto al titolo */}
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
                       realtimeFlash
                         ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
@@ -1123,7 +1146,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
 
-              {/* ─── DESTRA: controlli ─── */}
+              {/* ─── DESTRA ─── */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
@@ -1155,7 +1178,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </div>
                 </div>
 
-                {/* Freccia sinistra */}
                 <button
                   onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
                   disabled={selectedDate <= MIN_DATE}
@@ -1164,7 +1186,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* Bottone data */}
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center"
@@ -1176,7 +1197,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </span>
                 </button>
 
-                {/* Freccia destra */}
                 <button
                   onClick={() => viewMode === 'daily'
                     ? navigateToDate(addDays(selectedDate, 1))
