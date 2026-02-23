@@ -166,13 +166,16 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-const MAX_VISIBLE_DAYS         = 14;
-const DAYS_PAST                = 3;
-const DAYS_FUTURE              = 10;
-const DAYS_TO_LOAD             = 3;
-const MIN_DATE                 = new Date(2026, 0, 1);
-const SCROLL_THRESHOLD         = 400;
-const POST_COMPENSATE_COOLDOWN = 400;
+const MAX_VISIBLE_DAYS          = 14;
+const DAYS_PAST                 = 3;
+const DAYS_FUTURE               = 10;
+const DAYS_TO_LOAD              = 3;
+const MIN_DATE                  = new Date(2026, 0, 1);
+const SCROLL_THRESHOLD          = 400;  // forward trigger
+const SCROLL_THRESHOLD_BACKWARD = 300;  // backward trigger (più conservativo)
+const POST_COMPENSATE_COOLDOWN  = 150;  // ridotto da 400ms: permette caricamenti rapidi in successione
+// Quanti eventi scroll ignorare dopo la compensazione scrollTop
+const COMPENSATE_SKIP_EVENTS    = 3;
 
 // Debounce minimo tra due ricariche SSE (ms) per evitare flood
 const SSE_RELOAD_DEBOUNCE = 800;
@@ -194,7 +197,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [isInitialized, setIsInitialized]     = useState(false);
   const [editMode, setEditMode]               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
-  // Indicatore visivo aggiornamento in tempo reale
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
@@ -205,7 +207,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
-  const isCompensatingRef         = useRef(false);
+  /**
+   * Contatore di eventi scroll da ignorare dopo la compensazione scrollTop.
+   * Viene impostato a COMPENSATE_SKIP_EVENTS prima di modificare scrollTop
+   * e decrementato a ogni evento scroll: finché > 0 l'evento è skippato.
+   * Sostituisce il vecchio flag boolean isCompensatingRef che veniva resettato
+   * troppo presto con scroll inerziale veloce, causando inversione di direzione.
+   */
+  const compensateEventsRef       = useRef(0);
   const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
   const handleScrollRef           = useRef<() => void>(() => {});
@@ -336,7 +345,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         if (container && scrollSnapshotRef.current) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
-          if (heightDiff > 0) { isCompensatingRef.current = true; container.scrollTop = snapTop + heightDiff; }
+          if (heightDiff > 0) {
+            // Imposta il contatore PRIMA di modificare scrollTop:
+            // tutti gli eventi scroll emessi dal browser durante il salto
+            // verranno ignorati finché il contatore non si azzera.
+            compensateEventsRef.current = COMPENSATE_SKIP_EVENTS;
+            container.scrollTop = snapTop + heightDiff;
+          }
           scrollSnapshotRef.current = null;
         }
         isLoadingRef.current = false;
@@ -351,12 +366,23 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const container = scrollContainerRef.current;
     if (!container) return;
     const currentScrollTop = container.scrollTop;
-    if (isCompensatingRef.current) { isCompensatingRef.current = false; lastUserScrollTopRef.current = currentScrollTop; return; }
+
+    // Gestione compensazione: ignora i primi N eventi dopo il salto di scrollTop
+    if (compensateEventsRef.current > 0) {
+      compensateEventsRef.current -= 1;
+      // Aggiorna il riferimento in modo che quando il contatore si azzera
+      // la direzione venga calcolata correttamente dal punto corrente
+      lastUserScrollTopRef.current = currentScrollTop;
+      return;
+    }
+
     if (backwardCooldownRef.current) { lastUserScrollTopRef.current = currentScrollTop; }
     if (isLoadingRef.current) return;
+
     const direction: 'up' | 'down' = currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
     lastUserScrollTopRef.current = currentScrollTop;
     userScrollDirectionRef.current = direction;
+
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     loadTimeoutRef.current = setTimeout(() => {
       if (!container || isLoadingRef.current) return;
@@ -365,7 +391,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
       const dir = userScrollDirectionRef.current;
       if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
-      else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD) loadMoreDaysBackward();
+      else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD_BACKWARD) loadMoreDaysBackward();
     }, 80);
   }, []);
 
@@ -871,22 +897,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         className="overflow-y-auto"
         style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}
       >
-        {/*
-          table-layout: fixed + w-full garantisce che il browser distribuisca
-          le colonne in modo uniforme basandosi solo sulle larghezze definite
-          nell'intestazione, ignorando il contenuto delle celle. La colonna
-          orario ha una larghezza fissa di 60px; le restanti (operatori) si
-          dividono equamente lo spazio rimanente. Questo non crea problemi di
-          scrollHeight perché la tabella occupa comunque il 100% della larghezza
-          del contenitore e cresce in altezza con i giorni caricati.
-        */}
         <table
           className="w-full"
           style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}
         >
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
-              {/* Colonna orario: larghezza fissa, il resto va agli operatori */}
               <th
                 className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200"
                 style={{ width: '60px' }}
