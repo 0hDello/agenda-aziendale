@@ -86,6 +86,11 @@ const TIME_SLOTS_BORGO: string[] = [
   '09:00','09:30','10:00','10:30','11:00','11:30',
 ];
 
+/**
+ * Slot speciali per sede Imola: visibili in agenda ma NON conteggiati
+ * come slot regolari nel calcolo della disponibilità mensile.
+ * L'08:00 è uno slot eccezionale (non prenotabile normalmente).
+ */
 const IMOLA_SPECIAL_SLOTS: string[] = ['08:00'];
 
 const getTimeSlotsForSede = (sedeId: string): string[] => {
@@ -105,21 +110,32 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
 const MILECE_WORKING_DAYS = [2, 3, 5]; // Mar, Mer, Ven
 const MILECE_START_TIME   = '08:30';
 
+// ─── Regole BORGO ─────────────────────────────────────────────────────────────────
+
+/**
+ * Converte una stringa "yyyy-MM-dd" in un Date a mezzogiorno locale.
+ */
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 };
 
+/**
+ * Numero di settimana nel mese, contando dal primo lunedì che cade NEL mese.
+ */
 const getWeekOfMonthFromFirstMonday = (date: Date): number => {
   const y  = date.getFullYear();
   const m  = date.getMonth();
   const d  = date.getDate();
+
   const dow       = new Date(y, m, d, 12).getDay();
   const offsetMon = (dow + 6) % 7;
   const mondayD   = d - offsetMon;
+
   const dowFirst       = new Date(y, m, 1, 12).getDay();
   const offsetMonFirst = (dowFirst + 6) % 7;
   const firstMondayD   = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
+
   const diffDays = mondayD - firstMondayD;
   if (diffDays < 0) return 0;
   return Math.round(diffDays / 7) + 1;
@@ -137,10 +153,12 @@ const isBorgoWorkingDay = (date: Date): boolean => {
   const d   = date.getDate();
   const dow = new Date(y, m, d, 12).getDay();
   if (dow !== 2) return false;
+
   const exKey = `${y}-${m + 1}`;
   if (BORGO_EXCEPTIONS[exKey] !== undefined) {
     return BORGO_EXCEPTIONS[exKey].includes(d);
   }
+
   const week = getWeekOfMonthFromFirstMonday(date);
   return week === 2 || week === 3;
 };
@@ -155,11 +173,9 @@ const DAYS_TO_LOAD             = 3;
 const MIN_DATE                 = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD         = 400;
 const POST_COMPENSATE_COOLDOWN = 400;
-// Tempo di attesa dopo loadMoreDaysForward prima di sbloccare il lock (ms).
-// Deve essere abbastanza lungo da permettere al browser di fare il re-render
-// e aggiornare scrollHeight, ma non troppo da rendere lo scroll "a scatti".
-const FORWARD_LOAD_COOLDOWN    = 300;
-const SSE_RELOAD_DEBOUNCE      = 800;
+
+// Debounce minimo tra due ricariche SSE (ms) per evitare flood
+const SSE_RELOAD_DEBOUNCE = 800;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -178,13 +194,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [isInitialized, setIsInitialized]     = useState(false);
   const [editMode, setEditMode]               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
+  // Indicatore visivo aggiornamento in tempo reale
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
-  const forwardCooldownTimerRef   = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef            = useRef<Date[]>([]);
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
@@ -285,7 +301,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
-
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
@@ -293,15 +308,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-
-    // Aspetta che React faccia il re-render e il browser aggiorni scrollHeight,
-    // poi sblocca il lock. Il doppio rAF non era sufficiente perché il layout
-    // della tabella veniva calcolato in modo "lazy" e distanceFromBottom
-    // restava vicino a 0, impedendo allo scroll di avanzare.
-    if (forwardCooldownTimerRef.current) clearTimeout(forwardCooldownTimerRef.current);
-    forwardCooldownTimerRef.current = setTimeout(() => {
-      isLoadingRef.current = false;
-    }, FORWARD_LOAD_COOLDOWN);
+    requestAnimationFrame(() => { requestAnimationFrame(() => { isLoadingRef.current = false; }); });
   };
 
   const loadMoreDaysBackward = () => {
@@ -396,7 +403,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
       if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-      if (forwardCooldownTimerRef.current) clearTimeout(forwardCooldownTimerRef.current);
     };
   }, [isInitialized]);
 
@@ -419,6 +425,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   // ─── SSE: aggiornamento in tempo reale ───────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/epasa/events');
+
     es.addEventListener('update', () => {
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
@@ -432,10 +439,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
           setRealtimeFlash(true);
           setTimeout(() => setRealtimeFlash(false), 1500);
-        } catch {}
+        } catch {
+          // errore silenzioso
+        }
       }, SSE_RELOAD_DEBOUNCE);
     });
+
     es.onerror = () => {};
+
     return () => {
       es.close();
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
@@ -624,20 +635,26 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ORIZZONTALE ───────────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
+
     const operator = activeMonthlyOperator;
     const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
     const fa = getFirstAvailableDay(operator);
+
     const monthStart = startOfMonth(selectedDate);
     const monthEnd   = endOfMonth(selectedDate);
     const calStart   = startOfWeek(monthStart, { weekStartsOn: 1 });
     const calEnd     = endOfWeek(monthEnd, { weekStartsOn: 1 });
     const allCalDays = eachDayOfInterval({ start: calStart, end: calEnd });
+
     const weeks: Date[][] = [];
-    for (let i = 0; i < allCalDays.length; i += 7) weeks.push(allCalDays.slice(i, i + 7));
+    for (let i = 0; i < allCalDays.length; i += 7) {
+      weeks.push(allCalDays.slice(i, i + 7));
+    }
+
     const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
     return (
@@ -656,11 +673,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       key={op}
                       onClick={() => setSelectedMonthlyOperator(op)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                        isActive ? 'text-white shadow-md scale-105' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                        isActive
+                          ? 'text-white shadow-md scale-105'
+                          : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                       }`}
                       style={isActive ? { backgroundColor: col } : {}}
                     >
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : col }}>
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : col }}
+                      >
                         <User size={11} className="text-white" />
                       </div>
                       {op}
@@ -670,14 +692,19 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               </div>
             </div>
           )}
+
           {operatorsInSede.length === 1 && (
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: operatorColor }}>
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: operatorColor }}
+              >
                 <User size={14} className="text-white" />
               </div>
               <span className="font-bold text-sm" style={{ color: operatorColor }}>{operator}</span>
             </div>
           )}
+
           <div className="flex items-center gap-4 flex-wrap">
             {fa && (
               <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
@@ -695,12 +722,21 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="grid grid-cols-7 border-b border-gray-200">
             {DAY_NAMES.map((name, idx) => (
-              <div key={name} className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${ idx >= 5 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600' }`}>{name}</div>
+              <div
+                key={name}
+                className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${
+                  idx >= 5 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600'
+                }`}
+              >
+                {name}
+              </div>
             ))}
           </div>
+
           {weeks.map((week, wIdx) => (
             <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
               {week.map((day, dIdx) => {
@@ -709,11 +745,21 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 const isToday     = formatDate(new Date()) === dateStr;
                 const isWe        = isWeekend(day);
                 const isBefore    = day < MIN_DATE;
+
                 if (!isThisMonth) {
-                  return <div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${ dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50' }`} />;
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`p-1.5 border-r border-gray-100 last:border-r-0 ${
+                        dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
+                      }`}
+                    />
+                  );
                 }
+
                 const av       = getDayAvailability(dateStr, operator);
                 const isClosed = isWe || av === 'closed';
+
                 let freeSlots = 0;
                 if (!isClosed && selectedSede) {
                   const slots = getTimeSlotsForSede(selectedSede.id);
@@ -721,31 +767,72 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   const n    = getRealAppointmentsCount(dateStr, operator);
                   const uffN = getUffChiusoSlotsCount(dateStr, operator);
                   const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
-                  const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE') ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length : 0;
+                  const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
+                    ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
+                    : 0;
                   const totalSlots = slots.length - timeBlockedCount - specialSlotCount;
                   freeSlots = Math.max(0, totalSlots - n - uffN);
                 }
-                const avBg = isClosed ? (isWe ? 'bg-gray-100' : 'bg-gray-50') : av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
-                const avBorder = isClosed ? '' : av === 'free' ? 'border-t-2 border-green-400' : av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';
-                const avDot = av === 'free' ? 'bg-green-500' : av === 'partial' ? 'bg-yellow-400' : av === 'full' ? 'bg-red-500' : 'bg-gray-300';
+
+                const avBg =
+                  isClosed ? (isWe ? 'bg-gray-100' : 'bg-gray-50') :
+                  av === 'free'    ? 'bg-green-50' :
+                  av === 'partial' ? 'bg-yellow-50' :
+                  'bg-red-50';
+
+                const avBorder =
+                  isClosed ? '' :
+                  av === 'free'    ? 'border-t-2 border-green-400' :
+                  av === 'partial' ? 'border-t-2 border-yellow-400' :
+                  'border-t-2 border-red-500';
+
+                const avDot =
+                  av === 'free'    ? 'bg-green-500' :
+                  av === 'partial' ? 'bg-yellow-400' :
+                  av === 'full'    ? 'bg-red-500' :
+                  'bg-gray-300';
+
                 return (
                   <div
                     key={dateStr}
-                    onClick={() => { if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
-                    className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${ !isClosed && !isBefore ? 'cursor-pointer hover:brightness-95' : '' } ${isBefore && !isClosed ? 'opacity-40' : ''}`}
-                    title={isClosed ? 'Chiuso' : freeSlots > 0 ? `${operator} - ${format(day, 'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots === 1 ? 'o' : 'i'}` : `${operator} - ${format(day, 'dd/MM/yyyy')} - Pieno`}
+                    onClick={() => {
+                      if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); }
+                    }}
+                    className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${
+                      !isClosed && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
+                    } ${isBefore && !isClosed ? 'opacity-40' : ''}`}
+                    title={
+                      isClosed
+                        ? 'Chiuso'
+                        : freeSlots > 0
+                          ? `${operator} - ${format(day, 'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots === 1 ? 'o' : 'i'}`
+                          : `${operator} - ${format(day, 'dd/MM/yyyy')} - Pieno`
+                    }
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${ isToday ? 'bg-[#005CA9] text-white' : isWe ? 'text-gray-400' : 'text-gray-700' }`}>
+                      <span
+                        className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                          isToday
+                            ? 'bg-[#005CA9] text-white'
+                            : isWe
+                              ? 'text-gray-400'
+                              : 'text-gray-700'
+                        }`}
+                      >
                         {format(day, 'd')}
                       </span>
-                      {!isClosed && <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />}
+                      {!isClosed && (
+                        <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />
+                      )}
                     </div>
+
                     {!isClosed && freeSlots > 0 && (
                       <div className="absolute bottom-1.5 left-1.5">
                         <div className="flex items-center gap-1">
                           <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                          <span className="text-[10px] font-semibold text-green-700">{freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}</span>
+                          <span className="text-[10px] font-semibold text-green-700">
+                            {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -755,210 +842,236 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
           ))}
         </div>
+
+        
       </div>
     );
   };
 
-  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────────────────
 
-  const renderDailyView = () => {
-    const operatorColWidth = operatorsInSede.length > 0
-      ? `${100 / operatorsInSede.length}%`
-      : '100%';
-
-    return (
-      <div>
-        {editMode && (
-          <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
-            <div className="flex items-center gap-2">
-              <Lock size={14} className="text-amber-600" />
-              <span className="text-sm font-semibold text-amber-700">
-                Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
-              </span>
-            </div>
-            <button
-              onClick={() => setEditMode(false)}
-              className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
-            >
-              <X size={12} /> Esci
-            </button>
+  const renderDailyView = () => (
+    <div>
+      {editMode && (
+        <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
+          <div className="flex items-center gap-2">
+            <Lock size={14} className="text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700">
+              Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
+            </span>
           </div>
-        )}
-        <div
-          ref={scrollContainerRef}
-          className="overflow-y-auto"
-          style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}
-        >
-          <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-            <colgroup>
-              <col style={{ width: '60px', minWidth: '60px' }} />
-              {operatorsInSede.map(op => (
-                <col key={op} style={{ width: operatorColWidth }} />
-              ))}
-            </colgroup>
-            <thead className="sticky top-0 z-20">
-              <tr className="border-b-2 border-[#005CA9]/20">
-                <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                  <span className="text-[#005CA9]">Orario</span>
-                </th>
-                {operatorsInSede.length > 0 ? (
-                  operatorsInSede.map(operator => {
-                    const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                    return (
-                      <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]" style={{ width: operatorColWidth }}>
-                        <div className="flex items-center justify-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
-                            <User size={14} className="text-white" />
-                          </div>
-                          <span style={{ color }} className="font-bold">{operator}</span>
+          <button
+            onClick={() => setEditMode(false)}
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
+          >
+            <X size={12} /> Esci
+          </button>
+        </div>
+      )}
+      <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}>
+        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b-2 border-[#005CA9]/20">
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                <span className="text-[#005CA9]">Orario</span>
+              </th>
+              {operatorsInSede.length > 0 ? (
+                operatorsInSede.map(operator => {
+                  const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+                  return (
+                    <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[200px]">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
+                          <User size={14} className="text-white" />
                         </div>
-                      </th>
-                    );
-                  })
-                ) : (
-                  <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleDays.map(day => {
-                const dateStr = formatDate(day);
-                const isToday = formatDate(new Date()) === dateStr;
-                const isWe    = isWeekend(day);
-                const slots   = currentTimeSlots;
-                return (
-                  <React.Fragment key={dateStr}>
-                    <tr data-epasa-date={dateStr}>
-                      <td
-                        colSpan={Math.max(operatorsInSede.length + 1, 2)}
-                        className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                          isToday ? 'bg-[#005CA9] text-white' :
-                          isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
-                        }`}
-                      >
-                        {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                        {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
+                        <span style={{ color }} className="font-bold">{operator}</span>
+                      </div>
+                    </th>
+                  );
+                })
+              ) : (
+                <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleDays.map(day => {
+              const dateStr    = formatDate(day);
+              const isToday    = formatDate(new Date()) === dateStr;
+              const isWe       = isWeekend(day);
+              const slots = currentTimeSlots;
+              return (
+                <React.Fragment key={dateStr}>
+                  <tr data-epasa-date={dateStr}>
+                    <td
+                      colSpan={Math.max(operatorsInSede.length + 1, 2)}
+                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
+                        isToday ? 'bg-[#005CA9] text-white' :
+                        isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                      {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
+                    </td>
+                  </tr>
+                  {!isWe && slots.map(time => (
+                    <tr key={`${dateStr}-${time}`}>
+                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                        <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
                       </td>
-                    </tr>
-                    {!isWe && slots.map(time => (
-                      <tr key={`${dateStr}-${time}`}>
-                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                          <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
-                        </td>
-                        {operatorsInSede.length > 0 ? (
-                          operatorsInSede.map(operator => {
-                            const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
-                            const dayLocal        = dateStrToLocal(dateStr);
-                            const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
-                            const isManuallyClose = isGiornoChiuso(dateStr, operator);
-                            const isMileceTC      = isMileceTimeBlocked(operator, dayLocal, time);
-                            const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
+                      {operatorsInSede.length > 0 ? (
+                        operatorsInSede.map(operator => {
+                          const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
+                          const dayLocal        = dateStrToLocal(dateStr);
+                          const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
+                          const isManuallyClose = isGiornoChiuso(dateStr, operator);
+                          const isMileceTC      = isMileceTimeBlocked(operator, dayLocal, time);
+                          const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
 
-                            if (isDayClosed || isManuallyClose) {
-                              const title = isDayClosed
-                                ? (selectedSede!.id === 'cspt'
-                                    ? 'CSPT: aperto solo il lunedì pomeriggio'
-                                    : selectedSede!.id === 'borgo'
-                                      ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
-                                      : operator === 'MILECE'
-                                        ? 'MILECE non lavora questo giorno'
-                                        : 'Ufficio chiuso')
-                                : 'Ufficio chiuso';
-                              return (
-                                <td key={`${operator}-${time}`} className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none" style={{ height: '45px', width: operatorColWidth }} title={title}>
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1"><Lock size={9} /> chiuso</span>
-                                  </div>
-                                </td>
-                              );
-                            }
-
-                            if (isMileceTC) {
-                              return (
-                                <td key={`${operator}-${time}`} className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none" style={{ height: '45px', width: operatorColWidth }} title="MILECE inizia alle 08:30">
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1"><Lock size={9} /> chiuso</span>
-                                  </div>
-                                </td>
-                              );
-                            }
-
-                            if (isUffChiuso) {
-                              return (
-                                <td
-                                  key={`${operator}-${time}`}
-                                  className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none' }`}
-                                  style={{ height: '45px', width: operatorColWidth }}
-                                  title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                                  onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
-                                >
-                                  <div className="w-full h-full flex items-center justify-center gap-1">
-                                    <Lock size={9} className="text-gray-400" />
-                                    <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                                    {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
-                                  </div>
-                                </td>
-                              );
-                            }
-
-                            if (slotApts.length > 0) {
-                              const colors = operator === 'MILECE'
-                                ? { bg: 'bg-red-50', border: 'border-l-4 border-red-500', text: 'text-red-700', hover: 'hover:bg-red-100' }
-                                : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
-                              return (
-                                <td key={`${operator}-${time}`} className="relative p-0 border-r border-gray-100 border-b border-gray-100 group" style={{ height: '45px', width: operatorColWidth }}>
-                                  <div
-                                    onClick={() => { if (editMode) handleEditModeSlotClick(dateStr, time, operator); else openModalForEditAppointment(slotApts[0]); }}
-                                    className={`w-full h-full px-2 py-1 ${ editMode ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer' : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer` } transition-all flex items-center`}
-                                    title={editMode ? 'Clicca per bloccare questo slot' : undefined}
-                                  >
-                                    <div className="w-full">
-                                      {editMode ? (
-                                        <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1"><Lock size={9} /> blocca</span>
-                                      ) : (
-                                        slotApts.map((apt, idx) => (
-                                          <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
-                                            <User size={10} className={`${colors.text} flex-shrink-0`} />
-                                            <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  </div>
-                                </td>
-                              );
-                            }
-
+                          if (isDayClosed || isManuallyClose) {
+                            const title = isDayClosed
+                              ? (selectedSede!.id === 'cspt'
+                                  ? 'CSPT: aperto solo il lunedì pomeriggio'
+                                  : selectedSede!.id === 'borgo'
+                                    ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
+                                    : operator === 'MILECE'
+                                      ? 'MILECE non lavora questo giorno'
+                                      : 'Ufficio chiuso')
+                              : 'Ufficio chiuso';
                             return (
-                              <td key={`${operator}-${time}`} className="relative p-0 border-r border-gray-100 border-b border-gray-100 group" style={{ height: '45px', width: operatorColWidth }}>
-                                <div
-                                  onClick={() => { if (editMode) handleEditModeSlotClick(dateStr, time, operator); else openModalForNewAppointment(dateStr, time, operator); }}
-                                  className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${ editMode ? 'hover:bg-amber-50 group-hover:bg-amber-50' : 'hover:bg-blue-50/30 group-hover:bg-blue-50' }`}
-                                  title={editMode ? 'Clicca per bloccare questo slot' : undefined}
-                                >
-                                  {editMode ? (
-                                    <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  ) : (
-                                    <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  )}
+                              <td
+                                key={`${operator}-${time}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                                style={{ height: '45px' }}
+                                title={title}
+                              >
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                    <Lock size={9} /> chiuso
+                                  </span>
                                 </div>
                               </td>
                             );
-                          })
-                        ) : (
-                          <td className="p-2 text-center text-xs text-gray-400">-</td>
-                        )}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          }
+
+                          if (isMileceTC) {
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                                style={{ height: '45px' }}
+                                title="MILECE inizia alle 08:30"
+                              >
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                    <Lock size={9} /> chiuso
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          if (isUffChiuso) {
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
+                                  editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                                }`}
+                                style={{ height: '45px' }}
+                                title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                                onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
+                              >
+                                <div className="w-full h-full flex items-center justify-center gap-1">
+                                  <Lock size={9} className="text-gray-400" />
+                                  <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                                  {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          if (slotApts.length > 0) {
+                            const colors = operator === 'MILECE'
+                              ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
+                              : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
+                            return (
+                              <td
+                                key={`${operator}-${time}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                                style={{ height: '45px' }}
+                              >
+                                <div
+                                  onClick={() => {
+                                    if (editMode) handleEditModeSlotClick(dateStr, time, operator);
+                                    else openModalForEditAppointment(slotApts[0]);
+                                  }}
+                                  className={`w-full h-full px-2 py-1 ${
+                                    editMode
+                                      ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
+                                      : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
+                                  } transition-all flex items-center`}
+                                  title={editMode ? 'Clicca per bloccare questo slot' : undefined}
+                                >
+                                  <div className="w-full">
+                                    {editMode ? (
+                                      <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                                        <Lock size={9} /> blocca
+                                      </span>
+                                    ) : (
+                                      slotApts.map((apt, idx) => (
+                                        <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
+                                          <User size={10} className={`${colors.text} flex-shrink-0`} />
+                                          <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          return (
+                            <td
+                              key={`${operator}-${time}`}
+                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                              style={{ height: '45px' }}
+                            >
+                              <div
+                                onClick={() => {
+                                  if (editMode) handleEditModeSlotClick(dateStr, time, operator);
+                                  else openModalForNewAppointment(dateStr, time, operator);
+                                }}
+                                className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
+                                  editMode
+                                    ? 'hover:bg-amber-50 group-hover:bg-amber-50'
+                                    : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
+                                }`}
+                                title={editMode ? 'Clicca per bloccare questo slot' : undefined}
+                              >
+                                {editMode ? (
+                                  <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                ) : (
+                                  <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })
+                      ) : (
+                        <td className="p-2 text-center text-xs text-gray-400">-</td>
+                      )}
+                    </tr>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-    );
-  };
+    </div>
+  );
 
   if (loading) {
     return (
@@ -986,7 +1099,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
 
-              {/* ─── SINISTRA ─── */}
+              {/* ─── SINISTRA: icona + titolo + badge Live ─── */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <CalendarIcon className="w-6 h-6 text-white" />
@@ -994,12 +1107,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold text-[#005CA9]">EPASA - {selectedSede.nome}</h1>
+                    {/* Badge Live accanto al titolo */}
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
                       realtimeFlash
                         ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
                         : 'bg-gray-50 text-gray-400 border border-gray-200'
                     }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300' }`} />
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                      }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
                   </div>
@@ -1007,13 +1123,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
 
-              {/* ─── DESTRA ─── */}
+              {/* ─── DESTRA: controlli ─── */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
-                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${ viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200' }`}>
+                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
+                  }`}>
                     <List className="w-4 h-4 inline mr-1" />Giornaliera
                   </button>
-                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${ viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200' }`}>
+                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
+                  }`}>
                     <LayoutGrid className="w-4 h-4 inline mr-1" />Mensile
                   </button>
                 </div>
@@ -1035,6 +1155,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </div>
                 </div>
 
+                {/* Freccia sinistra */}
                 <button
                   onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
                   disabled={selectedDate <= MIN_DATE}
@@ -1043,6 +1164,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
 
+                {/* Bottone data */}
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center"
@@ -1054,8 +1176,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </span>
                 </button>
 
+                {/* Freccia destra */}
                 <button
-                  onClick={() => viewMode === 'daily' ? navigateToDate(addDays(selectedDate, 1)) : setSelectedDate(addMonths(selectedDate, 1))}
+                  onClick={() => viewMode === 'daily'
+                    ? navigateToDate(addDays(selectedDate, 1))
+                    : setSelectedDate(addMonths(selectedDate, 1))
+                  }
                   className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200"
                 >
                   <ChevronRight className="w-4 h-4 text-gray-600" />
