@@ -850,228 +850,243 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
 
-  const renderDailyView = () => (
-    <div>
-      {editMode && (
-        <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
-          <div className="flex items-center gap-2">
-            <Lock size={14} className="text-amber-600" />
-            <span className="text-sm font-semibold text-amber-700">
-              Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
-            </span>
+  const renderDailyView = () => {
+    // Calcola la larghezza percentuale di ogni colonna operatore.
+    // La colonna "Orario" è fissa a 60px; il restante spazio è diviso
+    // equamente tra tutti gli operatori (50% cadauno se sono 2).
+    const operatorColWidth = operatorsInSede.length > 0
+      ? `${100 / operatorsInSede.length}%`
+      : '100%';
+
+    return (
+      <div>
+        {editMode && (
+          <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
+            <div className="flex items-center gap-2">
+              <Lock size={14} className="text-amber-600" />
+              <span className="text-sm font-semibold text-amber-700">
+                Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
+              </span>
+            </div>
+            <button
+              onClick={() => setEditMode(false)}
+              className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
+            >
+              <X size={12} /> Esci
+            </button>
           </div>
-          <button
-            onClick={() => setEditMode(false)}
-            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
-          >
-            <X size={12} /> Esci
-          </button>
-        </div>
-      )}
-      <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}>
-        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-          <thead className="sticky top-0 z-20">
-            <tr className="border-b-2 border-[#005CA9]/20">
-              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                <span className="text-[#005CA9]">Orario</span>
-              </th>
-              {operatorsInSede.length > 0 ? (
-                operatorsInSede.map(operator => {
-                  const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                  return (
-                    <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[200px]">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
-                          <User size={14} className="text-white" />
+        )}
+        <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}>
+          <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '60px' }} />
+              {operatorsInSede.map(op => (
+                <col key={op} style={{ width: operatorColWidth }} />
+              ))}
+            </colgroup>
+            <thead className="sticky top-0 z-20">
+              <tr className="border-b-2 border-[#005CA9]/20">
+                <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200" style={{ width: '60px' }}>
+                  <span className="text-[#005CA9]">Orario</span>
+                </th>
+                {operatorsInSede.length > 0 ? (
+                  operatorsInSede.map(operator => {
+                    const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+                    return (
+                      <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]" style={{ width: operatorColWidth }}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
+                            <User size={14} className="text-white" />
+                          </div>
+                          <span style={{ color }} className="font-bold">{operator}</span>
                         </div>
-                        <span style={{ color }} className="font-bold">{operator}</span>
-                      </div>
-                    </th>
-                  );
-                })
-              ) : (
-                <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleDays.map(day => {
-              const dateStr    = formatDate(day);
-              const isToday    = formatDate(new Date()) === dateStr;
-              const isWe       = isWeekend(day);
-              const slots = currentTimeSlots;
-              return (
-                <React.Fragment key={dateStr}>
-                  <tr data-epasa-date={dateStr}>
-                    <td
-                      colSpan={Math.max(operatorsInSede.length + 1, 2)}
-                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                        isToday ? 'bg-[#005CA9] text-white' :
-                        isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
-                      }`}
-                    >
-                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                      {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
-                    </td>
-                  </tr>
-                  {!isWe && slots.map(time => (
-                    <tr key={`${dateStr}-${time}`}>
-                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                        <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
+                      </th>
+                    );
+                  })
+                ) : (
+                  <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleDays.map(day => {
+                const dateStr    = formatDate(day);
+                const isToday    = formatDate(new Date()) === dateStr;
+                const isWe       = isWeekend(day);
+                const slots = currentTimeSlots;
+                return (
+                  <React.Fragment key={dateStr}>
+                    <tr data-epasa-date={dateStr}>
+                      <td
+                        colSpan={Math.max(operatorsInSede.length + 1, 2)}
+                        className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
+                          isToday ? 'bg-[#005CA9] text-white' :
+                          isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                        {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
                       </td>
-                      {operatorsInSede.length > 0 ? (
-                        operatorsInSede.map(operator => {
-                          const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
-                          const dayLocal        = dateStrToLocal(dateStr);
-                          const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
-                          const isManuallyClose = isGiornoChiuso(dateStr, operator);
-                          const isMileceTC      = isMileceTimeBlocked(operator, dayLocal, time);
-                          const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
+                    </tr>
+                    {!isWe && slots.map(time => (
+                      <tr key={`${dateStr}-${time}`}>
+                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100" style={{ width: '60px' }}>
+                          <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
+                        </td>
+                        {operatorsInSede.length > 0 ? (
+                          operatorsInSede.map(operator => {
+                            const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
+                            const dayLocal        = dateStrToLocal(dateStr);
+                            const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
+                            const isManuallyClose = isGiornoChiuso(dateStr, operator);
+                            const isMileceTC      = isMileceTimeBlocked(operator, dayLocal, time);
+                            const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
 
-                          if (isDayClosed || isManuallyClose) {
-                            const title = isDayClosed
-                              ? (selectedSede!.id === 'cspt'
-                                  ? 'CSPT: aperto solo il lunedì pomeriggio'
-                                  : selectedSede!.id === 'borgo'
-                                    ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
-                                    : operator === 'MILECE'
-                                      ? 'MILECE non lavora questo giorno'
-                                      : 'Ufficio chiuso')
-                              : 'Ufficio chiuso';
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
-                                style={{ height: '45px' }}
-                                title={title}
-                              >
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                                    <Lock size={9} /> chiuso
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          }
+                            if (isDayClosed || isManuallyClose) {
+                              const title = isDayClosed
+                                ? (selectedSede!.id === 'cspt'
+                                    ? 'CSPT: aperto solo il lunedì pomeriggio'
+                                    : selectedSede!.id === 'borgo'
+                                      ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
+                                      : operator === 'MILECE'
+                                        ? 'MILECE non lavora questo giorno'
+                                        : 'Ufficio chiuso')
+                                : 'Ufficio chiuso';
+                              return (
+                                <td
+                                  key={`${operator}-${time}`}
+                                  className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                                  style={{ height: '45px', width: operatorColWidth }}
+                                  title={title}
+                                >
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                      <Lock size={9} /> chiuso
+                                    </span>
+                                  </div>
+                                </td>
+                              );
+                            }
 
-                          if (isMileceTC) {
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
-                                style={{ height: '45px' }}
-                                title="MILECE inizia alle 08:30"
-                              >
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                                    <Lock size={9} /> chiuso
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          }
+                            if (isMileceTC) {
+                              return (
+                                <td
+                                  key={`${operator}-${time}`}
+                                  className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                                  style={{ height: '45px', width: operatorColWidth }}
+                                  title="MILECE inizia alle 08:30"
+                                >
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                      <Lock size={9} /> chiuso
+                                    </span>
+                                  </div>
+                                </td>
+                              );
+                            }
 
-                          if (isUffChiuso) {
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
-                                  editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
-                                }`}
-                                style={{ height: '45px' }}
-                                title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                                onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
-                              >
-                                <div className="w-full h-full flex items-center justify-center gap-1">
-                                  <Lock size={9} className="text-gray-400" />
-                                  <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                                  {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
-                                </div>
-                              </td>
-                            );
-                          }
+                            if (isUffChiuso) {
+                              return (
+                                <td
+                                  key={`${operator}-${time}`}
+                                  className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
+                                    editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                                  }`}
+                                  style={{ height: '45px', width: operatorColWidth }}
+                                  title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                                  onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
+                                >
+                                  <div className="w-full h-full flex items-center justify-center gap-1">
+                                    <Lock size={9} className="text-gray-400" />
+                                    <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                                    {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
+                                  </div>
+                                </td>
+                              );
+                            }
 
-                          if (slotApts.length > 0) {
-                            const colors = operator === 'MILECE'
-                              ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
-                              : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
+                            if (slotApts.length > 0) {
+                              const colors = operator === 'MILECE'
+                                ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
+                                : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
+                              return (
+                                <td
+                                  key={`${operator}-${time}`}
+                                  className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                                  style={{ height: '45px', width: operatorColWidth }}
+                                >
+                                  <div
+                                    onClick={() => {
+                                      if (editMode) handleEditModeSlotClick(dateStr, time, operator);
+                                      else openModalForEditAppointment(slotApts[0]);
+                                    }}
+                                    className={`w-full h-full px-2 py-1 ${
+                                      editMode
+                                        ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
+                                        : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
+                                    } transition-all flex items-center`}
+                                    title={editMode ? 'Clicca per bloccare questo slot' : undefined}
+                                  >
+                                    <div className="w-full">
+                                      {editMode ? (
+                                        <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                                          <Lock size={9} /> blocca
+                                        </span>
+                                      ) : (
+                                        slotApts.map((apt, idx) => (
+                                          <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
+                                            <User size={10} className={`${colors.text} flex-shrink-0`} />
+                                            <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              );
+                            }
+
                             return (
                               <td
                                 key={`${operator}-${time}`}
                                 className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
-                                style={{ height: '45px' }}
+                                style={{ height: '45px', width: operatorColWidth }}
                               >
                                 <div
                                   onClick={() => {
                                     if (editMode) handleEditModeSlotClick(dateStr, time, operator);
-                                    else openModalForEditAppointment(slotApts[0]);
+                                    else openModalForNewAppointment(dateStr, time, operator);
                                   }}
-                                  className={`w-full h-full px-2 py-1 ${
+                                  className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
                                     editMode
-                                      ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
-                                      : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
-                                  } transition-all flex items-center`}
+                                      ? 'hover:bg-amber-50 group-hover:bg-amber-50'
+                                      : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
+                                  }`}
                                   title={editMode ? 'Clicca per bloccare questo slot' : undefined}
                                 >
-                                  <div className="w-full">
-                                    {editMode ? (
-                                      <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                                        <Lock size={9} /> blocca
-                                      </span>
-                                    ) : (
-                                      slotApts.map((apt, idx) => (
-                                        <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
-                                          <User size={10} className={`${colors.text} flex-shrink-0`} />
-                                          <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
-                                        </div>
-                                      ))
-                                    )}
-                                  </div>
+                                  {editMode ? (
+                                    <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  ) : (
+                                    <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  )}
                                 </div>
                               </td>
                             );
-                          }
-
-                          return (
-                            <td
-                              key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
-                              style={{ height: '45px' }}
-                            >
-                              <div
-                                onClick={() => {
-                                  if (editMode) handleEditModeSlotClick(dateStr, time, operator);
-                                  else openModalForNewAppointment(dateStr, time, operator);
-                                }}
-                                className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
-                                  editMode
-                                    ? 'hover:bg-amber-50 group-hover:bg-amber-50'
-                                    : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
-                                }`}
-                                title={editMode ? 'Clicca per bloccare questo slot' : undefined}
-                              >
-                                {editMode ? (
-                                  <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                ) : (
-                                  <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })
-                      ) : (
-                        <td className="p-2 text-center text-xs text-gray-400">-</td>
-                      )}
-                    </tr>
-                  ))}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                          })
+                        ) : (
+                          <td className="p-2 text-center text-xs text-gray-400">-</td>
+                        )}
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
