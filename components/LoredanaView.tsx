@@ -61,14 +61,15 @@ export interface LoredanaViewProps {
 }
 
 // ─── Costanti ─────────────────────────────────────────────────────────────────
-const LOREDANA_ID = 'LOREDANA';
-const MIN_DATE    = new Date(2026, 0, 1);
-const TOPBAR_H    = 53;
-const HEADER_H    = 54;
-const ROW_MIN     = 44;
-const FILL_RATIO  = 0.82;
-const LABEL_W     = 68;
-const COL_WIDTH   = 115;
+const LOREDANA_ID  = 'LOREDANA';
+const MIN_DATE     = new Date(2026, 0, 1);
+const TOPBAR_H     = 53;
+const HEADER_H     = 54;
+const ROW_MIN      = 44;
+const FILL_RATIO   = 0.82;
+const LABEL_W      = 68;
+const COL_WIDTH    = 115;   // giorni lavorativi
+const COL_WIDTH_WE = 48;    // sabato e domenica
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -153,10 +154,9 @@ export default function LoredanaView({
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
   const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
 
-  // Modal state
-  const [showModal, setShowModal]         = useState(false);
-  const [modalSlot, setModalSlot]         = useState<{ date: string; time: string } | null>(null);
-  const [editingApt, setEditingApt]       = useState<Appointment | null>(null);
+  const [showModal, setShowModal]   = useState(false);
+  const [modalSlot, setModalSlot]   = useState<{ date: string; time: string } | null>(null);
+  const [editingApt, setEditingApt] = useState<Appointment | null>(null);
 
   const selectedSede =
     loredanaSedi.find(s => s.id === selectedSedeId) ??
@@ -169,6 +169,9 @@ export default function LoredanaView({
     start: startOfMonth(currentMonth),
     end:   endOfMonth(currentMonth),
   });
+
+  // Calcola minWidth tenendo conto della larghezza ridotta dei weekend
+  const totalColsWidth = days.reduce((acc, day) => acc + (isWeekend(day) ? COL_WIDTH_WE : COL_WIDTH), 0);
 
   const isAtMinMonth =
     currentMonth.getFullYear() === MIN_DATE.getFullYear() &&
@@ -196,7 +199,6 @@ export default function LoredanaView({
   const isUffChiuso = (apt: Appointment | null): boolean =>
     apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
 
-  // ─── Apertura modal ────────────────────────────────────────────────────────
   const openNew = (dateStr: string, time: string) => {
     setEditingApt(null);
     setModalSlot({ date: dateStr, time });
@@ -215,14 +217,12 @@ export default function LoredanaView({
     setModalSlot(null);
   };
 
-  // Chiudi con ESC
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && !showModal) onClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, showModal]);
 
-  // Scroll su "oggi"
   useEffect(() => {
     setTimeout(() => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-lv-date="${today}"]`);
@@ -294,7 +294,6 @@ export default function LoredanaView({
           </div>
         </div>
 
-        {/* Legenda */}
         <div className="ml-auto flex items-center gap-3 mr-2 flex-shrink-0">
           <div className="flex items-center gap-1">
             <div className="w-2.5 h-2.5 rounded bg-green-200 border border-green-500" />
@@ -328,7 +327,7 @@ export default function LoredanaView({
         <div
           style={{
             display: 'flex',
-            minWidth: `${LABEL_W + days.length * COL_WIDTH}px`,
+            minWidth: `${LABEL_W + totalColsWidth}px`,
             minHeight: '100%',
           }}
         >
@@ -367,6 +366,7 @@ export default function LoredanaView({
               const dateStr   = formatDate(day);
               const isToday   = dateStr === today;
               const isWe      = isWeekend(day);
+              const colW      = isWe ? COL_WIDTH_WE : COL_WIDTH;
               const manClosed = isGiornoChiuso(dateStr);
               const sedeOpen  = selectedSede ? isSedeOpenOnDay(selectedSede.id, day) : false;
               const dayOff    = !sedeOpen || manClosed || isWe;
@@ -378,7 +378,7 @@ export default function LoredanaView({
                 <div
                   key={dateStr}
                   data-lv-date={dateStr}
-                  style={{ width: COL_WIDTH, flexShrink: 0, borderRight: '1px solid #E5E7EB' }}
+                  style={{ width: colW, flexShrink: 0, borderRight: '1px solid #E5E7EB' }}
                 >
                   {/* Intestazione giorno */}
                   <div
@@ -391,22 +391,19 @@ export default function LoredanaView({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      overflow: 'hidden',
                     }}
                   >
-                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'capitalize', opacity: 0.8 }}>
+                    <span style={{ fontSize: isWe ? 9 : 10, fontWeight: 700, textTransform: 'capitalize', opacity: 0.8 }}>
                       {format(day, 'EEE', { locale: it })}
                     </span>
-                    <span style={{ fontSize: 15, fontWeight: 900, lineHeight: 1.1 }}>
+                    <span style={{ fontSize: isWe ? 12 : 15, fontWeight: 900, lineHeight: 1.1 }}>
                       {format(day, 'dd')}
                     </span>
-                    {isWe && (
-                      <span style={{ fontSize: 9, opacity: 0.6, marginTop: 1 }}>weekend</span>
-                    )}
                   </div>
 
                   {/* Slot */}
                   {slots.map(time => {
-                    // Giorno chiuso/weekend
                     if (dayOff) {
                       return (
                         <div
@@ -420,7 +417,8 @@ export default function LoredanaView({
                             justifyContent: 'center',
                           }}
                         >
-                          <Lock size={8} style={{ color: '#D1D5DB' }} />
+                          {/* Nei weekend non mostriamo l'icona per non sovraffollare la colonna stretta */}
+                          {!isWe && <Lock size={8} style={{ color: '#D1D5DB' }} />}
                         </div>
                       );
                     }
@@ -429,7 +427,6 @@ export default function LoredanaView({
                     const uffClosed = isUffChiuso(apt);
                     const hasPaz    = apt !== null && !uffClosed;
 
-                    // Slot ufficio chiuso
                     if (uffClosed) {
                       return (
                         <div
@@ -452,7 +449,6 @@ export default function LoredanaView({
                       );
                     }
 
-                    // Slot con appuntamento — cliccabile per modifica
                     if (hasPaz) {
                       return (
                         <div
@@ -489,7 +485,6 @@ export default function LoredanaView({
                       );
                     }
 
-                    // Slot vuoto — cliccabile per nuovo appuntamento
                     return (
                       <div
                         key={time}
