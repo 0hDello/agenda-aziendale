@@ -88,11 +88,6 @@ const TIME_SLOTS_BORGO: string[] = [
   '09:00','09:30','10:00','10:30','11:00','11:30',
 ];
 
-/**
- * Slot speciali per sede Imola: visibili in agenda ma NON conteggiati
- * come slot regolari nel calcolo della disponibilità mensile.
- * L'08:00 è uno slot eccezionale (non prenotabile normalmente).
- */
 const IMOLA_SPECIAL_SLOTS: string[] = ['08:00'];
 
 const getTimeSlotsForSede = (sedeId: string): string[] => {
@@ -109,22 +104,15 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
 };
 
 // ─── Regole MILECE ────────────────────────────────────────────────────────────
-const MILECE_WORKING_DAYS = [2, 3, 5]; // Mar, Mer, Ven
+const MILECE_WORKING_DAYS = [2, 3, 5];
 const MILECE_START_TIME   = '08:30';
 
-// ─── Regole BORGO ─────────────────────────────────────────────────────────────────
-
-/**
- * Converte una stringa "yyyy-MM-dd" in un Date a mezzogiorno locale.
- */
+// ─── Regole BORGO ─────────────────────────────────────────────────────────────
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 };
 
-/**
- * Numero di settimana nel mese, contando dal primo lunedì che cade NEL mese.
- */
 const getWeekOfMonthFromFirstMonday = (date: Date): number => {
   const y  = date.getFullYear();
   const m  = date.getMonth();
@@ -215,8 +203,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
-  // ─── helpers ────────────────────────────────────────────────────────────────
-
   const formatDate         = (date: Date) => format(date, 'yyyy-MM-dd');
   const isMileceWorkingDay = (date: Date) => MILECE_WORKING_DAYS.includes(getDay(date));
 
@@ -297,8 +283,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       setTimeout(() => scrollToDate(date), 200);
     }
   }, [visibleDays]);
-
-  // ─── scroll ──────────────────────────────────────────────────────────────────
 
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
@@ -424,8 +408,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) setTimeout(() => attachScrollListener(), 100);
   }, [viewMode]);
 
-  // ─── dati ───────────────────────────────────────────────────────────────────
-
   useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
@@ -512,8 +494,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       setAllAppointments(prev => prev.filter(a => a.id !== id));
     } catch { alert("Errore durante l'eliminazione dell'appuntamento"); }
   };
-
-  // ─── modalità modifica ───────────────────────────────────────────────────────
 
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
@@ -643,7 +623,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
-
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
 
@@ -854,7 +833,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   };
 
   // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
-
   const renderDailyView = () => (
     <div>
       {editMode && (
@@ -1120,7 +1098,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
 
-              {/* ─── SINISTRA ─── */}
+              {/* SINISTRA */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <CalendarIcon className="w-6 h-6 text-white" />
@@ -1143,10 +1121,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
 
-              {/* ─── DESTRA ─── */}
+              {/* DESTRA */}
               <div className="flex items-center gap-2 flex-wrap">
 
-                {/* ─── BOTTONE VISTA LOREDANA ─── */}
                 <button
                   onClick={() => setShowLoredanaView(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 hover:border-green-500 hover:shadow-md"
@@ -1238,13 +1215,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       </div>
 
-      {/* ─── VISTA LOREDANA — Portal fullscreen ─── */}
+      {/* ─── VISTA LOREDANA ─── */}
       {showLoredanaView && (
         <LoredanaView
           onClose={() => setShowLoredanaView(false)}
           allAppointments={allAppointments}
           giorniChiusi={giorniChiusi}
           sedi={sedi}
+          operatori={operatori}
+          onSave={handleCreateAppointment}
+          onUpdate={handleUpdateAppointment}
+          onDelete={handleDeleteAppointment}
         />
       )}
 

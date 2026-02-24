@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  User, Lock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown,
+  User, Lock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus,
 } from 'lucide-react';
 import {
   format,
@@ -16,6 +16,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
+import EpasaAppointmentModal from './EpasaAppointmentModal';
 
 // ─── Tipi ────────────────────────────────────────────────────────────────────
 interface Appointment {
@@ -42,11 +43,21 @@ interface Sede {
   colore: string;
 }
 
+interface Operatore {
+  id: string;
+  nome: string;
+  colore: string;
+}
+
 export interface LoredanaViewProps {
   allAppointments: Appointment[];
   giorniChiusi: GiornoChiuso[];
   sedi: Sede[];
+  operatori: Operatore[];
   onClose: () => void;
+  onSave: (data: any) => Promise<void>;
+  onUpdate: (id: string, data: any) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
 // ─── Costanti ─────────────────────────────────────────────────────────────────
@@ -54,8 +65,8 @@ const LOREDANA_ID = 'LOREDANA';
 const MIN_DATE    = new Date(2026, 0, 1);
 const TOPBAR_H    = 53;
 const HEADER_H    = 54;
-const ROW_MIN     = 44;   // minimo assoluto per leggibilità
-const FILL_RATIO  = 0.82;  // occupa l'82% dello spazio disponibile
+const ROW_MIN     = 44;
+const FILL_RATIO  = 0.82;
 const LABEL_W     = 68;
 const COL_WIDTH   = 115;
 
@@ -102,7 +113,7 @@ const isSedeOpenOnDay = (sedeId: string, date: Date): boolean => {
 
 const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
-// ─── Hook: calcola altezza riga ───────────────────────────────────────
+// ─── Hook: calcola altezza riga ───────────────────────────────────────────────
 function useRowHeight(slotCount: number): number {
   const [rowH, setRowH] = useState<number>(ROW_MIN);
 
@@ -125,7 +136,11 @@ export default function LoredanaView({
   allAppointments,
   giorniChiusi,
   sedi,
+  operatori,
   onClose,
+  onSave,
+  onUpdate,
+  onDelete,
 }: LoredanaViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const today     = formatDate(new Date());
@@ -137,6 +152,11 @@ export default function LoredanaView({
 
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
   const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
+
+  // Modal state
+  const [showModal, setShowModal]         = useState(false);
+  const [modalSlot, setModalSlot]         = useState<{ date: string; time: string } | null>(null);
+  const [editingApt, setEditingApt]       = useState<Appointment | null>(null);
 
   const selectedSede =
     loredanaSedi.find(s => s.id === selectedSedeId) ??
@@ -176,12 +196,33 @@ export default function LoredanaView({
   const isUffChiuso = (apt: Appointment | null): boolean =>
     apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
 
+  // ─── Apertura modal ────────────────────────────────────────────────────────
+  const openNew = (dateStr: string, time: string) => {
+    setEditingApt(null);
+    setModalSlot({ date: dateStr, time });
+    setShowModal(true);
+  };
+
+  const openEdit = (apt: Appointment) => {
+    setEditingApt(apt);
+    setModalSlot({ date: apt.data, time: apt.ora });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingApt(null);
+    setModalSlot(null);
+  };
+
+  // Chiudi con ESC
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && !showModal) onClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, showModal]);
 
+  // Scroll su "oggi"
   useEffect(() => {
     setTimeout(() => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-lv-date="${today}"]`);
@@ -194,8 +235,9 @@ export default function LoredanaView({
       className="fixed inset-0 z-[9999] flex flex-col bg-white"
       style={{ overflow: 'hidden' }}
     >
-      {/* TOPBAR */}
+      {/* ══════════ TOPBAR ══════════ */}
       <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b-2 border-green-300 flex-shrink-0 shadow-sm">
+
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="w-8 h-8 rounded-full bg-[#16A34A] flex items-center justify-center shadow">
             <User size={16} className="text-white" />
@@ -252,6 +294,7 @@ export default function LoredanaView({
           </div>
         </div>
 
+        {/* Legenda */}
         <div className="ml-auto flex items-center gap-3 mr-2 flex-shrink-0">
           <div className="flex items-center gap-1">
             <div className="w-2.5 h-2.5 rounded bg-green-200 border border-green-500" />
@@ -276,7 +319,7 @@ export default function LoredanaView({
         </button>
       </div>
 
-      {/* TABELLA */}
+      {/* ══════════ TABELLA ══════════ */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-x-auto overflow-y-auto"
@@ -337,6 +380,7 @@ export default function LoredanaView({
                   data-lv-date={dateStr}
                   style={{ width: COL_WIDTH, flexShrink: 0, borderRight: '1px solid #E5E7EB' }}
                 >
+                  {/* Intestazione giorno */}
                   <div
                     style={{
                       height: HEADER_H,
@@ -360,7 +404,9 @@ export default function LoredanaView({
                     )}
                   </div>
 
+                  {/* Slot */}
                   {slots.map(time => {
+                    // Giorno chiuso/weekend
                     if (dayOff) {
                       return (
                         <div
@@ -383,6 +429,7 @@ export default function LoredanaView({
                     const uffClosed = isUffChiuso(apt);
                     const hasPaz    = apt !== null && !uffClosed;
 
+                    // Slot ufficio chiuso
                     if (uffClosed) {
                       return (
                         <div
@@ -405,11 +452,13 @@ export default function LoredanaView({
                       );
                     }
 
+                    // Slot con appuntamento — cliccabile per modifica
                     if (hasPaz) {
                       return (
                         <div
                           key={time}
-                          title={`${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
+                          title={`Modifica: ${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
+                          onClick={() => openEdit(apt!)}
                           style={{
                             height: ROW_HEIGHT,
                             borderBottom: '1px solid #BBF7D0',
@@ -420,7 +469,10 @@ export default function LoredanaView({
                             gap: 4,
                             padding: '0 6px',
                             overflow: 'hidden',
+                            cursor: 'pointer',
                           }}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#DCFCE7')}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#F0FDF4')}
                         >
                           <User size={8} style={{ color: '#16A34A', flexShrink: 0 }} />
                           <span style={{
@@ -437,15 +489,38 @@ export default function LoredanaView({
                       );
                     }
 
+                    // Slot vuoto — cliccabile per nuovo appuntamento
                     return (
                       <div
                         key={time}
+                        title="Aggiungi appuntamento"
+                        onClick={() => openNew(dateStr, time)}
                         style={{
                           height: ROW_HEIGHT,
                           borderBottom: '1px solid #F1F5F9',
                           backgroundColor: '#FFFFFF',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
-                      />
+                        onMouseEnter={e => {
+                          e.currentTarget.style.backgroundColor = '#F0FDF4';
+                          const icon = e.currentTarget.querySelector<HTMLElement>('.lv-plus');
+                          if (icon) icon.style.opacity = '1';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.backgroundColor = '#FFFFFF';
+                          const icon = e.currentTarget.querySelector<HTMLElement>('.lv-plus');
+                          if (icon) icon.style.opacity = '0';
+                        }}
+                      >
+                        <Plus
+                          size={14}
+                          className="lv-plus"
+                          style={{ color: '#16A34A', opacity: 0, transition: 'opacity 0.15s' }}
+                        />
+                      </div>
                     );
                   })}
                 </div>
@@ -454,6 +529,24 @@ export default function LoredanaView({
           </div>
         </div>
       </div>
+
+      {/* ══════════ MODAL ══════════ */}
+      {showModal && modalSlot && selectedSede && (
+        <EpasaAppointmentModal
+          isOpen={showModal}
+          onClose={closeModal}
+          onSave={onSave}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          existingAppointment={editingApt ?? undefined}
+          sedi={loredanaSedi}
+          operatori={operatori}
+          selectedDate={modalSlot.date}
+          selectedTime={modalSlot.time}
+          selectedSedeId={selectedSede.id}
+          defaultOperatoreId={LOREDANA_ID}
+        />
+      )}
     </div>
   );
 
