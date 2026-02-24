@@ -52,6 +52,11 @@ export interface LoredanaViewProps {
 // ─── Costanti ─────────────────────────────────────────────────────────────────
 const LOREDANA_ID = 'LOREDANA';
 const MIN_DATE    = new Date(2026, 0, 1);
+const TOPBAR_H    = 53;  // altezza approssimativa della topbar in px
+const HEADER_H    = 54;  // altezza header giorno
+const ROW_MIN     = 48;  // altezza minima riga (non scende sotto)
+const LABEL_W     = 68;
+const COL_WIDTH   = 115;
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -96,6 +101,24 @@ const isSedeOpenOnDay = (sedeId: string, date: Date): boolean => {
 
 const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
+// ─── Hook: calcola altezza riga in base alla finestra ──────────────────────
+function useRowHeight(slotCount: number): number {
+  const [rowH, setRowH] = useState<number>(ROW_MIN);
+
+  useEffect(() => {
+    const compute = () => {
+      const available = window.innerHeight - TOPBAR_H - HEADER_H;
+      const ideal     = Math.floor(available / slotCount);
+      setRowH(Math.max(ideal, ROW_MIN));
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [slotCount]);
+
+  return rowH;
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 export default function LoredanaView({
   allAppointments,
@@ -116,10 +139,13 @@ export default function LoredanaView({
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
   const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
 
-  // Sede attiva (fallback al primo disponibile se 'imola' non c'è)
+  // Sede attiva
   const selectedSede =
     loredanaSedi.find(s => s.id === selectedSedeId) ??
     loredanaSedi[0];
+
+  const slots    = selectedSede ? (TIME_SLOTS_MAP[selectedSede.id] ?? TIME_SLOTS_MAP['imola']) : [];
+  const ROW_HEIGHT = useRowHeight(slots.length);
 
   // Giorni del mese corrente
   const days = eachDayOfInterval({
@@ -161,20 +187,13 @@ export default function LoredanaView({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Scroll automatico su "oggi" all'apertura / cambio mese
+  // Scroll automatico su "oggi"
   useEffect(() => {
     setTimeout(() => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-lv-date="${today}"]`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }, 150);
   }, [currentMonth]);
-
-  const slots = selectedSede ? (TIME_SLOTS_MAP[selectedSede.id] ?? TIME_SLOTS_MAP['imola']) : [];
-
-  const COL_WIDTH  = 115;
-  const ROW_HEIGHT = 40;
-  const LABEL_W    = 68;
-  const HEADER_H   = 54;
 
   const content = (
     <div
@@ -197,7 +216,7 @@ export default function LoredanaView({
 
         <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0" />
 
-        {/* Navigazione mese — larghezza fissa per evitare layout shift */}
+        {/* Navigazione mese */}
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={goPrev}
@@ -207,7 +226,6 @@ export default function LoredanaView({
           >
             <ChevronLeft size={16} className="text-gray-600" />
           </button>
-          {/* min-w fissa: il mese più lungo (è "settembre") è ~140px a 12px bold */}
           <button
             onClick={goToday}
             className="px-3 py-1.5 text-xs font-bold text-[#005CA9] bg-[#E6F2FF] border border-[#005CA9]/20 rounded-lg hover:bg-[#D1E7FF] transition-colors"
@@ -227,7 +245,7 @@ export default function LoredanaView({
 
         <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0" />
 
-        {/* Selezione sede — menu a tendina */}
+        {/* Selezione sede */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <Building2 size={15} className="text-gray-500" />
           <div className="relative">
@@ -283,7 +301,7 @@ export default function LoredanaView({
             minHeight: '100%',
           }}
         >
-          {/* ── Colonna fissa sinistra: orari ── */}
+          {/* Colonna orari fissa */}
           <div
             style={{
               width: LABEL_W,
@@ -312,7 +330,7 @@ export default function LoredanaView({
             ))}
           </div>
 
-          {/* ── Colonne giorni ── */}
+          {/* Colonne giorni */}
           <div style={{ display: 'flex', flex: 1 }}>
             {days.map(day => {
               const dateStr   = formatDate(day);
