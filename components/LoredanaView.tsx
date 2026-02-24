@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  User, Lock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon,
+  User, Lock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown,
 } from 'lucide-react';
 import {
   format,
@@ -112,26 +112,21 @@ export default function LoredanaView({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // Sedi selezionate (default: tutte quelle di Loredana disponibili)
-  const loredanaSedi     = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
-  const allSediIds       = loredanaSedi.map(s => s.id);
-  const [selectedSediIds, setSelectedSediIds] = useState<string[]>(allSediIds);
+  // Sede selezionata (singola, menu a tendina)
+  const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
+  const [selectedSedeId, setSelectedSedeId] = useState<string>(
+    loredanaSedi[0]?.id ?? 'imola'
+  );
 
   // Aggiorna default quando arrivano le sedi
   useEffect(() => {
-    if (allSediIds.length > 0 && selectedSediIds.length === 0) {
-      setSelectedSediIds(allSediIds);
+    if (loredanaSedi.length > 0 && !loredanaSedi.find(s => s.id === selectedSedeId)) {
+      setSelectedSedeId(loredanaSedi[0].id);
     }
   }, [sedi]);
 
-  // Toggle singola sede
-  const toggleSede = (id: string) => {
-    setSelectedSediIds(prev =>
-      prev.includes(id)
-        ? prev.length > 1 ? prev.filter(s => s !== id) : prev   // almeno 1 sempre attiva
-        : [...prev, id]
-    );
-  };
+  // Sede attiva
+  const selectedSede = loredanaSedi.find(s => s.id === selectedSedeId) ?? loredanaSedi[0];
 
   // Giorni del mese corrente
   const days = eachDayOfInterval({
@@ -139,13 +134,17 @@ export default function LoredanaView({
     end:   endOfMonth(currentMonth),
   });
 
+  // ── Navigazione mese: ← torna al mese precedente (non chiude) ──
+  const isAtMinMonth =
+    currentMonth.getFullYear() === MIN_DATE.getFullYear() &&
+    currentMonth.getMonth()    === MIN_DATE.getMonth();
+
   const goPrev = () => {
-    const prev = subMonths(currentMonth, 1);
-    if (prev >= new Date(MIN_DATE.getFullYear(), MIN_DATE.getMonth(), 1))
-      setCurrentMonth(prev);
+    if (!isAtMinMonth) setCurrentMonth(prev => subMonths(prev, 1));
   };
-  const goNext = () => setCurrentMonth(addMonths(currentMonth, 1));
-  const goToday = () => setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const goNext  = () => setCurrentMonth(prev => addMonths(prev, 1));
+  const goToday = () =>
+    setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
   const isGiornoChiuso = (dateStr: string): boolean =>
     giorniChiusi.some(
@@ -172,7 +171,7 @@ export default function LoredanaView({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Scroll automatico su "oggi" all'apertura
+  // Scroll automatico su "oggi" all'apertura / cambio mese
   useEffect(() => {
     setTimeout(() => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-lv-date="${today}"]`);
@@ -180,11 +179,11 @@ export default function LoredanaView({
     }, 150);
   }, [currentMonth]);
 
-  const sediToShow = loredanaSedi.filter(s => selectedSediIds.includes(s.id));
+  const slots = selectedSede ? (TIME_SLOTS_MAP[selectedSede.id] ?? TIME_SLOTS_MAP['imola']) : [];
 
   const COL_WIDTH  = 115;  // px colonna giorno
   const ROW_HEIGHT = 40;   // px riga slot
-  const LABEL_W    = 68;   // px colonna sede+orario fissa
+  const LABEL_W    = 68;   // px colonna orario fissa
   const HEADER_H   = 54;   // px header giorno
 
   const content = (
@@ -212,7 +211,8 @@ export default function LoredanaView({
         <div className="flex items-center gap-1">
           <button
             onClick={goPrev}
-            className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors"
+            disabled={isAtMinMonth}
+            className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="Mese precedente"
           >
             <ChevronLeft size={16} className="text-gray-600" />
@@ -235,26 +235,20 @@ export default function LoredanaView({
 
         <div className="w-px h-8 bg-gray-200 mx-1" />
 
-        {/* Selezione sedi */}
+        {/* Selezione sede — menu a tendina */}
         <div className="flex items-center gap-2">
           <Building2 size={15} className="text-gray-500 flex-shrink-0" />
-          <div className="flex items-center gap-1.5">
-            {loredanaSedi.map(s => {
-              const active = selectedSediIds.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => toggleSede(s.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${
-                    active
-                      ? 'bg-[#16A34A] border-[#16A34A] text-white shadow-sm'
-                      : 'bg-white border-gray-200 text-gray-500 hover:border-[#16A34A] hover:text-[#16A34A]'
-                  }`}
-                >
-                  {s.nome}
-                </button>
-              );
-            })}
+          <div className="relative">
+            <select
+              value={selectedSedeId}
+              onChange={e => setSelectedSedeId(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold bg-[#F0FDF4] text-[#166534] border-2 border-[#16A34A]/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16A34A]/50 cursor-pointer hover:bg-[#DCFCE7] transition-colors"
+            >
+              {loredanaSedi.map(s => (
+                <option key={s.id} value={s.id}>{s.nome}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#16A34A] pointer-events-none" />
           </div>
         </div>
 
@@ -297,7 +291,7 @@ export default function LoredanaView({
             minHeight: '100%',
           }}
         >
-          {/* ── Colonna fissa sinistra: sede + orario ── */}
+          {/* ── Colonna fissa sinistra: orari ── */}
           <div
             style={{
               width: LABEL_W,
@@ -309,63 +303,38 @@ export default function LoredanaView({
               borderRight: '2px solid #E2E8F0',
             }}
           >
-            {/* Angolo vuoto (altezza = header giorni) */}
+            {/* Angolo vuoto */}
             <div style={{ height: HEADER_H, borderBottom: '1px solid #E2E8F0' }} />
 
-            {/* Righe sede + orario */}
-            {sediToShow.map(sede => {
-              const slots = TIME_SLOTS_MAP[sede.id] ?? TIME_SLOTS_MAP['imola'];
-              return (
-                <div key={sede.id}>
-                  {/* Etichetta sede */}
-                  <div
-                    style={{
-                      backgroundColor: '#16A34A',
-                      color: '#fff',
-                      fontWeight: 800,
-                      fontSize: 10,
-                      padding: '3px 8px',
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase',
-                      borderBottom: '1px solid #15803d',
-                    }}
-                  >
-                    {sede.nome}
-                  </div>
-                  {/* Slot orari */}
-                  {slots.map(time => (
-                    <div
-                      key={time}
-                      style={{
-                        height: ROW_HEIGHT,
-                        borderBottom: '1px solid #F1F5F9',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0 8px',
-                      }}
-                    >
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{time}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+            {/* Slot orari */}
+            {slots.map(time => (
+              <div
+                key={time}
+                style={{
+                  height: ROW_HEIGHT,
+                  borderBottom: '1px solid #F1F5F9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 8px',
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{time}</span>
+              </div>
+            ))}
           </div>
 
           {/* ── Colonne giorni ── */}
           <div style={{ display: 'flex', flex: 1 }}>
             {days.map(day => {
-              const dateStr = formatDate(day);
-              const isToday = dateStr === today;
-              const isWe    = isWeekend(day);
+              const dateStr   = formatDate(day);
+              const isToday   = dateStr === today;
+              const isWe      = isWeekend(day);
               const manClosed = isGiornoChiuso(dateStr);
+              const sedeOpen  = selectedSede ? isSedeOpenOnDay(selectedSede.id, day) : false;
+              const dayOff    = !sedeOpen || manClosed || isWe;
 
-              const headerBg = isToday
-                ? '#005CA9'
-                : isWe
-                ? '#E5E7EB'
-                : '#F8FAFC';
-              const headerText = isToday ? '#fff' : isWe ? '#9CA3AF' : '#374151';
+              const headerBg   = isToday ? '#005CA9' : isWe ? '#E5E7EB' : '#F8FAFC';
+              const headerText = isToday ? '#fff'    : isWe ? '#9CA3AF' : '#374151';
 
               return (
                 <div
@@ -401,121 +370,94 @@ export default function LoredanaView({
                     )}
                   </div>
 
-                  {/* ── Righe per ogni sede selezionata ── */}
-                  {sediToShow.map(sede => {
-                    const slots   = TIME_SLOTS_MAP[sede.id] ?? TIME_SLOTS_MAP['imola'];
-                    const sedeOpen = isSedeOpenOnDay(sede.id, day);
-                    const dayOff   = !sedeOpen || manClosed || isWe;
-
-                    return (
-                      <div key={sede.id}>
-                        {/* Separatore sede */}
+                  {/* ── Slot ── */}
+                  {slots.map(time => {
+                    if (dayOff) {
+                      return (
                         <div
+                          key={time}
                           style={{
-                            height: 20,
-                            backgroundColor: dayOff ? '#F3F4F6' : '#F0FDF4',
-                            borderBottom: '1px solid #D1FAE5',
+                            height: ROW_HEIGHT,
+                            borderBottom: '1px solid #F1F5F9',
+                            backgroundColor: isWe ? '#F3F4F6' : '#F9FAFB',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
-                          {dayOff && !isWe && (
-                            <span style={{ fontSize: 8, color: '#9CA3AF', fontWeight: 600 }}>chiuso</span>
-                          )}
+                          <Lock size={8} style={{ color: '#D1D5DB' }} />
                         </div>
+                      );
+                    }
 
-                        {/* Slot */}
-                        {slots.map(time => {
-                          if (dayOff) {
-                            return (
-                              <div
-                                key={time}
-                                style={{
-                                  height: ROW_HEIGHT,
-                                  borderBottom: '1px solid #F1F5F9',
-                                  backgroundColor: isWe ? '#F3F4F6' : '#F9FAFB',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <Lock size={8} style={{ color: '#D1D5DB' }} />
-                              </div>
-                            );
-                          }
+                    const apt       = selectedSede ? getAppointmentForSlot(selectedSede.id, dateStr, time) : null;
+                    const uffClosed = isUffChiuso(apt);
+                    const hasPaz    = apt !== null && !uffClosed;
 
-                          const apt       = getAppointmentForSlot(sede.id, dateStr, time);
-                          const uffClosed = isUffChiuso(apt);
-                          const hasPaz    = apt !== null && !uffClosed;
+                    if (uffClosed) {
+                      return (
+                        <div
+                          key={time}
+                          title="Ufficio chiuso"
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: '1px solid #FDE68A',
+                            backgroundColor: '#FFFBEB',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 3,
+                            padding: '0 4px',
+                          }}
+                        >
+                          <Lock size={8} style={{ color: '#F59E0B' }} />
+                          <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
+                        </div>
+                      );
+                    }
 
-                          if (uffClosed) {
-                            return (
-                              <div
-                                key={time}
-                                title="Ufficio chiuso"
-                                style={{
-                                  height: ROW_HEIGHT,
-                                  borderBottom: '1px solid #FDE68A',
-                                  backgroundColor: '#FFFBEB',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: 3,
-                                  padding: '0 4px',
-                                }}
-                              >
-                                <Lock size={8} style={{ color: '#F59E0B' }} />
-                                <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
-                              </div>
-                            );
-                          }
+                    if (hasPaz) {
+                      return (
+                        <div
+                          key={time}
+                          title={`${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: '1px solid #BBF7D0',
+                            backgroundColor: '#F0FDF4',
+                            borderLeft: '3px solid #16A34A',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '0 6px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <User size={8} style={{ color: '#16A34A', flexShrink: 0 }} />
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: '#166534',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {apt!.cliente}
+                          </span>
+                        </div>
+                      );
+                    }
 
-                          if (hasPaz) {
-                            return (
-                              <div
-                                key={time}
-                                title={`${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
-                                style={{
-                                  height: ROW_HEIGHT,
-                                  borderBottom: '1px solid #BBF7D0',
-                                  backgroundColor: '#F0FDF4',
-                                  borderLeft: '3px solid #16A34A',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 4,
-                                  padding: '0 6px',
-                                  overflow: 'hidden',
-                                }}
-                              >
-                                <User size={8} style={{ color: '#16A34A', flexShrink: 0 }} />
-                                <span style={{
-                                  fontSize: 10,
-                                  fontWeight: 600,
-                                  color: '#166534',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}>
-                                  {apt!.cliente}
-                                </span>
-                              </div>
-                            );
-                          }
-
-                          // Slot libero
-                          return (
-                            <div
-                              key={time}
-                              style={{
-                                height: ROW_HEIGHT,
-                                borderBottom: '1px solid #F1F5F9',
-                                backgroundColor: '#FFFFFF',
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
+                    // Slot libero
+                    return (
+                      <div
+                        key={time}
+                        style={{
+                          height: ROW_HEIGHT,
+                          borderBottom: '1px solid #F1F5F9',
+                          backgroundColor: '#FFFFFF',
+                        }}
+                      />
                     );
                   })}
                 </div>
