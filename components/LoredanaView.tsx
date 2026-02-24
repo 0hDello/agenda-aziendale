@@ -112,21 +112,14 @@ export default function LoredanaView({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // Sede selezionata (singola, menu a tendina)
+  // Sede selezionata — default sempre 'imola'
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
-  const [selectedSedeId, setSelectedSedeId] = useState<string>(
-    loredanaSedi[0]?.id ?? 'imola'
-  );
+  const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
 
-  // Aggiorna default quando arrivano le sedi
-  useEffect(() => {
-    if (loredanaSedi.length > 0 && !loredanaSedi.find(s => s.id === selectedSedeId)) {
-      setSelectedSedeId(loredanaSedi[0].id);
-    }
-  }, [sedi]);
-
-  // Sede attiva
-  const selectedSede = loredanaSedi.find(s => s.id === selectedSedeId) ?? loredanaSedi[0];
+  // Sede attiva (fallback al primo disponibile se 'imola' non c'è)
+  const selectedSede =
+    loredanaSedi.find(s => s.id === selectedSedeId) ??
+    loredanaSedi[0];
 
   // Giorni del mese corrente
   const days = eachDayOfInterval({
@@ -134,17 +127,14 @@ export default function LoredanaView({
     end:   endOfMonth(currentMonth),
   });
 
-  // ── Navigazione mese: ← torna al mese precedente (non chiude) ──
+  // ── Navigazione mese ──
   const isAtMinMonth =
     currentMonth.getFullYear() === MIN_DATE.getFullYear() &&
     currentMonth.getMonth()    === MIN_DATE.getMonth();
 
-  const goPrev = () => {
-    if (!isAtMinMonth) setCurrentMonth(prev => subMonths(prev, 1));
-  };
+  const goPrev  = () => { if (!isAtMinMonth) setCurrentMonth(prev => subMonths(prev, 1)); };
   const goNext  = () => setCurrentMonth(prev => addMonths(prev, 1));
-  const goToday = () =>
-    setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const goToday = () => setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
   const isGiornoChiuso = (dateStr: string): boolean =>
     giorniChiusi.some(
@@ -181,10 +171,10 @@ export default function LoredanaView({
 
   const slots = selectedSede ? (TIME_SLOTS_MAP[selectedSede.id] ?? TIME_SLOTS_MAP['imola']) : [];
 
-  const COL_WIDTH  = 115;  // px colonna giorno
-  const ROW_HEIGHT = 40;   // px riga slot
-  const LABEL_W    = 68;   // px colonna orario fissa
-  const HEADER_H   = 54;   // px header giorno
+  const COL_WIDTH  = 115;
+  const ROW_HEIGHT = 40;
+  const LABEL_W    = 68;
+  const HEADER_H   = 54;
 
   const content = (
     <div
@@ -195,7 +185,7 @@ export default function LoredanaView({
       <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b-2 border-green-300 flex-shrink-0 shadow-sm">
 
         {/* Avatar + titolo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <div className="w-8 h-8 rounded-full bg-[#16A34A] flex items-center justify-center shadow">
             <User size={16} className="text-white" />
           </div>
@@ -205,10 +195,10 @@ export default function LoredanaView({
           </div>
         </div>
 
-        <div className="w-px h-8 bg-gray-200 mx-1" />
+        <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0" />
 
-        {/* Navigazione mese */}
-        <div className="flex items-center gap-1">
+        {/* Navigazione mese — larghezza fissa per evitare layout shift */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={goPrev}
             disabled={isAtMinMonth}
@@ -217,9 +207,11 @@ export default function LoredanaView({
           >
             <ChevronLeft size={16} className="text-gray-600" />
           </button>
+          {/* min-w fissa: il mese più lungo (è "settembre") è ~140px a 12px bold */}
           <button
             onClick={goToday}
-            className="px-3 py-1.5 text-xs font-bold text-[#005CA9] bg-[#E6F2FF] border border-[#005CA9]/20 rounded-lg hover:bg-[#D1E7FF] transition-colors whitespace-nowrap"
+            className="px-3 py-1.5 text-xs font-bold text-[#005CA9] bg-[#E6F2FF] border border-[#005CA9]/20 rounded-lg hover:bg-[#D1E7FF] transition-colors"
+            style={{ minWidth: 160, textAlign: 'center' }}
           >
             <CalendarIcon size={12} className="inline mr-1" />
             {format(currentMonth, 'MMMM yyyy', { locale: it })}
@@ -233,11 +225,11 @@ export default function LoredanaView({
           </button>
         </div>
 
-        <div className="w-px h-8 bg-gray-200 mx-1" />
+        <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0" />
 
         {/* Selezione sede — menu a tendina */}
-        <div className="flex items-center gap-2">
-          <Building2 size={15} className="text-gray-500 flex-shrink-0" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Building2 size={15} className="text-gray-500" />
           <div className="relative">
             <select
               value={selectedSedeId}
@@ -253,7 +245,7 @@ export default function LoredanaView({
         </div>
 
         {/* Legenda */}
-        <div className="ml-auto flex items-center gap-3 mr-2">
+        <div className="ml-auto flex items-center gap-3 mr-2 flex-shrink-0">
           <div className="flex items-center gap-1">
             <div className="w-2.5 h-2.5 rounded bg-green-200 border border-green-500" />
             <span className="text-[10px] text-gray-500">Appuntamento</span>
@@ -303,10 +295,7 @@ export default function LoredanaView({
               borderRight: '2px solid #E2E8F0',
             }}
           >
-            {/* Angolo vuoto */}
             <div style={{ height: HEADER_H, borderBottom: '1px solid #E2E8F0' }} />
-
-            {/* Slot orari */}
             {slots.map(time => (
               <div
                 key={time}
@@ -340,13 +329,9 @@ export default function LoredanaView({
                 <div
                   key={dateStr}
                   data-lv-date={dateStr}
-                  style={{
-                    width: COL_WIDTH,
-                    flexShrink: 0,
-                    borderRight: '1px solid #E5E7EB',
-                  }}
+                  style={{ width: COL_WIDTH, flexShrink: 0, borderRight: '1px solid #E5E7EB' }}
                 >
-                  {/* ── Intestazione giorno ── */}
+                  {/* Intestazione giorno */}
                   <div
                     style={{
                       height: HEADER_H,
@@ -370,7 +355,7 @@ export default function LoredanaView({
                     )}
                   </div>
 
-                  {/* ── Slot ── */}
+                  {/* Slot */}
                   {slots.map(time => {
                     if (dayOff) {
                       return (
@@ -448,7 +433,6 @@ export default function LoredanaView({
                       );
                     }
 
-                    // Slot libero
                     return (
                       <div
                         key={time}
@@ -469,7 +453,6 @@ export default function LoredanaView({
     </div>
   );
 
-  // Portal: si monta su document.body, fuori da qualsiasi layout
   if (typeof window === 'undefined') return null;
   return createPortal(content, document.body);
 }
