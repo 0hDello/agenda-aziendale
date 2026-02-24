@@ -15,6 +15,7 @@ import {
   Lock,
   Unlock,
   Trash2,
+  Eye,
 } from 'lucide-react';
 import {
   format,
@@ -38,6 +39,7 @@ import {
 import { it } from 'date-fns/locale';
 import React from 'react';
 import EpasaAppointmentModal from './EpasaAppointmentModal';
+import LoredanaView from './LoredanaView';
 
 interface EpasaCalendarProps {
   agendaId: string;
@@ -198,6 +200,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [editMode, setEditMode]               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
+  // ─── NUOVO: Vista Loredana ───────────────────────────────────────────────────
+  const [showLoredanaView, setShowLoredanaView] = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -1164,6 +1168,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
               {/* ─── DESTRA ─── */}
               <div className="flex items-center gap-2 flex-wrap">
+
+                {/* ─── BOTTONE VISTA LOREDANA ─── */}
+                <button
+                  onClick={() => setShowLoredanaView(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 hover:border-green-500 hover:shadow-md"
+                  title="Apri la vista settimanale di Loredana"
+                >
+                  <Eye size={15} />
+                  Vista Loredana
+                </button>
+
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
@@ -1245,6 +1260,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
         </div>
       </div>
+
+      {/* ─── VISTA LOREDANA (overlay) ─── */}
+      {showLoredanaView && (
+        <LoredanaView
+          onClose={() => setShowLoredanaView(false)}
+          allAppointments={allAppointments}
+          giorniChiusi={giorniChiusi}
+          sedi={sedi}
+        />
+      )}
 
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
