@@ -173,14 +173,11 @@ const DAYS_PAST                 = 3;
 const DAYS_FUTURE               = 10;
 const DAYS_TO_LOAD              = 3;
 const MIN_DATE                  = new Date(2026, 0, 1);
-const SCROLL_THRESHOLD          = 400;  // forward trigger
-const SCROLL_THRESHOLD_BACKWARD = 300;  // backward trigger (più conservativo)
-const POST_COMPENSATE_COOLDOWN  = 150;  // ridotto da 400ms: permette caricamenti rapidi in successione
-// Quanti eventi scroll ignorare dopo la compensazione scrollTop
+const SCROLL_THRESHOLD          = 400;
+const SCROLL_THRESHOLD_BACKWARD = 300;
+const POST_COMPENSATE_COOLDOWN  = 150;
 const COMPENSATE_SKIP_EVENTS    = 3;
-
-// Debounce minimo tra due ricariche SSE (ms) per evitare flood
-const SSE_RELOAD_DEBOUNCE = 800;
+const SSE_RELOAD_DEBOUNCE       = 800;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -200,7 +197,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [editMode, setEditMode]               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
-  // ─── NUOVO: Vista Loredana ───────────────────────────────────────────────────
   const [showLoredanaView, setShowLoredanaView] = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
@@ -211,13 +207,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
-  /**
-   * Contatore di eventi scroll da ignorare dopo la compensazione scrollTop.
-   * Viene impostato a COMPENSATE_SKIP_EVENTS prima di modificare scrollTop
-   * e decrementato a ogni evento scroll: finché > 0 l'evento è skippato.
-   * Sostituisce il vecchio flag boolean isCompensatingRef che veniva resettato
-   * troppo presto con scroll inerziale veloce, causando inversione di direzione.
-   */
   const compensateEventsRef       = useRef(0);
   const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
@@ -350,9 +339,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
           if (heightDiff > 0) {
-            // Imposta il contatore PRIMA di modificare scrollTop:
-            // tutti gli eventi scroll emessi dal browser durante il salto
-            // verranno ignorati finché il contatore non si azzera.
             compensateEventsRef.current = COMPENSATE_SKIP_EVENTS;
             container.scrollTop = snapTop + heightDiff;
           }
@@ -371,11 +357,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (!container) return;
     const currentScrollTop = container.scrollTop;
 
-    // Gestione compensazione: ignora i primi N eventi dopo il salto di scrollTop
     if (compensateEventsRef.current > 0) {
       compensateEventsRef.current -= 1;
-      // Aggiorna il riferimento in modo che quando il contatore si azzera
-      // la direzione venga calcolata correttamente dal punto corrente
       lastUserScrollTopRef.current = currentScrollTop;
       return;
     }
@@ -452,10 +435,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
-  // ─── SSE: aggiornamento in tempo reale ───────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/epasa/events');
-
     es.addEventListener('update', () => {
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
@@ -469,14 +450,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
           setRealtimeFlash(true);
           setTimeout(() => setRealtimeFlash(false), 1500);
-        } catch {
-          // errore silenzioso
-        }
+        } catch { /* silenzioso */ }
       }, SSE_RELOAD_DEBOUNCE);
     });
-
     es.onerror = () => {};
-
     return () => {
       es.close();
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
@@ -665,7 +642,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
 
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
@@ -876,7 +853,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div>
@@ -1173,7 +1150,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 <button
                   onClick={() => setShowLoredanaView(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 hover:border-green-500 hover:shadow-md"
-                  title="Apri la vista settimanale di Loredana"
+                  title="Apri la vista mensile di Loredana"
                 >
                   <Eye size={15} />
                   Vista Loredana
@@ -1261,7 +1238,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       </div>
 
-      {/* ─── VISTA LOREDANA (overlay) ─── */}
+      {/* ─── VISTA LOREDANA — Portal fullscreen ─── */}
       {showLoredanaView && (
         <LoredanaView
           onClose={() => setShowLoredanaView(false)}
