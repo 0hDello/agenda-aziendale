@@ -1,27 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  X,
-  User,
-  Lock,
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-} from 'lucide-react';
+import { useRef } from 'react';
+import { User, Lock, Building2, ChevronDown } from 'lucide-react';
 import {
   format,
   addDays,
-  subDays,
   isWeekend,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
   getDay,
+  eachDayOfInterval,
+  startOfDay,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
+import React from 'react';
 
-// ─── Tipi ─────────────────────────────────────────────────────────────────────
+// ─── Tipi ────────────────────────────────────────────────────────────────────
 interface Appointment {
   id: string;
   sede_id: string;
@@ -46,18 +38,20 @@ interface Sede {
   colore: string;
 }
 
-interface LoredanaViewProps {
-  onClose: () => void;
+export interface LoredanaViewProps {
   allAppointments: Appointment[];
   giorniChiusi: GiornoChiuso[];
   sedi: Sede[];
+  selectedSedeId: string;
+  onSedeChange: (sedeId: string) => void;
 }
 
-// ─── Costanti ──────────────────────────────────────────────────────────────────
+// ─── Costanti ─────────────────────────────────────────────────────────────────
 const LOREDANA_ID = 'LOREDANA';
+const MIN_DATE    = new Date(2026, 0, 1);
 
-// Sedi in cui lavora Loredana
-const LOREDANA_SEDI = ['imola', 'cspt', 'borgo'];
+// Quanti giorni mostrare in totale nella tabella orizzontale
+const TOTAL_DAYS = 90;
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -65,304 +59,318 @@ const TIME_SLOTS_MAP: Record<string, string[]> = {
   borgo: ['09:00','09:30','10:00','10:30','11:00','11:30'],
 };
 
-// Giorni lavorativi per sede
+const LOREDANA_SEDI = ['imola', 'cspt', 'borgo'];
+
+// Regola apertura per sede + Loredana
+const isBorgoWorkingDay = (date: Date): boolean => {
+  const y   = date.getFullYear();
+  const m   = date.getMonth();
+  const d   = date.getDate();
+  const dow = new Date(y, m, d, 12).getDay();
+  if (dow !== 2) return false;
+  // Eccezioni manuali (stessa logica di EpasaCalendar)
+  const exceptions: Record<string, number[]> = {
+    '2026-9':  [8, 15],
+    '2026-10': [6, 20],
+    '2026-12': [15],
+  };
+  const key = `${y}-${m + 1}`;
+  if (exceptions[key]) return exceptions[key].includes(d);
+  // 2ª e 3ª settimana del mese (dal primo lunedì)
+  const dowFirst = new Date(y, m, 1, 12).getDay();
+  const offsetMonFirst = (dowFirst + 6) % 7;
+  const firstMondayD   = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
+  const offsetMon = (dow + 6) % 7;
+  const mondayD   = d - offsetMon;
+  const diffDays  = mondayD - firstMondayD;
+  if (diffDays < 0) return false;
+  const week = Math.round(diffDays / 7) + 1;
+  return week === 2 || week === 3;
+};
+
 const isSedeOpenOnDay = (sedeId: string, date: Date): boolean => {
   if (isWeekend(date)) return false;
-  const dow = getDay(date); // 0=Dom, 1=Lun, ..., 6=Sab
-  if (sedeId === 'cspt')  return dow === 1; // solo lunedì
-  if (sedeId === 'borgo') {
-    // Martedì della 2ª e 3ª settimana del mese (approssimazione semplificata)
-    if (dow !== 2) return false;
-    const d = date.getDate();
-    return (d >= 8 && d <= 21);
-  }
+  const dow = getDay(date);
+  if (sedeId === 'cspt')  return dow === 1;
+  if (sedeId === 'borgo') return isBorgoWorkingDay(date);
   return true; // imola: lun-ven
 };
 
-// ─── Componente ────────────────────────────────────────────────────────────────
+const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
+
+// ─── Componente ───────────────────────────────────────────────────────────────
 export default function LoredanaView({
-  onClose,
   allAppointments,
   giorniChiusi,
   sedi,
+  selectedSedeId,
+  onSedeChange,
 }: LoredanaViewProps) {
-  const [startDate, setStartDate] = useState<Date>(() => {
-    const today = new Date();
-    // Inizia dal lunedì della settimana corrente
-    return startOfWeek(today, { weekStartsOn: 1 });
-  });
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 7 giorni visibili (una settimana)
-  const days = eachDayOfInterval({
-    start: startDate,
-    end: addDays(startDate, 6),
-  });
-
-  const goToPrevWeek = () => setStartDate(d => subDays(d, 7));
-  const goToNextWeek = () => setStartDate(d => addDays(d, 7));
-  const goToCurrentWeek = () => setStartDate(startOfWeek(new Date(), { weekStartsOn: 1 }));
-
-  const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
-
-  const isGiornoChiuso = (dateStr: string): boolean =>
-    giorniChiusi.some(
-      g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === LOREDANA_ID)
-    );
-
-  // Appuntamenti reali di Loredana (no UFF CHIUSO) per una sede e data
-  const getClienti = (sedeId: string, dateStr: string): string[] => {
-    return allAppointments
-      .filter(
-        apt =>
-          apt.operatore_id === LOREDANA_ID &&
-          apt.sede_id === sedeId &&
-          apt.data === dateStr &&
-          apt.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
-      )
-      .map(apt => apt.cliente);
-  };
-
-  // Conta gli slot "UFF CHIUSO" per sede e data
-  const hasUffChiuso = (sedeId: string, dateStr: string): boolean => {
-    const slots = TIME_SLOTS_MAP[sedeId] || [];
-    return slots.some(time =>
-      allAppointments.some(
-        apt =>
-          apt.operatore_id === LOREDANA_ID &&
-          apt.sede_id === sedeId &&
-          apt.data === dateStr &&
-          apt.ora === time &&
-          apt.cliente.trim().toUpperCase() === 'UFF CHIUSO'
-      )
-    );
-  };
-
-  // Sedi visibili di Loredana (solo quelle che esistono nel db)
+  // Sedi in cui lavora Loredana
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
+  const currentSede  = loredanaSedi.find(s => s.id === selectedSedeId) ?? loredanaSedi[0];
+  const sedeId       = currentSede?.id ?? 'imola';
+  const timeSlots    = TIME_SLOTS_MAP[sedeId] ?? TIME_SLOTS_MAP['imola'];
 
-  const sediBySede: Record<string, Sede> = {};
-  loredanaSedi.forEach(s => { sediBySede[s.id] = s; });
+  // Range di giorni: da oggi - 7 fino a oggi + TOTAL_DAYS
+  const startDate = addDays(new Date(), -7);
+  const days      = eachDayOfInterval({
+    start: startOfDay(startDate) >= startOfDay(MIN_DATE) ? startDate : MIN_DATE,
+    end:   addDays(new Date(), TOTAL_DAYS),
+  });
 
   const today = formatDate(new Date());
 
+  const isGiornoChiuso = (dateStr: string): boolean =>
+    giorniChiusi.some(
+      g => g.data === dateStr &&
+           (g.operatore_id === null || g.operatore_id === LOREDANA_ID)
+    );
+
+  // Appuntamento di Loredana per sede + data + orario
+  const getAppointmentForSlot = (dateStr: string, time: string): Appointment | null => {
+    return allAppointments.find(
+      apt =>
+        apt.operatore_id === LOREDANA_ID &&
+        apt.sede_id  === sedeId &&
+        apt.data     === dateStr &&
+        apt.ora      === time
+    ) ?? null;
+  };
+
+  const isUffChiuso = (apt: Appointment | null): boolean =>
+    apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
+
+  const COL_WIDTH    = 110; // px per colonna giorno
+  const ROW_HEIGHT   = 42;  // px per riga orario
+  const LABEL_W      = 70;  // px colonna orario fissa a sinistra
+
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start justify-center z-50 p-2 md:p-4 overflow-auto animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl border-t-4 border-[#16A34A] w-full max-w-[1400px] mt-4 mb-4 animate-slide-in">
-        {/* ─── Header ─── */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#16A34A] p-2 rounded-lg shadow">
-              <CalendarIcon className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-[#16A34A]">Vista Loredana</h2>
-              <p className="text-xs text-gray-500">Appuntamenti settimanali per sede</p>
-            </div>
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 107px)' }}>
+
+      {/* ─── Sub-header sede ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-green-50 border-b-2 border-green-300 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-6 rounded-full bg-[#16A34A] flex items-center justify-center">
+            <User size={13} className="text-white" />
           </div>
+          <span className="text-sm font-bold text-[#16A34A]">LOREDANA</span>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={goToPrevWeek}
-              className="p-2 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              title="Settimana precedente"
+        <span className="text-gray-300">|</span>
+
+        <div className="flex items-center gap-2">
+          <Building2 size={15} className="text-gray-500" />
+          <div className="relative">
+            <select
+              value={sedeId}
+              onChange={e => onSedeChange(e.target.value)}
+              className="pl-3 pr-8 py-1.5 text-sm bg-white text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#16A34A]/50 appearance-none cursor-pointer hover:bg-green-50 transition-colors"
             >
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-
-            <button
-              onClick={goToCurrentWeek}
-              className="px-3 py-2 text-sm font-semibold text-[#16A34A] bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors whitespace-nowrap"
-            >
-              Settimana corrente
-            </button>
-
-            <button
-              onClick={goToNextWeek}
-              className="p-2 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              title="Settimana successiva"
-            >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
-
-            <span className="ml-2 text-sm font-semibold text-gray-700 capitalize">
-              {format(startDate, "'Sett.' dd MMM", { locale: it })} —{' '}
-              {format(addDays(startDate, 6), 'dd MMM yyyy', { locale: it })}
-            </span>
-
-            <button
-              onClick={onClose}
-              className="ml-4 p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
-              title="Chiudi"
-            >
-              <X className="w-5 h-5" />
-            </button>
+              {loredanaSedi.map(s => (
+                <option key={s.id} value={s.id}>{s.nome}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#005CA9] pointer-events-none" />
           </div>
         </div>
 
-        {/* ─── Tabella ─── */}
-        <div className="overflow-x-auto p-3">
-          <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-            <thead>
-              <tr>
-                {/* Colonna sede */}
-                <th className="sticky left-0 z-10 bg-gray-50 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-[120px]">
-                  Sede
-                </th>
-                {/* Colonne giorni */}
-                {days.map(day => {
-                  const dateStr = formatDate(day);
-                  const isToday = dateStr === today;
-                  const isWe = isWeekend(day);
-                  return (
-                    <th
-                      key={dateStr}
-                      className={`border-b border-r border-gray-200 px-2 py-2 text-center min-w-[130px] ${
-                        isToday
-                          ? 'bg-[#005CA9] text-white'
-                          : isWe
-                          ? 'bg-gray-100 text-gray-400'
-                          : 'bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <div className="text-xs font-bold capitalize">
-                        {format(day, 'EEEE', { locale: it })}
-                      </div>
-                      <div className="text-sm font-semibold">
-                        {format(day, 'dd/MM')}
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {LOREDANA_SEDI.map(sedeId => {
-                const sede = sediBySede[sedeId];
-                if (!sede) return null;
+        <span className="ml-auto text-[11px] text-gray-400">
+          Scorri orizzontalmente per navigare tra i giorni
+        </span>
 
-                return (
-                  <tr key={sedeId} className="border-b border-gray-100">
-                    {/* Label sede */}
-                    <td className="sticky left-0 z-10 bg-white border-r border-gray-200 px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: sede.colore || '#16A34A' }}
-                        />
-                        <span className="text-xs font-bold text-gray-700">{sede.nome}</span>
-                      </div>
-                    </td>
+        {/* Legenda */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <div className="w-2.5 h-2.5 rounded bg-green-100 border border-green-400" />
+            <span className="text-[10px] text-gray-500">Appuntamento</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-400" />
+            <span className="text-[10px] text-gray-500">Uff. chiuso</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2.5 h-2.5 rounded bg-gray-100 border border-gray-300" />
+            <span className="text-[10px] text-gray-500">Chiuso</span>
+          </div>
+        </div>
+      </div>
 
-                    {/* Celle per giorno */}
-                    {days.map(day => {
-                      const dateStr = formatDate(day);
-                      const isWe = isWeekend(day);
-                      const sedeOpen = isSedeOpenOnDay(sedeId, day);
-                      const manuallyClosed = isGiornoChiuso(dateStr);
-                      const isClosed = !sedeOpen || manuallyClosed;
-                      const uffClosed = !isClosed && hasUffChiuso(sedeId, dateStr);
-                      const clienti = isClosed ? [] : getClienti(sedeId, dateStr);
+      {/* ─── Tabella con scroll orizzontale ──────────────────────────────────── */}
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto overflow-y-auto flex-1"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <div style={{ display: 'flex', minWidth: `${LABEL_W + days.length * COL_WIDTH}px` }}>
 
-                      if (isWe) {
-                        return (
-                          <td
-                            key={dateStr}
-                            className="border-r border-gray-100 px-2 py-2 bg-gray-50 text-center align-top"
-                            style={{ minHeight: '60px' }}
-                          >
-                            <span className="text-[10px] text-gray-300 font-medium">—</span>
-                          </td>
-                        );
-                      }
+          {/* Colonna fissa orari */}
+          <div
+            className="flex-shrink-0 bg-[#F5F8FA] border-r border-gray-200"
+            style={{ width: LABEL_W, position: 'sticky', left: 0, zIndex: 20 }}
+          >
+            {/* Header angolo */}
+            <div
+              className="bg-[#F5F8FA] border-b border-gray-200 flex items-center justify-center"
+              style={{ height: 50 }}
+            >
+              <span className="text-[10px] font-bold text-[#005CA9] uppercase tracking-wider">Orario</span>
+            </div>
+            {/* Righe orario */}
+            {timeSlots.map(time => (
+              <div
+                key={time}
+                className="border-b border-gray-100 flex items-center px-2"
+                style={{ height: ROW_HEIGHT }}
+              >
+                <span className="text-xs font-semibold text-gray-600">{time}</span>
+              </div>
+            ))}
+          </div>
 
-                      if (isClosed) {
-                        return (
-                          <td
-                            key={dateStr}
-                            className="border-r border-gray-100 px-2 py-2 bg-gray-50 align-top"
-                            style={{ minHeight: '60px' }}
-                          >
-                            <div className="flex items-center gap-1 justify-center mt-1">
-                              <Lock size={10} className="text-gray-400" />
-                              <span className="text-[10px] text-gray-400 font-medium">chiuso</span>
-                            </div>
-                          </td>
-                        );
-                      }
+          {/* Colonne giorni */}
+          <div style={{ display: 'flex', flex: 1 }}>
+            {days.map(day => {
+              const dateStr  = formatDate(day);
+              const isToday  = dateStr === today;
+              const isWe     = isWeekend(day);
+              const sedeOpen = isSedeOpenOnDay(sedeId, day);
+              const manClosed = isGiornoChiuso(dateStr);
+              const dayOff   = !sedeOpen || manClosed;
 
-                      if (uffClosed && clienti.length === 0) {
-                        return (
-                          <td
-                            key={dateStr}
-                            className="border-r border-gray-100 px-2 py-2 bg-amber-50 align-top"
-                            style={{ minHeight: '60px' }}
-                          >
-                            <div className="flex items-center gap-1 justify-center mt-1">
-                              <Lock size={10} className="text-amber-500" />
-                              <span className="text-[10px] text-amber-600 font-semibold">uff. chiuso</span>
-                            </div>
-                          </td>
-                        );
-                      }
+              const headerBg = isToday
+                ? '#005CA9'
+                : isWe
+                ? '#E5E7EB'
+                : dayOff
+                ? '#F3F4F6'
+                : '#F5F8FA';
 
+              const headerText = isToday ? '#FFFFFF' : isWe || dayOff ? '#9CA3AF' : '#374151';
+
+              return (
+                <div
+                  key={dateStr}
+                  style={{ width: COL_WIDTH, flexShrink: 0, borderRight: '1px solid #E5E7EB' }}
+                >
+                  {/* Intestazione giorno */}
+                  <div
+                    style={{
+                      height: 50,
+                      backgroundColor: headerBg,
+                      color: headerText,
+                      borderBottom: '1px solid #E5E7EB',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 4px',
+                    }}
+                  >
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'capitalize' }}>
+                      {format(day, 'EEE', { locale: it })}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 800 }}>
+                      {format(day, 'dd/MM')}
+                    </span>
+                  </div>
+
+                  {/* Celle orario */}
+                  {timeSlots.map(time => {
+                    if (dayOff || isWe) {
                       return (
-                        <td
-                          key={dateStr}
-                          className="border-r border-gray-100 px-2 py-1.5 align-top"
-                          style={{ minHeight: '60px' }}
+                        <div
+                          key={time}
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: '1px solid #F3F4F6',
+                            backgroundColor: '#F9FAFB',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
                         >
-                          {clienti.length === 0 ? (
-                            <div className="flex items-center justify-center h-full mt-2">
-                              <span className="text-[10px] text-green-500 font-medium">libero</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-0.5">
-                              {clienti.map((c, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-1 bg-green-50 border border-green-200 rounded px-1.5 py-0.5"
-                                >
-                                  <User size={9} className="text-green-600 flex-shrink-0" />
-                                  <span className="text-[10px] font-medium text-green-800 truncate max-w-[100px]">
-                                    {c}
-                                  </span>
-                                </div>
-                              ))}
-                              {uffClosed && (
-                                <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 mt-0.5">
-                                  <Lock size={9} className="text-amber-500 flex-shrink-0" />
-                                  <span className="text-[10px] font-medium text-amber-700">+ chiuso</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
+                          <Lock size={9} style={{ color: '#D1D5DB' }} />
+                        </div>
                       );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    }
 
-        {/* ─── Legenda ─── */}
-        <div className="flex items-center gap-4 px-4 pb-4 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-green-50 border border-green-200" />
-            <span className="text-[11px] text-gray-500">Appuntamento</span>
+                    const apt        = getAppointmentForSlot(dateStr, time);
+                    const uffClosed  = isUffChiuso(apt);
+                    const hasCliente = apt !== null && !uffClosed;
+
+                    if (uffClosed) {
+                      return (
+                        <div
+                          key={time}
+                          title="Ufficio chiuso"
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: '1px solid #FDE68A',
+                            backgroundColor: '#FFFBEB',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 3,
+                            padding: '0 4px',
+                          }}
+                        >
+                          <Lock size={9} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                          <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
+                        </div>
+                      );
+                    }
+
+                    if (hasCliente) {
+                      return (
+                        <div
+                          key={time}
+                          title={apt!.cliente + (apt!.note ? ' — ' + apt!.note : '')}
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: '1px solid #BBF7D0',
+                            backgroundColor: '#F0FDF4',
+                            borderLeft: '3px solid #16A34A',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '0 6px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <User size={9} style={{ color: '#16A34A', flexShrink: 0 }} />
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: '#166534',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {apt!.cliente}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    // Slot libero
+                    return (
+                      <div
+                        key={time}
+                        style={{
+                          height: ROW_HEIGHT,
+                          borderBottom: '1px solid #F3F4F6',
+                          backgroundColor: '#FFFFFF',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" />
-            <span className="text-[11px] text-gray-500">Uff. chiuso (manuale)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" />
-            <span className="text-[11px] text-gray-500">Sede chiusa / non lavora</span>
-          </div>
-          <span className="text-[11px] text-green-600 font-semibold ml-auto">
-            Operatrice: LOREDANA
-          </span>
         </div>
       </div>
     </div>
