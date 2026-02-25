@@ -580,7 +580,7 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                           }}
                         >
                           <Lock size={8} style={{ color: '#F59E0B' }} />
-                          <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
+                          
                           {editMode && <Unlock size={8} style={{ color: '#F59E0B', marginLeft: 2 }} />}
                         </div>
                       );
