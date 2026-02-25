@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  User, Lock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus,
+  User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus,
 } from 'lucide-react';
 import {
   format,
@@ -68,15 +68,14 @@ const HEADER_H     = 54;
 const ROW_MIN      = 44;
 const FILL_RATIO   = 0.82;
 const LABEL_W      = 68;
-const COL_WIDTH    = 115;   // giorni lavorativi
-const COL_WIDTH_WE = 48;    // sabato e domenica
+const COL_WIDTH    = 115;
+const COL_WIDTH_WE = 48;
 
-// Colore unico operatore (stesso dell'agenda 730)
-const OPERATOR_COLOR       = '#005CA9';
-const OPERATOR_COLOR_LIGHT = '#E6F2FF';
-const OPERATOR_COLOR_HOVER = '#D1E7FF';
+const OPERATOR_COLOR        = '#005CA9';
+const OPERATOR_COLOR_LIGHT  = '#E6F2FF';
+const OPERATOR_COLOR_HOVER  = '#D1E7FF';
 const OPERATOR_COLOR_BORDER = '#BFDBFE';
-const OPERATOR_COLOR_TEXT  = '#004080';
+const OPERATOR_COLOR_TEXT   = '#004080';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -160,10 +159,15 @@ export default function LoredanaView({
 
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
   const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
+  const [editMode, setEditMode]             = useState(false);
 
   const [showModal, setShowModal]   = useState(false);
   const [modalSlot, setModalSlot]   = useState<{ date: string; time: string } | null>(null);
   const [editingApt, setEditingApt] = useState<Appointment | null>(null);
+
+  // Stato locale degli appuntamenti (sincronizzato con prop + mutazioni)
+  const [localApts, setLocalApts] = useState<Appointment[]>(allAppointments);
+  useEffect(() => { setLocalApts(allAppointments); }, [allAppointments]);
 
   const selectedSede =
     loredanaSedi.find(s => s.id === selectedSedeId) ??
@@ -177,7 +181,6 @@ export default function LoredanaView({
     end:   endOfMonth(currentMonth),
   });
 
-  // Calcola minWidth tenendo conto della larghezza ridotta dei weekend
   const totalColsWidth = days.reduce((acc, day) => acc + (isWeekend(day) ? COL_WIDTH_WE : COL_WIDTH), 0);
 
   const isAtMinMonth =
@@ -195,7 +198,7 @@ export default function LoredanaView({
     );
 
   const getAppointmentForSlot = (sedeId: string, dateStr: string, time: string): Appointment | null =>
-    allAppointments.find(
+    localApts.find(
       apt =>
         apt.operatore_id === LOREDANA_ID &&
         apt.sede_id  === sedeId &&
@@ -205,6 +208,58 @@ export default function LoredanaView({
 
   const isUffChiuso = (apt: Appointment | null): boolean =>
     apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
+
+  // ─── Edit-mode: blocca / sblocca slot ─────────────────────────────────────────
+const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: string) => {
+  const uffApts = localApts.filter(
+    a => a.sede_id === sedeId && a.data === dateStr &&
+         a.ora === time && a.operatore_id === LOREDANA_ID &&
+         a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
+  );
+
+  if (uffApts.length > 0) {
+    // Sblocca: elimina gli appuntamenti "UFF CHIUSO"
+    for (const apt of uffApts) {
+      try {
+        const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+      } catch { alert('Errore durante lo sblocco'); return; }
+    }
+    setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
+  } else {
+    // Blocca: elimina eventuali appuntamenti esistenti e crea "UFF CHIUSO"
+    const existing = localApts.filter(
+      a => a.sede_id === sedeId && a.data === dateStr &&
+           a.ora === time && a.operatore_id === LOREDANA_ID
+    );
+    const deletedIds: string[] = [];
+    for (const apt of existing) {
+      try {
+        const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        deletedIds.push(apt.id);
+      } catch { alert('Errore durante il blocco'); return; }
+    }
+    setLocalApts(prev => prev.filter(a => !deletedIds.includes(a.id)));
+    try {
+      const res = await fetch('/api/epasa/appuntamenti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sede_id: sedeId,
+          operatore_id: LOREDANA_ID,
+          data: dateStr,
+          ora: time,
+          cliente: 'UFF CHIUSO',
+          mese: dateStr.substring(0, 7),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const newApt = await res.json();
+      setLocalApts(prev => [...prev, newApt]);
+    } catch { alert('Errore durante il blocco'); }
+  }
+};
 
   const openNew = (dateStr: string, time: string) => {
     setEditingApt(null);
@@ -224,11 +279,32 @@ export default function LoredanaView({
     setModalSlot(null);
   };
 
+  // CRUD con aggiornamento stato locale
+  const handleSave = async (data: any) => {
+    await onSave(data);
+    // Il componente padre aggiornerà allAppointments via SSE / reload
+  };
+
+  const handleUpdate = async (id: string, data: any) => {
+    await onUpdate(id, data);
+  };
+
+  const handleDelete = async (id: string) => {
+    await onDelete(id);
+    setLocalApts(prev => prev.filter(a => a.id !== id));
+  };
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && !showModal) onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showModal) return;
+        if (editMode) { setEditMode(false); return; }
+        onClose();
+      }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, showModal]);
+  }, [onClose, showModal, editMode]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -331,6 +407,24 @@ export default function LoredanaView({
           </div>
         </div>
 
+        {/* ─── Pulsante lucchetto ─── */}
+        <div className="relative group flex-shrink-0">
+          <button
+            onClick={() => setEditMode(e => !e)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
+              editMode
+                ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
+                : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
+            }`}
+            title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica (blocca slot)'}
+          >
+            {editMode ? <Unlock size={16} /> : <Lock size={16} />}
+          </button>
+          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
+            {editMode ? 'Esci dalla modifica' : 'Blocca / sblocca slot'}
+          </div>
+        </div>
+
         <button
           onClick={onClose}
           className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 border border-gray-200 text-gray-500 transition-colors flex-shrink-0"
@@ -339,6 +433,24 @@ export default function LoredanaView({
           <X size={18} />
         </button>
       </div>
+
+      {/* ══════════ BANNER EDIT MODE ══════════ */}
+      {editMode && (
+        <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Lock size={14} className="text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700">
+              Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
+            </span>
+          </div>
+          <button
+            onClick={() => setEditMode(false)}
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
+          >
+            <X size={12} /> Esci
+          </button>
+        </div>
+      )}
 
       {/* ══════════ TABELLA ══════════ */}
       <div
@@ -447,25 +559,29 @@ export default function LoredanaView({
                     const apt       = selectedSede ? getAppointmentForSlot(selectedSede.id, dateStr, time) : null;
                     const uffClosed = isUffChiuso(apt);
                     const hasPaz    = apt !== null && !uffClosed;
+                    const sedeId    = selectedSede?.id ?? 'imola';
 
                     if (uffClosed) {
                       return (
                         <div
                           key={time}
-                          title="Ufficio chiuso"
+                          title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                          onClick={() => editMode && handleEditModeSlotClick(sedeId, dateStr, time)}
                           style={{
                             height: ROW_HEIGHT,
                             borderBottom: '1px solid #FDE68A',
-                            backgroundColor: '#FFFBEB',
+                            backgroundColor: editMode ? '#FEF3C7' : '#FFFBEB',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: 3,
                             padding: '0 4px',
+                            cursor: editMode ? 'pointer' : 'default',
                           }}
                         >
                           <Lock size={8} style={{ color: '#F59E0B' }} />
-                          
+                          <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
+                          {editMode && <Unlock size={8} style={{ color: '#F59E0B', marginLeft: 2 }} />}
                         </div>
                       );
                     }
@@ -474,13 +590,13 @@ export default function LoredanaView({
                       return (
                         <div
                           key={time}
-                          title={`Modifica: ${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
-                          onClick={() => openEdit(apt!)}
+                          title={editMode ? 'Clicca per bloccare questo slot' : `Modifica: ${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
+                          onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openEdit(apt!)}
                           style={{
                             height: ROW_HEIGHT,
-                            borderBottom: `1px solid ${OPERATOR_COLOR_BORDER}`,
-                            backgroundColor: OPERATOR_COLOR_LIGHT,
-                            borderLeft: `3px solid ${OPERATOR_COLOR}`,
+                            borderBottom: editMode ? '1px solid #FCD34D' : `1px solid ${OPERATOR_COLOR_BORDER}`,
+                            backgroundColor: editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT,
+                            borderLeft: editMode ? '3px solid #F59E0B' : `3px solid ${OPERATOR_COLOR}`,
                             display: 'flex',
                             alignItems: 'center',
                             gap: 4,
@@ -488,29 +604,41 @@ export default function LoredanaView({
                             overflow: 'hidden',
                             cursor: 'pointer',
                           }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = editMode ? '#FEF3C7' : OPERATOR_COLOR_HOVER)}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT)}
                         >
-                          <User size={8} style={{ color: OPERATOR_COLOR, flexShrink: 0 }} />
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: OPERATOR_COLOR_TEXT,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {apt!.cliente}
-                          </span>
+                          {editMode ? (
+                            <>
+                              <Lock size={8} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                              <span style={{ fontSize: 10, fontWeight: 600, color: '#92400E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                blocca
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <User size={8} style={{ color: OPERATOR_COLOR, flexShrink: 0 }} />
+                              <span style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: OPERATOR_COLOR_TEXT,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {apt!.cliente}
+                              </span>
+                            </>
+                          )}
                         </div>
                       );
                     }
 
+                    // Slot vuoto
                     return (
                       <div
                         key={time}
-                        title="Aggiungi appuntamento"
-                        onClick={() => openNew(dateStr, time)}
+                        title={editMode ? 'Clicca per bloccare questo slot' : 'Aggiungi appuntamento'}
+                        onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openNew(dateStr, time)}
                         style={{
                           height: ROW_HEIGHT,
                           borderBottom: '1px solid #F1F5F9',
@@ -521,21 +649,20 @@ export default function LoredanaView({
                           justifyContent: 'center',
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT;
-                          const icon = e.currentTarget.querySelector<HTMLElement>('.lv-plus');
+                          e.currentTarget.style.backgroundColor = editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT;
+                          const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
                           if (icon) icon.style.opacity = '1';
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.backgroundColor = '#FFFFFF';
-                          const icon = e.currentTarget.querySelector<HTMLElement>('.lv-plus');
+                          const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
                           if (icon) icon.style.opacity = '0';
                         }}
                       >
-                        <Plus
-                          size={14}
-                          className="lv-plus"
-                          style={{ color: OPERATOR_COLOR, opacity: 0, transition: 'opacity 0.15s' }}
-                        />
+                        {editMode
+                          ? <Lock size={12} className="lv-icon" style={{ color: '#F59E0B', opacity: 0, transition: 'opacity 0.15s' }} />
+                          : <Plus size={14} className="lv-icon" style={{ color: OPERATOR_COLOR, opacity: 0, transition: 'opacity 0.15s' }} />
+                        }
                       </div>
                     );
                   })}
@@ -551,9 +678,9 @@ export default function LoredanaView({
         <EpasaAppointmentModal
           isOpen={showModal}
           onClose={closeModal}
-          onSave={onSave}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
+          onSave={handleSave}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
           existingAppointment={editingApt ?? undefined}
           sedi={loredanaSedi}
           operatori={operatori}
