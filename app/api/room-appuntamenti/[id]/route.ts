@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
+import { broadcastRoomUpdate } from '@/lib/sse';
 
 export async function GET(
   request: Request,
@@ -147,6 +148,8 @@ export async function PUT(
         : result.rows[0].ora_fine,
     };
 
+    // Notifica tutti i client connessi via SSE
+    broadcastRoomUpdate('update');
     return NextResponse.json(normalized);
   } catch (error) {
     console.error('Errore aggiornamento appuntamento sala:', error);
@@ -178,7 +181,9 @@ export async function DELETE(
     }
 
     await query('DELETE FROM room_appuntamenti WHERE id = $1', [id]);
-    
+
+    // Notifica tutti i client connessi via SSE
+    broadcastRoomUpdate('update');
     return NextResponse.json({ 
       success: true, 
       message: 'Appuntamento eliminato con successo' 
