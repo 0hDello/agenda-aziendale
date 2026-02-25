@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 import { broadcastRoomUpdate } from '@/lib/sse';
+import { logActivity } from '@/lib/log';
 
 export async function GET() {
   try {
@@ -10,11 +11,9 @@ export async function GET() {
     if (result.rows) {
       const normalized = result.rows.map(apt => ({
         ...apt,
-        
         data: apt.data instanceof Date 
           ? format(apt.data, 'yyyy-MM-dd') 
           : (typeof apt.data === 'string' ? apt.data.split('T')[0] : apt.data),
-        
         ora_inizio: typeof apt.ora_inizio === 'string' 
           ? apt.ora_inizio.substring(0, 5) 
           : apt.ora_inizio,
@@ -37,7 +36,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { sala_id, data, ora_inizio, ora_fine, titolo, mese } = body;
 
-    
     if (!sala_id || !data || !ora_inizio || !ora_fine || !titolo) {
       return NextResponse.json(
         { error: 'Tutti i campi obbligatori devono essere compilati' },
@@ -45,7 +43,6 @@ export async function POST(request: Request) {
       );
     }
 
-    
     const conflictCheck = await query(
       `SELECT id FROM room_appuntamenti
        WHERE sala_id = $1 
@@ -75,7 +72,6 @@ export async function POST(request: Request) {
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],
-        
         data: result.rows[0].data instanceof Date 
           ? format(result.rows[0].data, 'yyyy-MM-dd') 
           : (typeof result.rows[0].data === 'string' 
@@ -88,8 +84,16 @@ export async function POST(request: Request) {
           ? result.rows[0].ora_fine.substring(0, 5) 
           : result.rows[0].ora_fine,
       };
-      // Notifica tutti i client connessi via SSE
+
       broadcastRoomUpdate('update');
+
+      await logActivity({
+        source: 'SALA_RIUNIONI',
+        action: 'CREATE',
+        descrizione: `Prenotata sala: ${sala_id.toUpperCase()} — «${titolo}» — ${data} ${ora_inizio}–${ora_fine}`,
+        dettagli: normalized,
+      });
+
       return NextResponse.json(normalized, { status: 201 });
     }
 
