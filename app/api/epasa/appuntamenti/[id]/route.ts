@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 import { broadcastEpasaUpdate } from '@/lib/sse';
+import { logActivity } from '@/lib/log';
 
 export async function PUT(
   request: NextRequest, 
@@ -40,8 +41,14 @@ export async function PUT(
           : result.rows[0].ora,
       };
 
-      // Notifica tutti i client SSE connessi
       broadcastEpasaUpdate('update', { action: 'update', id });
+
+      await logActivity({
+        source: 'EPASA',
+        action: 'UPDATE',
+        descrizione: `Modificato appuntamento: ${cliente} — ${sede_id.toUpperCase()} / ${operatore_id} — ${data} ${ora}`,
+        dettagli: { id, ...normalized },
+      });
 
       return NextResponse.json(normalized);
     }
@@ -59,6 +66,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Recupera i dati prima di eliminare per il log
+    const existing = await query('SELECT * FROM epasa_appuntamenti WHERE id = $1', [id]);
+    const apt = existing.rows[0];
     
     const result = await query('DELETE FROM epasa_appuntamenti WHERE id = $1', [id]);
     
@@ -69,8 +80,18 @@ export async function DELETE(
       );
     }
 
-    // Notifica tutti i client SSE connessi
     broadcastEpasaUpdate('update', { action: 'delete', id });
+
+    if (apt) {
+      const dataStr = apt.data instanceof Date ? format(apt.data, 'yyyy-MM-dd') : String(apt.data).split('T')[0];
+      const oraStr = typeof apt.ora === 'string' ? apt.ora.substring(0, 5) : String(apt.ora);
+      await logActivity({
+        source: 'EPASA',
+        action: 'DELETE',
+        descrizione: `Eliminato appuntamento: ${apt.cliente} — ${apt.sede_id?.toUpperCase()} / ${apt.operatore_id} — ${dataStr} ${oraStr}`,
+        dettagli: { id, ...apt },
+      });
+    }
     
     return NextResponse.json({ success: true });
   } catch (error) {
