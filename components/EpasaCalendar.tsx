@@ -151,6 +151,9 @@ const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
 
+// ─── Colore unico operatori (stesso dell'agenda 730) ──────────────────────────
+const OPERATOR_COLOR = '#005CA9';
+
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
   const [sedi, setSedi]                       = useState<Sede[]>([]);
@@ -592,7 +595,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
     const operator = activeMonthlyOperator;
-    const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+    const operatorColor = OPERATOR_COLOR;
     const fa = getFirstAvailableDay(operator);
     const monthStart = startOfMonth(selectedDate);
     const monthEnd   = endOfMonth(selectedDate);
@@ -613,16 +616,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Operatore</span>
               <div className="flex items-center gap-1">
                 {operatorsInSede.map(op => {
-                  const col = op === 'MILECE' ? '#DC2626' : '#16A34A';
                   const isActive = op === activeMonthlyOperator;
                   return (
                     <button key={op} onClick={() => setSelectedMonthlyOperator(op)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         isActive ? 'text-white shadow-md scale-105' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                       }`}
-                      style={isActive ? { backgroundColor: col } : {}}>
+                      style={isActive ? { backgroundColor: OPERATOR_COLOR } : {}}>
                       <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : col }}>
+                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : OPERATOR_COLOR }}>
                         <User size={11} className="text-white" />
                       </div>
                       {op}
@@ -765,19 +767,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200" style={{ width: '60px' }}>
                 <span className="text-[#005CA9]">Orario</span>
               </th>
-              {operatorsInSede.length > 0 ? operatorsInSede.map(operator => {
-                const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                return (
-                  <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
-                        <User size={14} className="text-white" />
-                      </div>
-                      <span style={{ color }} className="font-bold">{operator}</span>
+              {operatorsInSede.length > 0 ? operatorsInSede.map(operator => (
+                <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: OPERATOR_COLOR }}>
+                      <User size={14} className="text-white" />
                     </div>
-                  </th>
-                );
-              }) : (
+                    <span style={{ color: OPERATOR_COLOR }} className="font-bold">{operator}</span>
+                  </div>
+                </th>
+              )) : (
                 <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
               )}
             </tr>
@@ -860,9 +859,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           </td>
                         );
                         if (slotApts.length > 0) {
-                          const colors = operator === 'MILECE'
-                            ? { bg:'bg-red-50', border:'border-l-4 border-red-500', text:'text-red-700', hover:'hover:bg-red-100' }
-                            : { bg:'bg-green-50', border:'border-l-4 border-green-500', text:'text-green-700', hover:'hover:bg-green-100' };
+                          const colors = { bg:'bg-blue-50', border:'border-l-4 border-blue-500', text:'text-blue-700', hover:'hover:bg-blue-100' };
                           return (
                             <td key={`${operator}-${time}`}
                               className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
@@ -977,7 +974,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => setShowLoredanaView(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 hover:border-green-500 hover:shadow-md"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080] hover:shadow-md"
                   title="Apri la vista mensile di Loredana">
                   <Eye size={15} /> Vista Loredana
                 </button>
