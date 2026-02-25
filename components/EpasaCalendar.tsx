@@ -140,12 +140,14 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-const MAX_VISIBLE_DAYS    = 14;
+// ─── Costanti scroll ──────────────────────────────────────────────────────────
+// Finestra ampia: evita che il trim tagli i giorni appena aggiunti
+const MAX_VISIBLE_DAYS    = 30;
 const DAYS_PAST           = 3;
 const DAYS_FUTURE         = 10;
-const DAYS_TO_LOAD        = 3;
+const DAYS_TO_LOAD        = 5;
 const MIN_DATE            = new Date(2026, 0, 1);
-const SCROLL_THRESHOLD_FW = 300;
+const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
 
@@ -172,8 +174,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
-  const isLoadingFwRef     = useRef(false);
-  const isLoadingBkRef     = useRef(false);
+  // 'idle' | 'fw' | 'bk'
+  const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
   const anchorDateStrRef   = useRef<string | null>(null);
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
   const viewModeRef        = useRef<ViewMode>('daily');
@@ -236,7 +238,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       .filter(t => isUffChiusoSlot(dateStr, t, operatoreId)).length;
   };
 
-  // ─── Scroll ───────────────────────────────────────────────────────────────
+  // ─── Scroll helpers ───────────────────────────────────────────────────────
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
     if (el) el.scrollIntoView({ behavior, block: 'start' });
@@ -263,9 +265,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, []);
 
+  // ─── Load forward ─────────────────────────────────────────────────────────
   const loadMoreDaysForward = useCallback(() => {
-    if (isLoadingFwRef.current || isLoadingBkRef.current) return;
-    isLoadingFwRef.current = true;
+    if (loadingDirRef.current !== 'idle') return;
+    loadingDirRef.current = 'fw';
     setVisibleDays(prev => {
       const last = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(last, i + 1));
@@ -273,17 +276,17 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      isLoadingFwRef.current = false;
-    }));
+    // Il guard verrà sbloccato dall'effect su visibleDays (direzione 'fw')
   }, []);
 
+  // ─── Load backward ────────────────────────────────────────────────────────
   const loadMoreDaysBackward = useCallback(() => {
-    if (isLoadingFwRef.current || isLoadingBkRef.current) return;
+    if (loadingDirRef.current !== 'idle') return;
     const days = visibleDaysRef.current;
     const firstDay = days[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
+    // Salva ancora per il ripristino posizione
     const container = scrollContainerRef.current;
     let anchorDate = firstDay;
     if (container) {
@@ -297,47 +300,75 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       }
     }
     anchorDateStrRef.current = formatDate(anchorDate);
-    isLoadingBkRef.current = true;
+    loadingDirRef.current = 'bk';
 
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
-    if (newDays.length === 0) { isLoadingBkRef.current = false; return; }
+    if (newDays.length === 0) { loadingDirRef.current = 'idle'; return; }
 
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
     });
+    // Il guard + ripristino posizione vengono gestiti dall'effect su visibleDays
   }, []);
 
+  // ─── Effect su visibleDays: sblocca guard e ripristina scroll ─────────────
+  //     Questo è il SOLO posto dove loadingDirRef torna a 'idle'.
   useEffect(() => {
-    if (!isLoadingBkRef.current) return;
-    const anchor = anchorDateStrRef.current;
-    if (!anchor) { isLoadingBkRef.current = false; return; }
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchor}"]`);
-      if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
-      anchorDateStrRef.current = null;
-      isLoadingBkRef.current = false;
-    }));
+    const dir = loadingDirRef.current;
+    if (dir === 'idle') return;
+
+    if (dir === 'bk') {
+      const anchor = anchorDateStrRef.current;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (anchor) {
+          const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchor}"]`);
+          if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
+        anchorDateStrRef.current = null;
+        loadingDirRef.current = 'idle';
+      }));
+    } else {
+      // fw: nessun ripristino, sblocca subito dopo due frame
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        loadingDirRef.current = 'idle';
+      }));
+    }
   }, [visibleDays]);
 
-  useEffect(() => {
+  // ─── Listener scroll: stabile, agganciato al div con ref callback ─────────
+  //     Non dipende da editMode perché usa scrollContainerRef.current direttamente.
+  const onScroll = useCallback(() => {
+    if (viewModeRef.current !== 'daily') return;
     const container = scrollContainerRef.current;
     if (!container) return;
-    const onScroll = () => {
-      if (viewModeRef.current !== 'daily') return;
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_FW) loadMoreDaysForward();
-      if (scrollTop < SCROLL_THRESHOLD_BK) loadMoreDaysBackward();
-    };
-    container.addEventListener('scroll', onScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onScroll);
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_FW) {
+      loadMoreDaysForward();
+    }
+    if (scrollTop < SCROLL_THRESHOLD_BK) {
+      loadMoreDaysBackward();
+    }
   }, [loadMoreDaysForward, loadMoreDaysBackward]);
 
+  // ─── Ref callback: ri-attacca il listener ogni volta che il div viene montato
+  //     (es. cambio editMode rimonta renderDailyView)
+  const setScrollRef = useCallback((el: HTMLDivElement | null) => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.removeEventListener('scroll', onScroll);
+    }
+    (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    if (el) {
+      el.addEventListener('scroll', onScroll, { passive: true });
+    }
+  }, [onScroll]);
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
@@ -355,6 +386,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
+  // ─── SSE realtime ─────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/epasa/events');
     es.addEventListener('update', () => {
@@ -380,6 +412,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     };
   }, []);
 
+  // ─── Load data ────────────────────────────────────────────────────────────
   const loadData = async () => {
     setLoading(true);
     try {
@@ -410,7 +443,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      // ✅ await dentro funzione async — ok
       const newApt = await res.json();
       setAllAppointments(prev => [...prev, newApt]);
     } catch { alert("Errore durante la creazione dell'appuntamento"); }
@@ -471,7 +503,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           }),
         });
         if (!res.ok) throw new Error();
-        // ✅ await dentro funzione async — ok
         const newApt = await res.json();
         setAllAppointments(prev => [...prev, newApt]);
       } catch { alert('Errore durante il blocco'); }
@@ -722,8 +753,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           </button>
         </div>
       )}
+      {/* ref callback: ri-aggancia il listener ad ogni rimount del div */}
       <div
-        ref={scrollContainerRef}
+        ref={setScrollRef}
         className="overflow-y-auto"
         style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}
       >
