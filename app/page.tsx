@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Calendar as CalendarIcon, Settings, Database, FileText } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Database, FileText, History } from 'lucide-react';
 
 interface Agenda {
   id: string;
@@ -79,6 +78,13 @@ export default function HomePage() {
 
             {/* Pulsanti Admin */}
             <div className="flex items-center gap-3">
+              <Link href="/cronologia">
+                <button className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200">
+                  <History className="w-4 h-4" />
+                  <span className="text-sm font-medium">Cronologia</span>
+                </button>
+              </Link>
+
               <Link href="/admin/query">
                 <button className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200">
                   <FileText className="w-4 h-4" />
@@ -92,8 +98,6 @@ export default function HomePage() {
                   <span className="text-sm font-medium">Tabelle</span>
                 </button>
               </Link>
-
-              
             </div>
           </div>
         </div>
