@@ -465,7 +465,7 @@ export default function LoredanaView({
                           }}
                         >
                           <Lock size={8} style={{ color: '#F59E0B' }} />
-                          <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
+                          
                         </div>
                       );
                     }
