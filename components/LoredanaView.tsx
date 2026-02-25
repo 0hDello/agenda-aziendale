@@ -72,11 +72,11 @@ const COL_WIDTH    = 115;   // giorni lavorativi
 const COL_WIDTH_WE = 48;    // sabato e domenica
 
 // Colore unico operatore (stesso dell'agenda 730)
-const OPERATOR_COLOR        = '#005CA9';
-const OPERATOR_COLOR_LIGHT  = '#E6F2FF';
-const OPERATOR_COLOR_HOVER  = '#D1E7FF';
+const OPERATOR_COLOR       = '#005CA9';
+const OPERATOR_COLOR_LIGHT = '#E6F2FF';
+const OPERATOR_COLOR_HOVER = '#D1E7FF';
 const OPERATOR_COLOR_BORDER = '#BFDBFE';
-const OPERATOR_COLOR_TEXT   = '#004080';
+const OPERATOR_COLOR_TEXT  = '#004080';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -177,6 +177,7 @@ export default function LoredanaView({
     end:   endOfMonth(currentMonth),
   });
 
+  // Calcola minWidth tenendo conto della larghezza ridotta dei weekend
   const totalColsWidth = days.reduce((acc, day) => acc + (isWeekend(day) ? COL_WIDTH_WE : COL_WIDTH), 0);
 
   const isAtMinMonth =
@@ -464,7 +465,7 @@ export default function LoredanaView({
                           }}
                         >
                           <Lock size={8} style={{ color: '#F59E0B' }} />
-                          <span style={{ fontSize: 9, fontWeight: 600, color: '#92400E' }}>uff. chiuso</span>
+                          
                         </div>
                       );
                     }
@@ -476,29 +477,28 @@ export default function LoredanaView({
                           title={`Modifica: ${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
                           onClick={() => openEdit(apt!)}
                           style={{
-                            // minHeight lascia crescere la cella se il testo è lungo
-                            minHeight: ROW_HEIGHT,
+                            height: ROW_HEIGHT,
                             borderBottom: `1px solid ${OPERATOR_COLOR_BORDER}`,
                             backgroundColor: OPERATOR_COLOR_LIGHT,
                             borderLeft: `3px solid ${OPERATOR_COLOR}`,
                             display: 'flex',
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
                             gap: 4,
-                            padding: '5px 6px',
+                            padding: '0 6px',
+                            overflow: 'hidden',
                             cursor: 'pointer',
                           }}
                           onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
                           onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
                         >
-                          <User size={8} style={{ color: OPERATOR_COLOR, flexShrink: 0, marginTop: 2 }} />
+                          <User size={8} style={{ color: OPERATOR_COLOR, flexShrink: 0 }} />
                           <span style={{
                             fontSize: 10,
                             fontWeight: 600,
                             color: OPERATOR_COLOR_TEXT,
-                            // testo a capo: niente troncamento
-                            whiteSpace: 'normal',
-                            wordBreak: 'break-word',
-                            lineHeight: 1.3,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
                           }}>
                             {apt!.cliente}
                           </span>
