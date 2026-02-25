@@ -18,7 +18,7 @@ import {
 import { it } from 'date-fns/locale';
 import EpasaAppointmentModal from './EpasaAppointmentModal';
 
-// ─── Tipi ────────────────────────────────────────────────────────────────────
+// ─── Tipi ─────────────────────────────────────────────────────────────────────
 interface Appointment {
   id: string;
   sede_id: string;
@@ -60,7 +60,7 @@ export interface LoredanaViewProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-// ─── Costanti ─────────────────────────────────────────────────────────────────
+// ─── Costanti ───────────────────────────────────────────────────────────────────
 const LOREDANA_ID  = 'LOREDANA';
 const MIN_DATE     = new Date(2026, 0, 1);
 const TOPBAR_H     = 53;
@@ -70,6 +70,13 @@ const FILL_RATIO   = 0.82;
 const LABEL_W      = 68;
 const COL_WIDTH    = 115;   // giorni lavorativi
 const COL_WIDTH_WE = 48;    // sabato e domenica
+
+// Colore unico operatore (stesso dell'agenda 730)
+const OPERATOR_COLOR       = '#005CA9';
+const OPERATOR_COLOR_LIGHT = '#E6F2FF';
+const OPERATOR_COLOR_HOVER = '#D1E7FF';
+const OPERATOR_COLOR_BORDER = '#BFDBFE';
+const OPERATOR_COLOR_TEXT  = '#004080';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -132,7 +139,7 @@ function useRowHeight(slotCount: number): number {
   return rowH;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// ─── Componente ─────────────────────────────────────────────────────────────────
 export default function LoredanaView({
   allAppointments,
   giorniChiusi,
@@ -236,14 +243,14 @@ export default function LoredanaView({
       style={{ overflow: 'hidden' }}
     >
       {/* ══════════ TOPBAR ══════════ */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b-2 border-green-300 flex-shrink-0 shadow-sm">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b-2 flex-shrink-0 shadow-sm" style={{ borderColor: `${OPERATOR_COLOR}33` }}>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-8 h-8 rounded-full bg-[#16A34A] flex items-center justify-center shadow">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center shadow" style={{ backgroundColor: OPERATOR_COLOR }}>
             <User size={16} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-extrabold text-[#16A34A] leading-none">LOREDANA</div>
+            <div className="text-sm font-extrabold leading-none" style={{ color: OPERATOR_COLOR }}>LOREDANA</div>
             <div className="text-[10px] text-gray-400 leading-none mt-0.5">Vista mensile</div>
           </div>
         </div>
@@ -261,8 +268,16 @@ export default function LoredanaView({
           </button>
           <button
             onClick={goToday}
-            className="px-3 py-1.5 text-xs font-bold text-[#005CA9] bg-[#E6F2FF] border border-[#005CA9]/20 rounded-lg hover:bg-[#D1E7FF] transition-colors"
-            style={{ minWidth: 160, textAlign: 'center' }}
+            className="px-3 py-1.5 text-xs font-bold border rounded-lg transition-colors"
+            style={{
+              minWidth: 160,
+              textAlign: 'center',
+              color: OPERATOR_COLOR,
+              backgroundColor: OPERATOR_COLOR_LIGHT,
+              borderColor: `${OPERATOR_COLOR}33`,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
           >
             <CalendarIcon size={12} className="inline mr-1" />
             {format(currentMonth, 'MMMM yyyy', { locale: it })}
@@ -284,19 +299,26 @@ export default function LoredanaView({
             <select
               value={selectedSedeId}
               onChange={e => setSelectedSedeId(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold bg-[#F0FDF4] text-[#166534] border-2 border-[#16A34A]/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16A34A]/50 cursor-pointer hover:bg-[#DCFCE7] transition-colors"
+              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold rounded-lg focus:outline-none cursor-pointer transition-colors"
+              style={{
+                backgroundColor: OPERATOR_COLOR_LIGHT,
+                color: OPERATOR_COLOR,
+                border: `2px solid ${OPERATOR_COLOR}40`,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
             >
               {loredanaSedi.map(s => (
                 <option key={s.id} value={s.id}>{s.nome}</option>
               ))}
             </select>
-            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#16A34A] pointer-events-none" />
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: OPERATOR_COLOR }} />
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-3 mr-2 flex-shrink-0">
           <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded bg-green-200 border border-green-500" />
+            <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: OPERATOR_COLOR_LIGHT, border: `1px solid ${OPERATOR_COLOR}` }} />
             <span className="text-[10px] text-gray-500">Appuntamento</span>
           </div>
           <div className="flex items-center gap-1">
@@ -371,8 +393,8 @@ export default function LoredanaView({
               const sedeOpen  = selectedSede ? isSedeOpenOnDay(selectedSede.id, day) : false;
               const dayOff    = !sedeOpen || manClosed || isWe;
 
-              const headerBg   = isToday ? '#005CA9' : isWe ? '#E5E7EB' : '#F8FAFC';
-              const headerText = isToday ? '#fff'    : isWe ? '#9CA3AF' : '#374151';
+              const headerBg   = isToday ? OPERATOR_COLOR : isWe ? '#E5E7EB' : '#F8FAFC';
+              const headerText = isToday ? '#fff'          : isWe ? '#9CA3AF' : '#374151';
 
               return (
                 <div
@@ -417,7 +439,6 @@ export default function LoredanaView({
                             justifyContent: 'center',
                           }}
                         >
-                          {/* Nei weekend non mostriamo l'icona per non sovraffollare la colonna stretta */}
                           {!isWe && <Lock size={8} style={{ color: '#D1D5DB' }} />}
                         </div>
                       );
@@ -457,9 +478,9 @@ export default function LoredanaView({
                           onClick={() => openEdit(apt!)}
                           style={{
                             height: ROW_HEIGHT,
-                            borderBottom: '1px solid #BBF7D0',
-                            backgroundColor: '#F0FDF4',
-                            borderLeft: '3px solid #16A34A',
+                            borderBottom: `1px solid ${OPERATOR_COLOR_BORDER}`,
+                            backgroundColor: OPERATOR_COLOR_LIGHT,
+                            borderLeft: `3px solid ${OPERATOR_COLOR}`,
                             display: 'flex',
                             alignItems: 'center',
                             gap: 4,
@@ -467,14 +488,14 @@ export default function LoredanaView({
                             overflow: 'hidden',
                             cursor: 'pointer',
                           }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#DCFCE7')}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#F0FDF4')}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
                         >
-                          <User size={8} style={{ color: '#16A34A', flexShrink: 0 }} />
+                          <User size={8} style={{ color: OPERATOR_COLOR, flexShrink: 0 }} />
                           <span style={{
                             fontSize: 10,
                             fontWeight: 600,
-                            color: '#166534',
+                            color: OPERATOR_COLOR_TEXT,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -500,7 +521,7 @@ export default function LoredanaView({
                           justifyContent: 'center',
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.backgroundColor = '#F0FDF4';
+                          e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT;
                           const icon = e.currentTarget.querySelector<HTMLElement>('.lv-plus');
                           if (icon) icon.style.opacity = '1';
                         }}
@@ -513,7 +534,7 @@ export default function LoredanaView({
                         <Plus
                           size={14}
                           className="lv-plus"
-                          style={{ color: '#16A34A', opacity: 0, transition: 'opacity 0.15s' }}
+                          style={{ color: OPERATOR_COLOR, opacity: 0, transition: 'opacity 0.15s' }}
                         />
                       </div>
                     );
