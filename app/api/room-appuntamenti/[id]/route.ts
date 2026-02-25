@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 import { broadcastRoomUpdate } from '@/lib/sse';
+import { logActivity } from '@/lib/log';
 
 export async function GET(
   request: Request,
@@ -57,7 +58,6 @@ export async function PUT(
     const body = await request.json();
     const { sala_id, data, ora_inizio, ora_fine, titolo, mese } = body;
 
-    
     const existing = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
       [id]
@@ -70,7 +70,6 @@ export async function PUT(
       );
     }
 
-    
     if (sala_id && data && ora_inizio && ora_fine) {
       const conflictCheck = await query(
         `SELECT id FROM room_appuntamenti
@@ -92,35 +91,16 @@ export async function PUT(
       }
     }
 
-    
     const updates = [];
     const values = [];
     let paramIndex = 1;
 
-    if (sala_id !== undefined) {
-      updates.push(`sala_id = $${paramIndex++}`);
-      values.push(sala_id);
-    }
-    if (data !== undefined) {
-      updates.push(`data = $${paramIndex++}`);
-      values.push(data);
-    }
-    if (ora_inizio !== undefined) {
-      updates.push(`ora_inizio = $${paramIndex++}`);
-      values.push(ora_inizio);
-    }
-    if (ora_fine !== undefined) {
-      updates.push(`ora_fine = $${paramIndex++}`);
-      values.push(ora_fine);
-    }
-    if (titolo !== undefined) {
-      updates.push(`titolo = $${paramIndex++}`);
-      values.push(titolo);
-    }
-    if (mese !== undefined) {
-      updates.push(`mese = $${paramIndex++}`);
-      values.push(mese);
-    }
+    if (sala_id !== undefined) { updates.push(`sala_id = $${paramIndex++}`); values.push(sala_id); }
+    if (data !== undefined) { updates.push(`data = $${paramIndex++}`); values.push(data); }
+    if (ora_inizio !== undefined) { updates.push(`ora_inizio = $${paramIndex++}`); values.push(ora_inizio); }
+    if (ora_fine !== undefined) { updates.push(`ora_fine = $${paramIndex++}`); values.push(ora_fine); }
+    if (titolo !== undefined) { updates.push(`titolo = $${paramIndex++}`); values.push(titolo); }
+    if (mese !== undefined) { updates.push(`mese = $${paramIndex++}`); values.push(mese); }
 
     updates.push(`updated_at = NOW()`);
     values.push(id);
@@ -148,8 +128,20 @@ export async function PUT(
         : result.rows[0].ora_fine,
     };
 
-    // Notifica tutti i client connessi via SSE
     broadcastRoomUpdate('update');
+
+    const salaLabel = (sala_id || existing.rows[0].sala_id)?.toUpperCase();
+    const titoloLabel = titolo || existing.rows[0].titolo;
+    const dataLabel = data || (existing.rows[0].data instanceof Date ? format(existing.rows[0].data, 'yyyy-MM-dd') : String(existing.rows[0].data).split('T')[0]);
+    const oraLabel = `${ora_inizio || existing.rows[0].ora_inizio}–${ora_fine || existing.rows[0].ora_fine}`;
+
+    await logActivity({
+      source: 'SALA_RIUNIONI',
+      action: 'UPDATE',
+      descrizione: `Modificata prenotazione: ${salaLabel} — «${titoloLabel}» — ${dataLabel} ${oraLabel}`,
+      dettagli: { id, ...normalized },
+    });
+
     return NextResponse.json(normalized);
   } catch (error) {
     console.error('Errore aggiornamento appuntamento sala:', error);
@@ -167,7 +159,6 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    
     const existing = await query(
       'SELECT * FROM room_appuntamenti WHERE id = $1',
       [id]
@@ -180,10 +171,21 @@ export async function DELETE(
       );
     }
 
+    const apt = existing.rows[0];
     await query('DELETE FROM room_appuntamenti WHERE id = $1', [id]);
 
-    // Notifica tutti i client connessi via SSE
     broadcastRoomUpdate('update');
+
+    const dataStr = apt.data instanceof Date ? format(apt.data, 'yyyy-MM-dd') : String(apt.data).split('T')[0];
+    const oraStr = `${typeof apt.ora_inizio === 'string' ? apt.ora_inizio.substring(0, 5) : apt.ora_inizio}–${typeof apt.ora_fine === 'string' ? apt.ora_fine.substring(0, 5) : apt.ora_fine}`;
+
+    await logActivity({
+      source: 'SALA_RIUNIONI',
+      action: 'DELETE',
+      descrizione: `Eliminata prenotazione: ${apt.sala_id?.toUpperCase()} — «${apt.titolo}» — ${dataStr} ${oraStr}`,
+      dettagli: { id, ...apt },
+    });
+
     return NextResponse.json({ 
       success: true, 
       message: 'Appuntamento eliminato con successo' 
