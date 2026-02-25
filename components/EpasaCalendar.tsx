@@ -79,15 +79,12 @@ interface GiornoChiuso {
 const TIME_SLOTS_IMOLA: string[] = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
 ];
-
 const TIME_SLOTS_CSPT: string[] = [
   '14:00','14:30','15:00','15:30','16:00','16:30',
 ];
-
 const TIME_SLOTS_BORGO: string[] = [
   '09:00','09:30','10:00','10:30','11:00','11:30',
 ];
-
 const IMOLA_SPECIAL_SLOTS: string[] = ['08:00'];
 
 const getTimeSlotsForSede = (sedeId: string): string[] => {
@@ -97,9 +94,8 @@ const getTimeSlotsForSede = (sedeId: string): string[] => {
 };
 
 const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[] => {
-  if (sedeId === 'cspt' || sedeId === 'borgo') {
+  if (sedeId === 'cspt' || sedeId === 'borgo')
     return allOperators.filter(op => op.toUpperCase() === 'LOREDANA');
-  }
   return allOperators;
 };
 
@@ -107,25 +103,19 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
 const MILECE_WORKING_DAYS = [2, 3, 5];
 const MILECE_START_TIME   = '08:30';
 
-// ─── Regole BORGO ─────────────────────────────────────────────────────────────
+// ─── Helpers data ─────────────────────────────────────────────────────────────
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 };
 
 const getWeekOfMonthFromFirstMonday = (date: Date): number => {
-  const y  = date.getFullYear();
-  const m  = date.getMonth();
-  const d  = date.getDate();
-
-  const dow       = new Date(y, m, d, 12).getDay();
-  const offsetMon = (dow + 6) % 7;
-  const mondayD   = d - offsetMon;
-
-  const dowFirst       = new Date(y, m, 1, 12).getDay();
+  const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
+  const dow = new Date(y, m, d, 12).getDay();
+  const mondayD = d - (dow + 6) % 7;
+  const dowFirst = new Date(y, m, 1, 12).getDay();
   const offsetMonFirst = (dowFirst + 6) % 7;
-  const firstMondayD   = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
-
+  const firstMondayD = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
   const diffDays = mondayD - firstMondayD;
   if (diffDays < 0) return 0;
   return Math.round(diffDays / 7) + 1;
@@ -138,17 +128,11 @@ const BORGO_EXCEPTIONS: Record<string, number[]> = {
 };
 
 const isBorgoWorkingDay = (date: Date): boolean => {
-  const y   = date.getFullYear();
-  const m   = date.getMonth();
-  const d   = date.getDate();
+  const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
   const dow = new Date(y, m, d, 12).getDay();
   if (dow !== 2) return false;
-
   const exKey = `${y}-${m + 1}`;
-  if (BORGO_EXCEPTIONS[exKey] !== undefined) {
-    return BORGO_EXCEPTIONS[exKey].includes(d);
-  }
-
+  if (BORGO_EXCEPTIONS[exKey] !== undefined) return BORGO_EXCEPTIONS[exKey].includes(d);
   const week = getWeekOfMonthFromFirstMonday(date);
   return week === 2 || week === 3;
 };
@@ -156,11 +140,13 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-const MAX_VISIBLE_DAYS = 14;
-const DAYS_PAST        = 3;
-const DAYS_FUTURE      = 10;
-const DAYS_TO_LOAD     = 3;
-const MIN_DATE         = new Date(2026, 0, 1);
+const MAX_VISIBLE_DAYS    = 14;
+const DAYS_PAST           = 3;
+const DAYS_FUTURE         = 10;
+const DAYS_TO_LOAD        = 3;
+const MIN_DATE            = new Date(2026, 0, 1);
+const SCROLL_THRESHOLD_FW = 300;   // px dal fondo per caricare avanti
+const SCROLL_THRESHOLD_BK = 200;   // px dalla cima per caricare indietro
 const SSE_RELOAD_DEBOUNCE = 800;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -183,30 +169,31 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
   const [showLoredanaView, setShowLoredanaView] = useState(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isLoadingRef       = useRef(false);
-  const visibleDaysRef     = useRef<Date[]>([]);
-  const topSentinelRef     = useRef<HTMLTableRowElement>(null);
-  const bottomSentinelRef  = useRef<HTMLTableRowElement>(null);
-  const topObserverRef     = useRef<IntersectionObserver | null>(null);
-  const bottomObserverRef  = useRef<IntersectionObserver | null>(null);
-  const anchorDateStrRef   = useRef<string | null>(null);  // giorno a cui tornare dopo caricamento in cima
-  const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
+  // ─── Refs ──────────────────────────────────────────────────────────────────
+  const scrollContainerRef  = useRef<HTMLDivElement>(null);
+  const visibleDaysRef      = useRef<Date[]>([]);
+  const isLoadingFwRef      = useRef(false);  // guard per caricamento avanti
+  const isLoadingBkRef      = useRef(false);  // guard per caricamento indietro
+  // Dopo loadBackward: stringa data dell'elemento ancora da ripristinare
+  const anchorDateStrRef    = useRef<string | null>(null);
+  const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
+  const viewModeRef         = useRef<ViewMode>('daily');
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
+  useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
 
-  const formatDate         = (date: Date) => format(date, 'yyyy-MM-dd');
-  const isMileceWorkingDay = (date: Date) => MILECE_WORKING_DAYS.includes(getDay(date));
+  const formatDate         = (d: Date) => format(d, 'yyyy-MM-dd');
+  const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
+  const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
 
-  const currentTimeSlots = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
-
-  const isMileceTimeBlocked = (operator: string, day: Date, time: string): boolean => {
+  // ─── Business logic ────────────────────────────────────────────────────────
+  const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
     if (operator !== 'MILECE') return false;
     if (!isMileceWorkingDay(day)) return false;
     return TIME_SLOTS_IMOLA.indexOf(time) < TIME_SLOTS_IMOLA.indexOf(MILECE_START_TIME);
   };
 
-  const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date): boolean => {
+  const isSedeOperatorDayClosed = (sedeId: string, operator: string, day: Date) => {
     if (isWeekend(day)) return true;
     if (sedeId === 'cspt')  return getDay(day) !== 1;
     if (sedeId === 'borgo') return !isBorgoWorkingDay(day);
@@ -214,47 +201,49 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return false;
   };
 
-  const isGiornoChiuso = (dateStr: string, operatoreId: string): boolean =>
+  const isGiornoChiuso = (dateStr: string, operatoreId: string) =>
     giorniChiusi.some(g => g.data === dateStr && (g.operatore_id === null || g.operatore_id === operatoreId));
 
   const getUffChiusoApts = (dateStr: string, time: string, operatoreId: string): Appointment[] => {
     if (!selectedSede) return [];
     return allAppointments.filter(
-      apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
-             apt.ora === time && apt.operatore_id === operatoreId &&
-             apt.cliente.trim().toUpperCase() === 'UFF CHIUSO'
+      a => a.sede_id === selectedSede.id && a.data === dateStr &&
+           a.ora === time && a.operatore_id === operatoreId &&
+           a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
     );
   };
 
   const isUffChiusoSlot = (dateStr: string, time: string, operatoreId: string): boolean => {
     if (!selectedSede) return false;
-    const slotApts = allAppointments.filter(
-      apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
-             apt.ora === time && apt.operatore_id === operatoreId
+    const s = allAppointments.filter(
+      a => a.sede_id === selectedSede.id && a.data === dateStr &&
+           a.ora === time && a.operatore_id === operatoreId
     );
-    return slotApts.length > 0 && slotApts.every(a => a.cliente.trim().toUpperCase() === 'UFF CHIUSO');
+    return s.length > 0 && s.every(a => a.cliente.trim().toUpperCase() === 'UFF CHIUSO');
   };
 
-  const getRealAppointmentsCount = (dateStr: string, operatoreId: string): number => {
+  const getRealAppointmentsCount = (dateStr: string, operatoreId: string) => {
     if (!selectedSede) return 0;
     return allAppointments.filter(
-      apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
-             apt.operatore_id === operatoreId &&
-             apt.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+      a => a.sede_id === selectedSede.id && a.data === dateStr &&
+           a.operatore_id === operatoreId &&
+           a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
     ).length;
   };
 
-  const getUffChiusoSlotsCount = (dateStr: string, operatoreId: string): number => {
+  const getUffChiusoSlotsCount = (dateStr: string, operatoreId: string) => {
     if (!selectedSede) return 0;
-    const slots = getTimeSlotsForSede(selectedSede.id);
-    return slots.filter(time => isUffChiusoSlot(dateStr, time, operatoreId)).length;
+    return getTimeSlotsForSede(selectedSede.id)
+      .filter(t => isUffChiusoSlot(dateStr, t, operatoreId)).length;
   };
 
+  // ─── Scroll to date ────────────────────────────────────────────────────────
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
-    if (el && scrollContainerRef.current) el.scrollIntoView({ behavior, block: 'start' });
+    if (el) el.scrollIntoView({ behavior, block: 'start' });
   };
 
+  // ─── Finestra giorni ───────────────────────────────────────────────────────
   const buildWindowAround = (center: Date): Date[] => {
     const days: Date[] = [];
     for (let i = DAYS_PAST; i > 0; i--) {
@@ -266,63 +255,63 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return days;
   };
 
+  // ─── Navigate ─────────────────────────────────────────────────────────────
   const navigateToDate = useCallback((date: Date) => {
     setSelectedDate(date);
     if (visibleDaysRef.current.some(d => isSameDay(d, date))) {
-      setTimeout(() => scrollToDate(date), 50);
+      setTimeout(() => scrollToDate(date, 'smooth'), 50);
     } else {
       setVisibleDays(buildWindowAround(date));
       setTimeout(() => scrollToDate(date, 'instant'), 200);
     }
   }, []);
 
-  // ─── Carica giorni in avanti ───────────────────────────────────────────────
+  // ─── Load forward ─────────────────────────────────────────────────────────
   const loadMoreDaysForward = useCallback(() => {
-    if (isLoadingRef.current) return;
-    isLoadingRef.current = true;
+    if (isLoadingFwRef.current || isLoadingBkRef.current) return;
+    isLoadingFwRef.current = true;
     setVisibleDays(prev => {
-      const lastDay = prev[prev.length - 1];
-      const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
+      const last = prev[prev.length - 1];
+      const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(last, i + 1));
       let updated = [...prev, ...newDays];
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
+    // Aspetta due frame poi sblocca — nessuna scrittura su scrollTop
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      isLoadingRef.current = false;
+      isLoadingFwRef.current = false;
     }));
   }, []);
 
-  // ─── Carica giorni indietro (senza toccare scrollTop) ────────────────────────
+  // ─── Load backward (preserva posizione con scrollIntoView sull'ancora) ────
   const loadMoreDaysBackward = useCallback(() => {
-    if (isLoadingRef.current) return;
+    if (isLoadingFwRef.current || isLoadingBkRef.current) return;
     const days = visibleDaysRef.current;
     const firstDay = days[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
-    // salva il giorno correntemente visibile come ancora per il ripristino
+    // Trova il primo giorno visibile come ancora
     const container = scrollContainerRef.current;
     let anchorDate = firstDay;
     if (container) {
-      // cerca il primo giorno con data-epasa-date visibile nel viewport
-      const allDateRows = container.querySelectorAll<HTMLElement>('[data-epasa-date]');
-      for (const row of Array.from(allDateRows)) {
-        const rect = row.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        if (rect.top >= containerRect.top - 10) {
+      const containerTop = container.getBoundingClientRect().top;
+      const rows = container.querySelectorAll<HTMLElement>('[data-epasa-date]');
+      for (const row of Array.from(rows)) {
+        if (row.getBoundingClientRect().top >= containerTop - 5) {
           const ds = row.getAttribute('data-epasa-date');
           if (ds) { anchorDate = dateStrToLocal(ds); break; }
         }
       }
     }
     anchorDateStrRef.current = formatDate(anchorDate);
+    isLoadingBkRef.current = true;
 
-    isLoadingRef.current = true;
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
-    if (newDays.length === 0) { isLoadingRef.current = false; return; }
+    if (newDays.length === 0) { isLoadingBkRef.current = false; return; }
 
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
@@ -331,63 +320,44 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     });
   }, []);
 
-  // ─── Dopo che i nuovi giorni sono renderizzati, torna all'ancora ──────────
+  // ─── Dopo render backward: ripristina posizione sull'ancora ───────────────
+  //     Si attiva SOLO quando isLoadingBkRef è true (backward in corso)
   useEffect(() => {
-    if (!isLoadingRef.current) return;
+    if (!isLoadingBkRef.current) return;
     const anchor = anchorDateStrRef.current;
-    if (!anchor) { isLoadingRef.current = false; return; }
-    // Aspetta due frame per assicurarsi che il DOM sia aggiornato
+    if (!anchor) { isLoadingBkRef.current = false; return; }
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchor}"]`);
       if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
       anchorDateStrRef.current = null;
-      isLoadingRef.current = false;
+      isLoadingBkRef.current = false;
     }));
   }, [visibleDays]);
 
-  // ─── IntersectionObserver per trigger caricamento ─────────────────────────
-  const attachObservers = useCallback(() => {
-    detachObservers();
+  // ─── Listener scroll: solo lettura di scrollTop / scrollHeight ─────────────
+  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    topObserverRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMoreDaysBackward();
-      },
-      { root: container, rootMargin: '200px 0px 0px 0px', threshold: 0 }
-    );
+    const onScroll = () => {
+      if (viewModeRef.current !== 'daily') return;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // Avanti: vicini al fondo
+      if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_FW) {
+        loadMoreDaysForward();
+      }
+      // Indietro: vicini alla cima
+      if (scrollTop < SCROLL_THRESHOLD_BK) {
+        loadMoreDaysBackward();
+      }
+    };
 
-    bottomObserverRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMoreDaysForward();
-      },
-      { root: container, rootMargin: '0px 0px 200px 0px', threshold: 0 }
-    );
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
+  }, [loadMoreDaysForward, loadMoreDaysBackward]);
+  // NB: l'effect si ri-attacca solo se le callback cambiano (useCallback senza deps)
 
-    if (topSentinelRef.current)    topObserverRef.current.observe(topSentinelRef.current);
-    if (bottomSentinelRef.current) bottomObserverRef.current.observe(bottomSentinelRef.current);
-  }, [loadMoreDaysBackward, loadMoreDaysForward]);
-
-  const detachObservers = () => {
-    topObserverRef.current?.disconnect();
-    bottomObserverRef.current?.disconnect();
-    topObserverRef.current    = null;
-    bottomObserverRef.current = null;
-  };
-
-  // ─── Ri-collega gli observer ogni volta che i sentinel cambiano ──────────
-  useEffect(() => {
-    if (!isInitialized || viewMode !== 'daily') return;
-    attachObservers();
-    return detachObservers;
-  }, [visibleDays, isInitialized, viewMode, attachObservers]);
-
-  useEffect(() => {
-    if (viewMode === 'monthly') detachObservers();
-    if (viewMode === 'daily' && isInitialized) attachObservers();
-  }, [viewMode]);
-
+  // ─── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
@@ -405,6 +375,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
+  // ─── SSE realtime ─────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/epasa/events');
     es.addEventListener('update', () => {
@@ -430,6 +401,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     };
   }, []);
 
+  // ─── Load data ────────────────────────────────────────────────────────────
   const loadData = async () => {
     setLoading(true);
     try {
@@ -442,25 +414,25 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       const [sediData, opData, appData, gcData] = await Promise.all([
         sediRes.json(), opRes.json(), appRes.json(), gcRes.json(),
       ]);
-      if (sediData)  setSedi(sediData);
-      if (opData)    setOperatori(opData);
-      if (appData)   setAllAppointments(appData);
+      if (sediData) setSedi(sediData);
+      if (opData)   setOperatori(opData);
+      if (appData)  setAllAppointments(appData);
       if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
-      setLoading(false);
-    } catch (error) {
-      console.error('Errore caricamento dati:', error);
+    } catch (e) {
+      console.error('Errore caricamento dati:', e);
+    } finally {
       setLoading(false);
     }
   };
 
+  // ─── CRUD appuntamenti ────────────────────────────────────────────────────
   const handleCreateAppointment = async (data: any) => {
     try {
       const res = await fetch('/api/epasa/appuntamenti', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      const newApt = await res.json();
-      setAllAppointments(prev => [...prev, newApt]);
+      setAllAppointments(prev => [...prev, await res.json()]);
     } catch { alert("Errore durante la creazione dell'appuntamento"); }
   };
 
@@ -471,7 +443,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
-      setAllAppointments(prev => prev.map(a => (a.id === id ? updated : a)));
+      setAllAppointments(prev => prev.map(a => a.id === id ? updated : a));
     } catch { alert("Errore durante l'aggiornamento dell'appuntamento"); }
   };
 
@@ -495,12 +467,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       }
       setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
-      const existingApts = allAppointments.filter(
-        apt => apt.sede_id === selectedSede.id && apt.data === dateStr &&
-               apt.ora === time && apt.operatore_id === operator
+      const existing = allAppointments.filter(
+        a => a.sede_id === selectedSede.id && a.data === dateStr &&
+             a.ora === time && a.operatore_id === operator
       );
       const deletedIds: string[] = [];
-      for (const apt of existingApts) {
+      for (const apt of existing) {
         try {
           const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
           if (!res.ok) throw new Error();
@@ -513,17 +485,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sede_id: selectedSede.id,
-            operatore_id: operator,
-            data: dateStr,
-            ora: time,
-            cliente: 'UFF CHIUSO',
-            mese: dateStr.substring(0, 7),
+            sede_id: selectedSede.id, operatore_id: operator,
+            data: dateStr, ora: time,
+            cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7),
           }),
         });
         if (!res.ok) throw new Error();
-        const newApt = await res.json();
-        setAllAppointments(prev => [...prev, newApt]);
+        setAllAppointments(prev => [...prev, await res.json()]);
       } catch { alert('Errore durante il blocco'); }
     }
   };
@@ -542,9 +510,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const getAppointmentsForSlot = (date: string, time: string, operator: string) => {
     if (!selectedSede) return [];
-    return allAppointments.filter(apt =>
-      apt.sede_id === selectedSede.id && apt.data === date &&
-      apt.ora === time && apt.operatore_id === operator
+    return allAppointments.filter(
+      a => a.sede_id === selectedSede.id && a.data === date &&
+           a.ora === time && a.operatore_id === operator
     );
   };
 
@@ -556,14 +524,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const slots = getTimeSlotsForSede(selectedSede.id);
     const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
     const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
-      ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
-      : 0;
+      ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length : 0;
     const totalSlots    = slots.length - timeBlockedCount - specialSlotCount;
-    const realCount     = getRealAppointmentsCount(date, operator);
-    const uffCount      = getUffChiusoSlotsCount(date, operator);
-    const occupiedSlots = realCount + uffCount;
-    if (occupiedSlots === 0)         return 'free';
-    if (occupiedSlots >= totalSlots) return 'full';
+    const occupiedSlots = getRealAppointmentsCount(date, operator) + getUffChiusoSlotsCount(date, operator);
+    if (occupiedSlots === 0)          return 'free';
+    if (occupiedSlots >= totalSlots)  return 'full';
     return 'partial';
   };
 
@@ -584,8 +549,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const getOperatorsForSede = () => {
     if (!selectedSede) return [];
-    const all = operatori.map(op => op.id).sort();
-    return getOperatorsForSedeId(selectedSede.id, all);
+    return getOperatorsForSedeId(selectedSede.id, operatori.map(op => op.id).sort());
   };
   const operatorsInSede = getOperatorsForSede();
 
@@ -593,7 +557,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     ? selectedMonthlyOperator
     : operatorsInSede[0] ?? null;
 
-  const getSedeOrariLabel = (): string => {
+  const getSedeOrariLabel = () => {
     if (!selectedSede) return '';
     if (selectedSede.id === 'cspt')  return 'Lunedì 14:00-16:30';
     if (selectedSede.id === 'borgo') return 'Martedì (sett. 2 e 3) 9:00-11:30';
@@ -604,31 +568,27 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const d = subDays(selectedDate, 1);
     if (d >= MIN_DATE) navigateToDate(d);
   };
-
   const handlePreviousMonth = () => {
     const d = subMonths(selectedDate, 1);
     if (d >= MIN_DATE) setSelectedDate(d);
   };
 
-  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  VISTA MENSILE
+  // ═══════════════════════════════════════════════════════════════════════════
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
-
     const operator = activeMonthlyOperator;
     const operatorColor = operator === 'MILECE' ? '#DC2626' : '#16A34A';
     const fa = getFirstAvailableDay(operator);
-
     const monthStart = startOfMonth(selectedDate);
     const monthEnd   = endOfMonth(selectedDate);
-    const calStart   = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calEnd     = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    const allCalDays = eachDayOfInterval({ start: calStart, end: calEnd });
-
+    const allCalDays = eachDayOfInterval({
+      start: startOfWeek(monthStart, { weekStartsOn: 1 }),
+      end:   endOfWeek(monthEnd,   { weekStartsOn: 1 }),
+    });
     const weeks: Date[][] = [];
-    for (let i = 0; i < allCalDays.length; i += 7) {
-      weeks.push(allCalDays.slice(i, i + 7));
-    }
-
+    for (let i = 0; i < allCalDays.length; i += 7) weeks.push(allCalDays.slice(i, i + 7));
     const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
     return (
@@ -643,20 +603,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   const col = op === 'MILECE' ? '#DC2626' : '#16A34A';
                   const isActive = op === activeMonthlyOperator;
                   return (
-                    <button
-                      key={op}
-                      onClick={() => setSelectedMonthlyOperator(op)}
+                    <button key={op} onClick={() => setSelectedMonthlyOperator(op)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                        isActive
-                          ? 'text-white shadow-md scale-105'
-                          : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                        isActive ? 'text-white shadow-md scale-105' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                       }`}
-                      style={isActive ? { backgroundColor: col } : {}}
-                    >
-                      <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : col }}
-                      >
+                      style={isActive ? { backgroundColor: col } : {}}>
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : col }}>
                         <User size={11} className="text-white" />
                       </div>
                       {op}
@@ -666,19 +619,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               </div>
             </div>
           )}
-
           {operatorsInSede.length === 1 && (
             <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: operatorColor }}
-              >
+              <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: operatorColor }}>
                 <User size={14} className="text-white" />
               </div>
               <span className="font-bold text-sm" style={{ color: operatorColor }}>{operator}</span>
             </div>
           )}
-
           <div className="flex items-center gap-4 flex-wrap">
             {fa && (
               <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
@@ -689,10 +637,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               </div>
             )}
             <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-200">
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-500" /><span className="text-[11px] text-gray-600">Libero</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-400" /><span className="text-[11px] text-gray-600">Parziale</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-500" /><span className="text-[11px] text-gray-600">Pieno</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-gray-300" /><span className="text-[11px] text-gray-600">Chiuso</span></div>
+              {[['bg-green-500','Libero'],['bg-yellow-400','Parziale'],['bg-red-500','Pieno'],['bg-gray-300','Chiuso']].map(([c,l]) => (
+                <div key={l} className="flex items-center gap-1.5"><div className={`w-3 h-3 rounded ${c}`}/><span className="text-[11px] text-gray-600">{l}</span></div>
+              ))}
             </div>
           </div>
         </div>
@@ -700,114 +647,68 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="grid grid-cols-7 border-b border-gray-200">
             {DAY_NAMES.map((name, idx) => (
-              <div
-                key={name}
-                className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${
-                  idx >= 5 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600'
-                }`}
-              >
-                {name}
-              </div>
+              <div key={name} className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${
+                idx >= 5 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600'
+              }`}>{name}</div>
             ))}
           </div>
-
           {weeks.map((week, wIdx) => (
             <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
               {week.map((day, dIdx) => {
-                const dateStr     = formatDate(day);
+                const dateStr = formatDate(day);
                 const isThisMonth = getMonth(day) === getMonth(selectedDate);
-                const isToday     = formatDate(new Date()) === dateStr;
-                const isWe        = isWeekend(day);
-                const isBefore    = day < MIN_DATE;
-
-                if (!isThisMonth) {
-                  return (
-                    <div
-                      key={dateStr}
-                      className={`p-1.5 border-r border-gray-100 last:border-r-0 ${
-                        dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
-                      }`}
-                    />
-                  );
-                }
-
-                const av       = getDayAvailability(dateStr, operator);
+                if (!isThisMonth) return (
+                  <div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${
+                    dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
+                  }`} />
+                );
+                const isToday = formatDate(new Date()) === dateStr;
+                const isWe    = isWeekend(day);
+                const isBefore = day < MIN_DATE;
+                const av      = getDayAvailability(dateStr, operator);
                 const isClosed = isWe || av === 'closed';
-
                 let freeSlots = 0;
                 if (!isClosed && selectedSede) {
                   const slots = getTimeSlotsForSede(selectedSede.id);
                   const dateObj = dateStrToLocal(dateStr);
-                  const n    = getRealAppointmentsCount(dateStr, operator);
-                  const uffN = getUffChiusoSlotsCount(dateStr, operator);
-                  const timeBlockedCount = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
-                  const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
-                    ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length
-                    : 0;
-                  const totalSlots = slots.length - timeBlockedCount - specialSlotCount;
-                  freeSlots = Math.max(0, totalSlots - n - uffN);
+                  const tbc = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
+                  const ssc = (selectedSede.id === 'imola' && operator !== 'MILECE')
+                    ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length : 0;
+                  freeSlots = Math.max(0,
+                    slots.length - tbc - ssc -
+                    getRealAppointmentsCount(dateStr, operator) -
+                    getUffChiusoSlotsCount(dateStr, operator)
+                  );
                 }
-
-                const avBg =
-                  isClosed ? (isWe ? 'bg-gray-100' : 'bg-gray-50') :
-                  av === 'free'    ? 'bg-green-50' :
-                  av === 'partial' ? 'bg-yellow-50' :
-                  'bg-red-50';
-
-                const avBorder =
-                  isClosed ? '' :
-                  av === 'free'    ? 'border-t-2 border-green-400' :
-                  av === 'partial' ? 'border-t-2 border-yellow-400' :
-                  'border-t-2 border-red-500';
-
-                const avDot =
-                  av === 'free'    ? 'bg-green-500' :
-                  av === 'partial' ? 'bg-yellow-400' :
-                  av === 'full'    ? 'bg-red-500' :
-                  'bg-gray-300';
-
+                const avBg = isClosed ? (isWe ? 'bg-gray-100' : 'bg-gray-50') :
+                  av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
+                const avBorder = isClosed ? '' :
+                  av === 'free' ? 'border-t-2 border-green-400' :
+                  av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';
+                const avDot = av === 'free' ? 'bg-green-500' : av === 'partial' ? 'bg-yellow-400' :
+                  av === 'full' ? 'bg-red-500' : 'bg-gray-300';
                 return (
-                  <div
-                    key={dateStr}
-                    onClick={() => {
-                      if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); }
-                    }}
+                  <div key={dateStr}
+                    onClick={() => { if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
                     className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${
                       !isClosed && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
                     } ${isBefore && !isClosed ? 'opacity-40' : ''}`}
-                    title={
-                      isClosed
-                        ? 'Chiuso'
-                        : freeSlots > 0
-                          ? `${operator} - ${format(day, 'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots === 1 ? 'o' : 'i'}`
-                          : `${operator} - ${format(day, 'dd/MM/yyyy')} - Pieno`
-                    }
+                    title={isClosed ? 'Chiuso' : freeSlots > 0
+                      ? `${operator} - ${format(day,'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots===1?'o':'i'}`
+                      : `${operator} - ${format(day,'dd/MM/yyyy')} - Pieno`}
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <span
-                        className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
-                          isToday
-                            ? 'bg-[#005CA9] text-white'
-                            : isWe
-                              ? 'text-gray-400'
-                              : 'text-gray-700'
-                        }`}
-                      >
-                        {format(day, 'd')}
-                      </span>
-                      {!isClosed && (
-                        <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />
-                      )}
+                      <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                        isToday ? 'bg-[#005CA9] text-white' : isWe ? 'text-gray-400' : 'text-gray-700'
+                      }`}>{format(day, 'd')}</span>
+                      {!isClosed && <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />}
                     </div>
-
                     {!isClosed && freeSlots > 0 && (
-                      <div className="absolute bottom-1.5 left-1.5">
-                        <div className="flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                          <span className="text-[10px] font-semibold text-green-700">
-                            {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
-                          </span>
-                        </div>
+                      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                        <span className="text-[10px] font-semibold text-green-700">
+                          {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -820,7 +721,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  VISTA GIORNALIERA
+  // ═══════════════════════════════════════════════════════════════════════════
   const renderDailyView = () => (
     <div>
       {editMode && (
@@ -831,10 +734,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
             </span>
           </div>
-          <button
-            onClick={() => setEditMode(false)}
-            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
-          >
+          <button onClick={() => setEditMode(false)}
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
             <X size={12} /> Esci
           </button>
         </div>
@@ -844,51 +745,34 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         className="overflow-y-auto"
         style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}
       >
-        <table
-          className="w-full"
-          style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}
-        >
+        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
-              <th
-                className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200"
-                style={{ width: '60px' }}
-              >
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200" style={{ width: '60px' }}>
                 <span className="text-[#005CA9]">Orario</span>
               </th>
-              {operatorsInSede.length > 0 ? (
-                operatorsInSede.map(operator => {
-                  const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
-                  return (
-                    <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: color }}
-                        >
-                          <User size={14} className="text-white" />
-                        </div>
-                        <span style={{ color }} className="font-bold">{operator}</span>
+              {operatorsInSede.length > 0 ? operatorsInSede.map(operator => {
+                const color = operator === 'MILECE' ? '#DC2626' : '#16A34A';
+                return (
+                  <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
+                        <User size={14} className="text-white" />
                       </div>
-                    </th>
-                  );
-                })
-              ) : (
+                      <span style={{ color }} className="font-bold">{operator}</span>
+                    </div>
+                  </th>
+                );
+              }) : (
                 <th className="p-2 text-center text-xs text-gray-500">Nessun operatore per questa sede</th>
               )}
             </tr>
           </thead>
           <tbody>
-            {/* Sentinel in cima per IntersectionObserver */}
-            <tr ref={topSentinelRef} style={{ height: 0, visibility: 'hidden' }}>
-              <td colSpan={Math.max(operatorsInSede.length + 1, 2)} style={{ padding: 0 }} />
-            </tr>
-
             {visibleDays.map(day => {
               const dateStr = formatDate(day);
               const isToday = formatDate(new Date()) === dateStr;
               const isWe    = isWeekend(day);
-              const slots   = currentTimeSlots;
               return (
                 <React.Fragment key={dateStr}>
                   <tr data-epasa-date={dateStr}>
@@ -903,155 +787,119 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
                     </td>
                   </tr>
-                  {!isWe && slots.map(time => (
+                  {!isWe && currentTimeSlots.map(time => (
                     <tr key={`${dateStr}-${time}`}>
-                      <td
-                        className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100"
-                        style={{ width: '60px', height: '45px' }}
-                      >
+                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100"
+                        style={{ width: '60px', height: '45px' }}>
                         <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
                       </td>
-                      {operatorsInSede.length > 0 ? (
-                        operatorsInSede.map(operator => {
-                          const slotApts        = getAppointmentsForSlot(dateStr, time, operator);
-                          const dayLocal        = dateStrToLocal(dateStr);
-                          const isDayClosed     = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
-                          const isManuallyClose = isGiornoChiuso(dateStr, operator);
-                          const isMileceTC      = isMileceTimeBlocked(operator, dayLocal, time);
-                          const isUffChiuso     = isUffChiusoSlot(dateStr, time, operator);
+                      {operatorsInSede.length > 0 ? operatorsInSede.map(operator => {
+                        const slotApts    = getAppointmentsForSlot(dateStr, time, operator);
+                        const dayLocal    = dateStrToLocal(dateStr);
+                        const isDayClosed = isSedeOperatorDayClosed(selectedSede!.id, operator, dayLocal);
+                        const isManually  = isGiornoChiuso(dateStr, operator);
+                        const isMTC       = isMileceTimeBlocked(operator, dayLocal, time);
+                        const isUffC      = isUffChiusoSlot(dateStr, time, operator);
 
-                          if (isDayClosed || isManuallyClose) {
-                            const title = isDayClosed
-                              ? (selectedSede!.id === 'cspt'
-                                  ? 'CSPT: aperto solo il lunedì pomeriggio'
-                                  : selectedSede!.id === 'borgo'
-                                    ? 'Borgo: martedì della 2ª e 3ª settimana del mese'
-                                    : operator === 'MILECE'
-                                      ? 'MILECE non lavora questo giorno'
-                                      : 'Ufficio chiuso')
-                              : 'Ufficio chiuso';
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
-                                style={{ height: '45px' }}
-                                title={title}
-                              >
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                                    <Lock size={9} /> chiuso
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          }
-
-                          if (isMileceTC) {
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
-                                style={{ height: '45px' }}
-                                title="MILECE inizia alle 08:30"
-                              >
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                                    <Lock size={9} /> chiuso
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          }
-
-                          if (isUffChiuso) {
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
-                                  editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
-                                }`}
-                                style={{ height: '45px' }}
-                                title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                                onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
-                              >
-                                <div className="w-full h-full flex items-center justify-center gap-1">
-                                  <Lock size={9} className="text-gray-400" />
-                                  <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                                  {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
-                                </div>
-                              </td>
-                            );
-                          }
-
-                          if (slotApts.length > 0) {
-                            const colors = operator === 'MILECE'
-                              ? { bg: 'bg-red-50',   border: 'border-l-4 border-red-500',   text: 'text-red-700',   hover: 'hover:bg-red-100' }
-                              : { bg: 'bg-green-50', border: 'border-l-4 border-green-500', text: 'text-green-700', hover: 'hover:bg-green-100' };
-                            return (
-                              <td
-                                key={`${operator}-${time}`}
-                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
-                                style={{ height: '45px' }}
-                              >
-                                <div
-                                  onClick={() => {
-                                    if (editMode) handleEditModeSlotClick(dateStr, time, operator);
-                                    else openModalForEditAppointment(slotApts[0]);
-                                  }}
-                                  className={`w-full h-full px-2 py-1 ${
-                                    editMode
-                                      ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
-                                      : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
-                                  } transition-all flex items-center`}
-                                  title={editMode ? 'Clicca per bloccare questo slot' : undefined}
-                                >
-                                  <div className="w-full">
-                                    {editMode ? (
-                                      <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                                        <Lock size={9} /> blocca
-                                      </span>
-                                    ) : (
-                                      slotApts.map((apt, idx) => (
-                                        <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
-                                          <User size={10} className={`${colors.text} flex-shrink-0`} />
-                                          <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
-                                        </div>
-                                      ))
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                            );
-                          }
-
+                        if (isDayClosed || isManually) {
+                          const title = isDayClosed
+                            ? (selectedSede!.id === 'cspt' ? 'CSPT: aperto solo il lunedì pomeriggio'
+                              : selectedSede!.id === 'borgo' ? 'Borgo: martedì della 2ª e 3ª settimana'
+                              : operator === 'MILECE' ? 'MILECE non lavora questo giorno' : 'Ufficio chiuso')
+                            : 'Ufficio chiuso';
                           return (
-                            <td
-                              key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
-                              style={{ height: '45px' }}
-                            >
-                              <div
-                                onClick={() => {
-                                  if (editMode) handleEditModeSlotClick(dateStr, time, operator);
-                                  else openModalForNewAppointment(dateStr, time, operator);
-                                }}
-                                className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
-                                  editMode
-                                    ? 'hover:bg-amber-50 group-hover:bg-amber-50'
-                                    : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
-                                }`}
-                                title={editMode ? 'Clicca per bloccare questo slot' : undefined}
-                              >
-                                {editMode ? (
-                                  <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                ) : (
-                                  <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                )}
+                            <td key={`${operator}-${time}`}
+                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                              style={{ height: '45px' }} title={title}>
+                              <div className="w-full h-full flex items-center justify-center">
+                                <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                  <Lock size={9} /> chiuso
+                                </span>
                               </div>
                             </td>
                           );
-                        })
-                      ) : (
+                        }
+                        if (isMTC) return (
+                          <td key={`${operator}-${time}`}
+                            className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                            style={{ height: '45px' }} title="MILECE inizia alle 08:30">
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                <Lock size={9} /> chiuso
+                              </span>
+                            </div>
+                          </td>
+                        );
+                        if (isUffC) return (
+                          <td key={`${operator}-${time}`}
+                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
+                              editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                            }`}
+                            style={{ height: '45px' }}
+                            title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                            onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}>
+                            <div className="w-full h-full flex items-center justify-center gap-1">
+                              <Lock size={9} className="text-gray-400" />
+                              <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                              {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
+                            </div>
+                          </td>
+                        );
+                        if (slotApts.length > 0) {
+                          const colors = operator === 'MILECE'
+                            ? { bg:'bg-red-50', border:'border-l-4 border-red-500', text:'text-red-700', hover:'hover:bg-red-100' }
+                            : { bg:'bg-green-50', border:'border-l-4 border-green-500', text:'text-green-700', hover:'hover:bg-green-100' };
+                          return (
+                            <td key={`${operator}-${time}`}
+                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                              style={{ height: '45px' }}>
+                              <div
+                                onClick={() => editMode
+                                  ? handleEditModeSlotClick(dateStr, time, operator)
+                                  : openModalForEditAppointment(slotApts[0])}
+                                className={`w-full h-full px-2 py-1 ${
+                                  editMode
+                                    ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
+                                    : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
+                                } transition-all flex items-center`}
+                                title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
+                                <div className="w-full">
+                                  {editMode ? (
+                                    <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                                      <Lock size={9} /> blocca
+                                    </span>
+                                  ) : slotApts.map((apt, idx) => (
+                                    <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
+                                      <User size={10} className={`${colors.text} flex-shrink-0`} />
+                                      <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        }
+                        return (
+                          <td key={`${operator}-${time}`}
+                            className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                            style={{ height: '45px' }}>
+                            <div
+                              onClick={() => editMode
+                                ? handleEditModeSlotClick(dateStr, time, operator)
+                                : openModalForNewAppointment(dateStr, time, operator)}
+                              className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
+                                editMode
+                                  ? 'hover:bg-amber-50 group-hover:bg-amber-50'
+                                  : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
+                              }`}
+                              title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
+                              {editMode
+                                ? <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                : <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                            </div>
+                          </td>
+                        );
+                      }) : (
                         <td className="p-2 text-center text-xs text-gray-400">-</td>
                       )}
                     </tr>
@@ -1059,44 +907,39 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </React.Fragment>
               );
             })}
-
-            {/* Sentinel in fondo per IntersectionObserver */}
-            <tr ref={bottomSentinelRef} style={{ height: 0, visibility: 'hidden' }}>
-              <td colSpan={Math.max(operatorsInSede.length + 1, 2)} style={{ padding: 0 }} />
-            </tr>
           </tbody>
         </table>
       </div>
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#005CA9] mx-auto" />
-          <p className="mt-4 text-gray-600 font-medium">Caricamento agenda EPASA...</p>
-        </div>
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (loading) return (
+    <div className="flex items-center justify-center h-96">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#005CA9] mx-auto" />
+        <p className="mt-4 text-gray-600 font-medium">Caricamento agenda EPASA...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!selectedSede) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-gray-600">Nessuna sede disponibile</p>
-      </div>
-    );
-  }
+  if (!selectedSede) return (
+    <div className="flex items-center justify-center h-96">
+      <p className="text-gray-600">Nessuna sede disponibile</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen p-1 md:p-2 animate-fade-in">
       <div className="max-w-[1800px] mx-auto">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
+
+          {/* ── HEADER ── */}
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-
-              {/* SINISTRA */}
+              {/* Sinistra */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <CalendarIcon className="w-6 h-6 text-white" />
@@ -1119,41 +962,31 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </div>
               </div>
 
-              {/* DESTRA */}
+              {/* Destra */}
               <div className="flex items-center gap-2 flex-wrap">
-
-                <button
-                  onClick={() => setShowLoredanaView(true)}
+                <button onClick={() => setShowLoredanaView(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 hover:border-green-500 hover:shadow-md"
-                  title="Apri la vista mensile di Loredana"
-                >
-                  <Eye size={15} />
-                  Vista Loredana
+                  title="Apri la vista mensile di Loredana">
+                  <Eye size={15} /> Vista Loredana
                 </button>
 
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
-                  }`}>
-                    <List className="w-4 h-4 inline mr-1" />Giornaliera
-                  </button>
+                  }`}><List className="w-4 h-4 inline mr-1" />Giornaliera</button>
                   <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
-                  }`}>
-                    <LayoutGrid className="w-4 h-4 inline mr-1" />Mensile
-                  </button>
+                  }`}><LayoutGrid className="w-4 h-4 inline mr-1" />Mensile</button>
                 </div>
 
                 <div className="relative group">
-                  <button
-                    onClick={() => setEditMode(e => !e)}
+                  <button onClick={() => setEditMode(e => !e)}
                     className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
                       editMode
                         ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
                         : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
                     }`}
-                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica (blocca/sblocca slot)'}
-                  >
+                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}>
                     {editMode ? <Unlock size={16} /> : <Lock size={16} />}
                   </button>
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
@@ -1161,18 +994,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </div>
                 </div>
 
-                <button
-                  onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
+                <button onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
                   disabled={selectedDate <= MIN_DATE}
-                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
                   <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
 
-                <button
-                  onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center"
-                >
+                <button onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center">
                   <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
                     {viewMode === 'daily'
                       ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
@@ -1180,27 +1009,20 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                   </span>
                 </button>
 
-                <button
-                  onClick={() => viewMode === 'daily'
-                    ? navigateToDate(addDays(selectedDate, 1))
-                    : setSelectedDate(addMonths(selectedDate, 1))
-                  }
-                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200"
-                >
+                <button onClick={() => viewMode === 'daily'
+                  ? navigateToDate(addDays(selectedDate, 1))
+                  : setSelectedDate(addMonths(selectedDate, 1))}
+                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
 
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
                   <div className="relative">
-                    <select
-                      value={selectedSede.id}
+                    <select value={selectedSede.id}
                       onChange={e => { const s = sedi.find(x => x.id === e.target.value); if (s) setSelectedSede(s); }}
-                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
-                    >
-                      {sedi.map(s => (
-                        <option key={s.id} value={s.id} className="text-gray-800 bg-white">{s.nome}</option>
-                      ))}
+                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none">
+                      {sedi.map(s => <option key={s.id} value={s.id} className="text-gray-800 bg-white">{s.nome}</option>)}
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
                   </div>
@@ -1213,7 +1035,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         </div>
       </div>
 
-      {/* ─── VISTA LOREDANA ─── */}
+      {/* Vista Loredana */}
       {showLoredanaView && (
         <LoredanaView
           onClose={() => setShowLoredanaView(false)}
@@ -1227,21 +1049,27 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         />
       )}
 
+      {/* Date picker */}
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Data</h3>
-              <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
+              <button onClick={() => setShowDatePicker(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>
             <div className="flex items-center justify-between mb-4">
-              <button type="button" onClick={handlePreviousMonth} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="button" onClick={handlePreviousMonth} disabled={selectedDate <= MIN_DATE}
+                className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
                 <ChevronLeft size={20} className="text-[#005CA9]" />
               </button>
-              <h4 className="text-lg font-bold text-gray-800 capitalize">{format(selectedDate, 'MMMM yyyy', { locale: it })}</h4>
-              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+              <h4 className="text-lg font-bold text-gray-800 capitalize">
+                {format(selectedDate, 'MMMM yyyy', { locale: it })}
+              </h4>
+              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+                className="p-2 hover:bg-gray-100 rounded-lg">
                 <ChevronRight size={20} className="text-[#005CA9]" />
               </button>
             </div>
@@ -1252,9 +1080,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </div>
             <div className="grid grid-cols-7 gap-2 mb-6">
               {(() => {
-                const ms   = startOfMonth(selectedDate);
-                const me   = endOfMonth(selectedDate);
-                const days = eachDayOfInterval({ start: ms, end: me });
+                const ms = startOfMonth(selectedDate);
+                const days = eachDayOfInterval({ start: ms, end: endOfMonth(selectedDate) });
                 const firstDow = (getDay(ms) + 6) % 7;
                 return (
                   <>
@@ -1265,8 +1092,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       const isBef = day < MIN_DATE;
                       const isWe  = isWeekend(day);
                       return (
-                        <button
-                          key={i} type="button"
+                        <button key={i} type="button"
                           onClick={() => { if (!isBef) { navigateToDate(day); setShowDatePicker(false); } }}
                           disabled={isBef}
                           className={`aspect-square rounded-lg text-sm font-medium transition-all ${
@@ -1275,8 +1101,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             isTod ? 'bg-[#E6F2FF] text-[#005CA9] font-bold' :
                             isWe  ? 'bg-gray-200 text-gray-400' :
                                     'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105'
-                          } ${!isBef ? 'cursor-pointer' : ''}`}
-                        >
+                          } ${!isBef ? 'cursor-pointer' : ''}`}>
                           {format(day, 'd')}
                         </button>
                       );
@@ -1285,17 +1110,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 );
               })()}
             </div>
-            <button
-              type="button"
+            <button type="button"
               onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
-              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold"
-            >
+              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold">
               Vai a Oggi
             </button>
           </div>
         </div>
       )}
 
+      {/* Modal appuntamento */}
       {showModal && selectedSlot && (
         <EpasaAppointmentModal
           isOpen={showModal}
