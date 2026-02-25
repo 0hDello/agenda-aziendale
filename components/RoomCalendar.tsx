@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Building2, ChevronDown } from 'lucide-react';
 import RoomAppointmentModal from './RoomAppointmentModal';
 
@@ -52,6 +52,8 @@ const APPOINTMENT_COLORS: { [key: string]: string } = {
   'DEFAULT': '#6B7280'
 };
 
+const SSE_RELOAD_DEBOUNCE = 800;
+
 function getColorForAppointment(title: string): string {
   const upperTitle = title.toUpperCase();
   for (const key in APPOINTMENT_COLORS) {
@@ -77,10 +79,34 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
+  const [realtimeFlash, setRealtimeFlash] = useState(false);
 
-  
+  const sseReloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     loadData();
+  }, []);
+
+  // ─── SSE realtime ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const es = new EventSource('/api/room-appuntamenti/events');
+    es.addEventListener('update', () => {
+      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
+      sseReloadTimerRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/room-appuntamenti');
+          const data = await res.json();
+          if (data) setAllAppointments(data);
+          setRealtimeFlash(true);
+          setTimeout(() => setRealtimeFlash(false), 1500);
+        } catch { /* silenzioso */ }
+      }, SSE_RELOAD_DEBOUNCE);
+    });
+    es.onerror = () => {};
+    return () => {
+      es.close();
+      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -315,9 +341,22 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
                   <Building2 className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-[#005CA9]">
-                    {selectedRoom.nome}
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold text-[#005CA9]">
+                      {selectedRoom.nome}
+                    </h1>
+                    {/* Badge Live */}
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                      realtimeFlash
+                        ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                        : 'bg-gray-50 text-gray-400 border border-gray-200'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                      }`} />
+                      {realtimeFlash ? 'Aggiornato' : 'Live'}
+                    </div>
+                  </div>
                   <p className="text-xs text-gray-600 mt-0.5">
                     {monthAppointmentsCount} prenotazioni in {MONTHS[currentMonth]}
                   </p>
