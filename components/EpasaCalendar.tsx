@@ -163,8 +163,8 @@ const DAYS_TO_LOAD              = 3;
 const MIN_DATE                  = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD          = 400;
 const SCROLL_THRESHOLD_BACKWARD = 300;
-const POST_COMPENSATE_COOLDOWN  = 150;
-const COMPENSATE_SKIP_EVENTS    = 3;
+const POST_COMPENSATE_COOLDOWN  = 500;  // aumentato da 150 a 500ms
+const COMPENSATE_SKIP_EVENTS    = 6;    // aumentato da 3 a 6
 const SSE_RELOAD_DEBOUNCE       = 800;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -200,6 +200,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
   const handleScrollRef           = useRef<() => void>(() => {});
   const sseReloadTimerRef         = useRef<NodeJS.Timeout | null>(null);
+  // FIX: ref per rilevare la direzione reale dell'utente tramite wheel/touch
+  const wheelIntentRef            = useRef<'up' | 'down' | null>(null);
+  const touchStartYRef            = useRef<number>(0);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -323,6 +326,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const heightDiff = container.scrollHeight - snapHeight;
           if (heightDiff > 0) {
+            // FIX: imposta compensateEventsRef prima di modificare scrollTop
+            // così gli eventi scroll generati dalla compensazione vengono ignorati
             compensateEventsRef.current = COMPENSATE_SKIP_EVENTS;
             container.scrollTop = snapTop + heightDiff;
           }
@@ -331,11 +336,18 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         isLoadingRef.current = false;
         backwardCooldownRef.current = true;
         if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-        cooldownTimerRef.current = setTimeout(() => { backwardCooldownRef.current = false; }, POST_COMPENSATE_COOLDOWN);
+        cooldownTimerRef.current = setTimeout(() => {
+          backwardCooldownRef.current = false;
+          // FIX: resetta anche wheelIntentRef dopo il cooldown per non
+          // bloccare scroll successivi in su
+          wheelIntentRef.current = null;
+        }, POST_COMPENSATE_COOLDOWN);
       });
     });
   };
 
+  // FIX: handleScroll usa wheelIntentRef (direzione reale dell'utente)
+  // invece di inferirla dal delta scrollTop (che viene alterato dalla compensazione)
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -347,10 +359,20 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       return;
     }
 
-    if (backwardCooldownRef.current) { lastUserScrollTopRef.current = currentScrollTop; }
+    if (backwardCooldownRef.current) {
+      lastUserScrollTopRef.current = currentScrollTop;
+      return;
+    }
+
     if (isLoadingRef.current) return;
 
-    const direction: 'up' | 'down' = currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
+    // Usa la direzione rilevata da wheel/touch se disponibile,
+    // altrimenti fallback sul delta scrollTop
+    const direction: 'up' | 'down' =
+      wheelIntentRef.current !== null
+        ? wheelIntentRef.current
+        : (currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down');
+
     lastUserScrollTopRef.current = currentScrollTop;
     userScrollDirectionRef.current = direction;
 
@@ -379,19 +401,54 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const attachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || scrollListenerAttachedRef.current) return;
-    const stableHandler = () => handleScrollRef.current();
-    container.addEventListener('scroll', stableHandler, { passive: true });
+
+    const stableScrollHandler = () => handleScrollRef.current();
+
+    // FIX: listener wheel per rilevare la direzione intesa dall'utente
+    const wheelHandler = (e: WheelEvent) => {
+      wheelIntentRef.current = e.deltaY > 0 ? 'down' : 'up';
+    };
+
+    // FIX: listener touch per rilevare la direzione su mobile
+    const touchStartHandler = (e: TouchEvent) => {
+      touchStartYRef.current = e.touches[0].clientY;
+    };
+    const touchMoveHandler = (e: TouchEvent) => {
+      const deltaY = touchStartYRef.current - e.touches[0].clientY;
+      wheelIntentRef.current = deltaY > 0 ? 'down' : 'up';
+    };
+
+    container.addEventListener('scroll', stableScrollHandler, { passive: true });
+    container.addEventListener('wheel', wheelHandler, { passive: true });
+    container.addEventListener('touchstart', touchStartHandler, { passive: true });
+    container.addEventListener('touchmove', touchMoveHandler, { passive: true });
+
     scrollListenerAttachedRef.current = true;
-    (container as any).__scrollHandler = stableHandler;
+    (container as any).__scrollHandler      = stableScrollHandler;
+    (container as any).__wheelHandler       = wheelHandler;
+    (container as any).__touchStartHandler  = touchStartHandler;
+    (container as any).__touchMoveHandler   = touchMoveHandler;
   };
 
   const detachScrollListener = () => {
     const container = scrollContainerRef.current;
     if (!container || !scrollListenerAttachedRef.current) return;
-    const handler = (container as any).__scrollHandler;
-    if (handler) container.removeEventListener('scroll', handler);
+
+    const scrollHandler     = (container as any).__scrollHandler;
+    const wheelHandler      = (container as any).__wheelHandler;
+    const touchStartHandler = (container as any).__touchStartHandler;
+    const touchMoveHandler  = (container as any).__touchMoveHandler;
+
+    if (scrollHandler)     container.removeEventListener('scroll', scrollHandler);
+    if (wheelHandler)      container.removeEventListener('wheel', wheelHandler);
+    if (touchStartHandler) container.removeEventListener('touchstart', touchStartHandler);
+    if (touchMoveHandler)  container.removeEventListener('touchmove', touchMoveHandler);
+
     scrollListenerAttachedRef.current = false;
     delete (container as any).__scrollHandler;
+    delete (container as any).__wheelHandler;
+    delete (container as any).__touchStartHandler;
+    delete (container as any).__touchMoveHandler;
   };
 
   useEffect(() => {
