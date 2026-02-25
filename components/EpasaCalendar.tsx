@@ -156,16 +156,12 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-const MAX_VISIBLE_DAYS          = 14;
-const DAYS_PAST                 = 3;
-const DAYS_FUTURE               = 10;
-const DAYS_TO_LOAD              = 3;
-const MIN_DATE                  = new Date(2026, 0, 1);
-const SCROLL_THRESHOLD          = 400;
-const SCROLL_THRESHOLD_BACKWARD = 300;
-const POST_COMPENSATE_COOLDOWN  = 500;  // aumentato da 150 a 500ms
-const COMPENSATE_SKIP_EVENTS    = 6;    // aumentato da 3 a 6
-const SSE_RELOAD_DEBOUNCE       = 800;
+const MAX_VISIBLE_DAYS = 14;
+const DAYS_PAST        = 3;
+const DAYS_FUTURE      = 10;
+const DAYS_TO_LOAD     = 3;
+const MIN_DATE         = new Date(2026, 0, 1);
+const SSE_RELOAD_DEBOUNCE = 800;
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -187,22 +183,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
   const [showLoredanaView, setShowLoredanaView] = useState(false);
 
-  const scrollContainerRef        = useRef<HTMLDivElement>(null);
-  const isLoadingRef              = useRef(false);
-  const scrollListenerAttachedRef = useRef(false);
-  const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
-  const visibleDaysRef            = useRef<Date[]>([]);
-  const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
-  const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
-  const lastUserScrollTopRef      = useRef(0);
-  const compensateEventsRef       = useRef(0);
-  const backwardCooldownRef       = useRef(false);
-  const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
-  const handleScrollRef           = useRef<() => void>(() => {});
-  const sseReloadTimerRef         = useRef<NodeJS.Timeout | null>(null);
-  // FIX: ref per rilevare la direzione reale dell'utente tramite wheel/touch
-  const wheelIntentRef            = useRef<'up' | 'down' | null>(null);
-  const touchStartYRef            = useRef<number>(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isLoadingRef       = useRef(false);
+  const visibleDaysRef     = useRef<Date[]>([]);
+  const topSentinelRef     = useRef<HTMLTableRowElement>(null);
+  const bottomSentinelRef  = useRef<HTMLTableRowElement>(null);
+  const topObserverRef     = useRef<IntersectionObserver | null>(null);
+  const bottomObserverRef  = useRef<IntersectionObserver | null>(null);
+  const anchorDateStrRef   = useRef<string | null>(null);  // giorno a cui tornare dopo caricamento in cima
+  const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -261,9 +250,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return slots.filter(time => isUffChiusoSlot(dateStr, time, operatoreId)).length;
   };
 
-  const scrollToDate = (date: Date) => {
+  const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
-    if (el && scrollContainerRef.current) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el && scrollContainerRef.current) el.scrollIntoView({ behavior, block: 'start' });
   };
 
   const buildWindowAround = (center: Date): Date[] => {
@@ -279,15 +268,16 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
 
   const navigateToDate = useCallback((date: Date) => {
     setSelectedDate(date);
-    if (visibleDays.some(d => isSameDay(d, date))) {
+    if (visibleDaysRef.current.some(d => isSameDay(d, date))) {
       setTimeout(() => scrollToDate(date), 50);
     } else {
       setVisibleDays(buildWindowAround(date));
-      setTimeout(() => scrollToDate(date), 200);
+      setTimeout(() => scrollToDate(date, 'instant'), 200);
     }
-  }, [visibleDays]);
+  }, []);
 
-  const loadMoreDaysForward = () => {
+  // ─── Carica giorni in avanti ───────────────────────────────────────────────
+  const loadMoreDaysForward = useCallback(() => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
     setVisibleDays(prev => {
@@ -297,173 +287,114 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-    requestAnimationFrame(() => { requestAnimationFrame(() => { isLoadingRef.current = false; }); });
-  };
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      isLoadingRef.current = false;
+    }));
+  }, []);
 
-  const loadMoreDaysBackward = () => {
+  // ─── Carica giorni indietro (senza toccare scrollTop) ────────────────────────
+  const loadMoreDaysBackward = useCallback(() => {
     if (isLoadingRef.current) return;
-    if (backwardCooldownRef.current) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const firstDay = visibleDaysRef.current[0];
+    const days = visibleDaysRef.current;
+    const firstDay = days[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
+
+    // salva il giorno correntemente visibile come ancora per il ripristino
+    const container = scrollContainerRef.current;
+    let anchorDate = firstDay;
+    if (container) {
+      // cerca il primo giorno con data-epasa-date visibile nel viewport
+      const allDateRows = container.querySelectorAll<HTMLElement>('[data-epasa-date]');
+      for (const row of Array.from(allDateRows)) {
+        const rect = row.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        if (rect.top >= containerRect.top - 10) {
+          const ds = row.getAttribute('data-epasa-date');
+          if (ds) { anchorDate = dateStrToLocal(ds); break; }
+        }
+      }
+    }
+    anchorDateStrRef.current = formatDate(anchorDate);
+
+    isLoadingRef.current = true;
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
-    if (newDays.length === 0) return;
-    isLoadingRef.current = true;
-    scrollSnapshotRef.current = { scrollTop: container.scrollTop, scrollHeight: container.scrollHeight };
+    if (newDays.length === 0) { isLoadingRef.current = false; return; }
+
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
     });
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (container && scrollSnapshotRef.current) {
-          const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
-          const heightDiff = container.scrollHeight - snapHeight;
-          if (heightDiff > 0) {
-            // FIX: imposta compensateEventsRef prima di modificare scrollTop
-            // così gli eventi scroll generati dalla compensazione vengono ignorati
-            compensateEventsRef.current = COMPENSATE_SKIP_EVENTS;
-            container.scrollTop = snapTop + heightDiff;
-          }
-          scrollSnapshotRef.current = null;
-        }
-        isLoadingRef.current = false;
-        backwardCooldownRef.current = true;
-        if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-        cooldownTimerRef.current = setTimeout(() => {
-          backwardCooldownRef.current = false;
-          // FIX: resetta anche wheelIntentRef dopo il cooldown per non
-          // bloccare scroll successivi in su
-          wheelIntentRef.current = null;
-        }, POST_COMPENSATE_COOLDOWN);
-      });
-    });
-  };
-
-  // FIX: handleScroll usa wheelIntentRef (direzione reale dell'utente)
-  // invece di inferirla dal delta scrollTop (che viene alterato dalla compensazione)
-  const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const currentScrollTop = container.scrollTop;
-
-    if (compensateEventsRef.current > 0) {
-      compensateEventsRef.current -= 1;
-      lastUserScrollTopRef.current = currentScrollTop;
-      return;
-    }
-
-    if (backwardCooldownRef.current) {
-      lastUserScrollTopRef.current = currentScrollTop;
-      return;
-    }
-
-    if (isLoadingRef.current) return;
-
-    // Usa la direzione rilevata da wheel/touch se disponibile,
-    // altrimenti fallback sul delta scrollTop
-    const direction: 'up' | 'down' =
-      wheelIntentRef.current !== null
-        ? wheelIntentRef.current
-        : (currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down');
-
-    lastUserScrollTopRef.current = currentScrollTop;
-    userScrollDirectionRef.current = direction;
-
-    if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-    loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const distanceFromTop    = scrollTop;
-      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-      const dir = userScrollDirectionRef.current;
-      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
-      else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD_BACKWARD) loadMoreDaysBackward();
-    }, 80);
   }, []);
 
-  useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
+  // ─── Dopo che i nuovi giorni sono renderizzati, torna all'ancora ──────────
+  useEffect(() => {
+    if (!isLoadingRef.current) return;
+    const anchor = anchorDateStrRef.current;
+    if (!anchor) { isLoadingRef.current = false; return; }
+    // Aspetta due frame per assicurarsi che il DOM sia aggiornato
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchor}"]`);
+      if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+      anchorDateStrRef.current = null;
+      isLoadingRef.current = false;
+    }));
+  }, [visibleDays]);
+
+  // ─── IntersectionObserver per trigger caricamento ─────────────────────────
+  const attachObservers = useCallback(() => {
+    detachObservers();
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    topObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreDaysBackward();
+      },
+      { root: container, rootMargin: '200px 0px 0px 0px', threshold: 0 }
+    );
+
+    bottomObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreDaysForward();
+      },
+      { root: container, rootMargin: '0px 0px 200px 0px', threshold: 0 }
+    );
+
+    if (topSentinelRef.current)    topObserverRef.current.observe(topSentinelRef.current);
+    if (bottomSentinelRef.current) bottomObserverRef.current.observe(bottomSentinelRef.current);
+  }, [loadMoreDaysBackward, loadMoreDaysForward]);
+
+  const detachObservers = () => {
+    topObserverRef.current?.disconnect();
+    bottomObserverRef.current?.disconnect();
+    topObserverRef.current    = null;
+    bottomObserverRef.current = null;
+  };
+
+  // ─── Ri-collega gli observer ogni volta che i sentinel cambiano ──────────
+  useEffect(() => {
+    if (!isInitialized || viewMode !== 'daily') return;
+    attachObservers();
+    return detachObservers;
+  }, [visibleDays, isInitialized, viewMode, attachObservers]);
+
+  useEffect(() => {
+    if (viewMode === 'monthly') detachObservers();
+    if (viewMode === 'daily' && isInitialized) attachObservers();
+  }, [viewMode]);
 
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      setTimeout(() => { scrollToDate(selectedDate); attachScrollListener(); }, 200);
+      setTimeout(() => scrollToDate(selectedDate, 'instant'), 200);
     }
   }, []);
-
-  const attachScrollListener = () => {
-    const container = scrollContainerRef.current;
-    if (!container || scrollListenerAttachedRef.current) return;
-
-    const stableScrollHandler = () => handleScrollRef.current();
-
-    // FIX: listener wheel per rilevare la direzione intesa dall'utente
-    const wheelHandler = (e: WheelEvent) => {
-      wheelIntentRef.current = e.deltaY > 0 ? 'down' : 'up';
-    };
-
-    // FIX: listener touch per rilevare la direzione su mobile
-    const touchStartHandler = (e: TouchEvent) => {
-      touchStartYRef.current = e.touches[0].clientY;
-    };
-    const touchMoveHandler = (e: TouchEvent) => {
-      const deltaY = touchStartYRef.current - e.touches[0].clientY;
-      wheelIntentRef.current = deltaY > 0 ? 'down' : 'up';
-    };
-
-    container.addEventListener('scroll', stableScrollHandler, { passive: true });
-    container.addEventListener('wheel', wheelHandler, { passive: true });
-    container.addEventListener('touchstart', touchStartHandler, { passive: true });
-    container.addEventListener('touchmove', touchMoveHandler, { passive: true });
-
-    scrollListenerAttachedRef.current = true;
-    (container as any).__scrollHandler      = stableScrollHandler;
-    (container as any).__wheelHandler       = wheelHandler;
-    (container as any).__touchStartHandler  = touchStartHandler;
-    (container as any).__touchMoveHandler   = touchMoveHandler;
-  };
-
-  const detachScrollListener = () => {
-    const container = scrollContainerRef.current;
-    if (!container || !scrollListenerAttachedRef.current) return;
-
-    const scrollHandler     = (container as any).__scrollHandler;
-    const wheelHandler      = (container as any).__wheelHandler;
-    const touchStartHandler = (container as any).__touchStartHandler;
-    const touchMoveHandler  = (container as any).__touchMoveHandler;
-
-    if (scrollHandler)     container.removeEventListener('scroll', scrollHandler);
-    if (wheelHandler)      container.removeEventListener('wheel', wheelHandler);
-    if (touchStartHandler) container.removeEventListener('touchstart', touchStartHandler);
-    if (touchMoveHandler)  container.removeEventListener('touchmove', touchMoveHandler);
-
-    scrollListenerAttachedRef.current = false;
-    delete (container as any).__scrollHandler;
-    delete (container as any).__wheelHandler;
-    delete (container as any).__touchStartHandler;
-    delete (container as any).__touchMoveHandler;
-  };
-
-  useEffect(() => {
-    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) attachScrollListener();
-    return () => {
-      detachScrollListener();
-      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-    };
-  }, [isInitialized]);
-
-  useEffect(() => {
-    if (viewMode === 'monthly') { detachScrollListener(); if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current); }
-    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) setTimeout(() => attachScrollListener(), 100);
-  }, [viewMode]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -948,6 +879,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
             </tr>
           </thead>
           <tbody>
+            {/* Sentinel in cima per IntersectionObserver */}
+            <tr ref={topSentinelRef} style={{ height: 0, visibility: 'hidden' }}>
+              <td colSpan={Math.max(operatorsInSede.length + 1, 2)} style={{ padding: 0 }} />
+            </tr>
+
             {visibleDays.map(day => {
               const dateStr = formatDate(day);
               const isToday = formatDate(new Date()) === dateStr;
@@ -1123,6 +1059,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 </React.Fragment>
               );
             })}
+
+            {/* Sentinel in fondo per IntersectionObserver */}
+            <tr ref={bottomSentinelRef} style={{ height: 0, visibility: 'hidden' }}>
+              <td colSpan={Math.max(operatorsInSede.length + 1, 2)} style={{ padding: 0 }} />
+            </tr>
           </tbody>
         </table>
       </div>
