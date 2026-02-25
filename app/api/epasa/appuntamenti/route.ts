@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 import { broadcastEpasaUpdate } from '@/lib/sse';
+import { logActivity } from '@/lib/log';
 
 export async function GET() {
   try {
@@ -54,8 +55,14 @@ export async function POST(request: Request) {
           : result.rows[0].ora,
       };
 
-      // Notifica tutti i client SSE connessi
       broadcastEpasaUpdate('update', { action: 'create' });
+
+      await logActivity({
+        source: 'EPASA',
+        action: 'CREATE',
+        descrizione: `Aggiunto appuntamento: ${cliente} — ${sede_id.toUpperCase()} / ${operatore_id} — ${data} ${ora}`,
+        dettagli: normalized,
+      });
 
       return NextResponse.json(normalized);
     }
