@@ -17,6 +17,7 @@ import {
   Trash2,
   Eye,
   Search,
+  MessageSquare,
 } from 'lucide-react';
 import {
   format,
@@ -39,7 +40,7 @@ import {
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import React from 'react';
-import EpasaAppointmentModal from './EpasaAppointmentModal';
+import EpasaAppointmentModal, { HIGHLIGHT_STYLE } from './EpasaAppointmentModal';
 import LoredanaView from './LoredanaView';
 
 interface EpasaCalendarProps {
@@ -67,6 +68,7 @@ interface Appointment {
   cliente: string;
   mese: string;
   note?: string;
+  highlight?: string;
 }
 
 interface GiornoChiuso {
@@ -896,8 +898,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             </div>
                           </td>
                         );
+
+                        // ── Slot con appuntamento ──
                         if (slotApts.length > 0) {
-                          const colors = { bg:'bg-blue-50', border:'border-l-4 border-blue-500', text:'text-blue-700', hover:'hover:bg-blue-100' };
+                          const apt = slotApts[0];
+                          const hlKey = apt.highlight || '';
+                          const hl  = HIGHLIGHT_STYLE[hlKey] ?? HIGHLIGHT_STYLE[''];
                           return (
                             <td key={`${operator}-${time}`}
                               className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
@@ -905,11 +911,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                               <div
                                 onClick={() => editMode
                                   ? handleEditModeSlotClick(dateStr, time, operator)
-                                  : openModalForEditAppointment(slotApts[0])}
+                                  : openModalForEditAppointment(apt)}
                                 className={`w-full h-full px-2 py-1 ${
                                   editMode
                                     ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
-                                    : `${colors.bg} ${colors.border} ${colors.hover} cursor-pointer`
+                                    : `${hl.cell} border-l-4 ${hl.border} hover:brightness-95 cursor-pointer`
                                 } transition-all flex items-center`}
                                 title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
                                 <div className="w-full">
@@ -917,17 +923,40 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                     <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
                                       <Lock size={9} /> blocca
                                     </span>
-                                  ) : slotApts.map((apt, idx) => (
-                                    <div key={apt.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-1' : ''}`}>
-                                      <User size={10} className={`${colors.text} flex-shrink-0`} />
-                                      <span className={`text-[10px] font-medium truncate ${colors.text}`}>{apt.cliente}</span>
+                                  ) : (
+                                    <div className="flex items-center gap-1 w-full">
+                                      <User size={10} className={`${hl.text} flex-shrink-0`} />
+                                      <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1`}>
+                                        {apt.cliente}
+                                      </span>
+                                      {apt.note && (
+                                        <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-70`} />
+                                      )}
                                     </div>
-                                  ))}
+                                  )}
                                 </div>
                               </div>
+
+                              {/* ── Tooltip nota al hover (solo quando non in editMode) ── */}
+                              {!editMode && apt.note && (
+                                <div className="absolute left-full top-0 ml-2 z-50 hidden group-hover:flex flex-col pointer-events-none"
+                                  style={{ minWidth: '180px', maxWidth: '260px' }}>
+                                  <div className="bg-gray-900 text-white text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed">
+                                    <div className="flex items-center gap-1.5 mb-1 border-b border-white/20 pb-1">
+                                      <MessageSquare size={10} className="text-yellow-300 flex-shrink-0" />
+                                      <span className="font-bold text-yellow-300 text-[10px] uppercase tracking-wide">Nota</span>
+                                    </div>
+                                    <p className="whitespace-pre-wrap break-words">{apt.note}</p>
+                                  </div>
+                                  {/* Freccia del tooltip */}
+                                  <div className="absolute left-0 top-3 -ml-1.5 w-3 h-3 bg-gray-900 rotate-45" />
+                                </div>
+                              )}
                             </td>
                           );
                         }
+
+                        // ── Slot vuoto ──
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
@@ -1097,8 +1126,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}
         >
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border-t-4 border-[#005CA9]">
-
-            {/* Header ricerca */}
             <div className="flex items-center gap-3 p-4 border-b border-gray-200">
               <Search size={18} className="text-[#005CA9] flex-shrink-0" />
               <input
@@ -1113,20 +1140,14 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               {searchQuery && (
                 <button
                   onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
+                  className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X size={16} />
                 </button>
               )}
-              <button
-                onClick={closeSearch}
-                className="text-gray-400 hover:text-gray-700 transition-colors ml-1"
-              >
+              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1">
                 <X size={20} />
               </button>
             </div>
-
-            {/* Risultati */}
             <div className="max-h-[60vh] overflow-y-auto">
               {!searchQuery && (
                 <div className="px-4 py-8 text-center">
@@ -1145,11 +1166,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 return (
                   <div
                     key={apt.id}
-                    onClick={() => {
-                      navigateToDate(dateStrToLocal(apt.data));
-                      setViewMode('daily');
-                      closeSearch();
-                    }}
+                    onClick={() => { navigateToDate(dateStrToLocal(apt.data)); setViewMode('daily'); closeSearch(); }}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group"
                   >
                     <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -1172,8 +1189,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                 );
               })}
             </div>
-
-            {/* Footer */}
             {searchResults.length > 0 && (
               <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between">
                 <p className="text-xs text-gray-400">
