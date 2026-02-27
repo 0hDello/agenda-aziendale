@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus,
+  User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus, StickyNote,
 } from 'lucide-react';
 import {
   format,
@@ -28,6 +28,7 @@ interface Appointment {
   cliente: string;
   mese: string;
   note?: string;
+  highlight?: string | null;
 }
 
 interface GiornoChiuso {
@@ -84,6 +85,24 @@ const TIME_SLOTS_MAP: Record<string, string[]> = {
 };
 
 const LOREDANA_SEDI = ['imola', 'cspt', 'borgo'];
+
+// ─── Colori highlight ────────────────────────────────────────────────────────
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+
+function getHighlightStyles(highlight: string | null | undefined) {
+  if (!highlight) return null;
+  const rgb = hexToRgb(highlight);
+  if (!rgb) return null;
+  return {
+    border: highlight,
+    bg: `rgba(${rgb.r},${rgb.g},${rgb.b},0.13)`,
+    bgHover: `rgba(${rgb.r},${rgb.g},${rgb.b},0.22)`,
+    text: highlight,
+  };
+}
 
 // ─── Regole apertura ─────────────────────────────────────────────────────────
 const isBorgoWorkingDay = (date: Date): boolean => {
@@ -218,7 +237,6 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
   );
 
   if (uffApts.length > 0) {
-    // Sblocca: elimina gli appuntamenti "UFF CHIUSO"
     for (const apt of uffApts) {
       try {
         const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -227,7 +245,6 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
     }
     setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
   } else {
-    // Blocca: elimina eventuali appuntamenti esistenti e crea "UFF CHIUSO"
     const existing = localApts.filter(
       a => a.sede_id === sedeId && a.data === dateStr &&
            a.ora === time && a.operatore_id === LOREDANA_ID
@@ -279,10 +296,8 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
     setModalSlot(null);
   };
 
-  // CRUD con aggiornamento stato locale
   const handleSave = async (data: any) => {
     await onSave(data);
-    // Il componente padre aggiornerà allAppointments via SSE / reload
   };
 
   const handleUpdate = async (id: string, data: any) => {
@@ -580,32 +595,47 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                           }}
                         >
                           <Lock size={8} style={{ color: '#F59E0B' }} />
-                          
                           {editMode && <Unlock size={8} style={{ color: '#F59E0B', marginLeft: 2 }} />}
                         </div>
                       );
                     }
 
                     if (hasPaz) {
+                      const hl     = getHighlightStyles(apt!.highlight);
+                      const hasNote = !!(apt!.note?.trim());
+
+                      const cellBg        = editMode ? '#FFFBEB' : (hl ? hl.bg        : OPERATOR_COLOR_LIGHT);
+                      const cellBgHover   = editMode ? '#FEF3C7' : (hl ? hl.bgHover   : OPERATOR_COLOR_HOVER);
+                      const cellBorder    = editMode ? '#FCD34D' : (hl ? hl.border     : OPERATOR_COLOR_BORDER);
+                      const cellLeftBorder= editMode ? '#F59E0B' : (hl ? hl.border     : OPERATOR_COLOR);
+                      const cellTextColor = editMode ? '#92400E' : (hl ? hl.text       : OPERATOR_COLOR_TEXT);
+
                       return (
                         <div
                           key={time}
-                          title={editMode ? 'Clicca per bloccare questo slot' : `Modifica: ${apt!.cliente}${apt!.note ? ' — ' + apt!.note : ''}`}
+                          title={
+                            editMode
+                              ? 'Clicca per bloccare questo slot'
+                              : hasNote
+                                ? `${apt!.cliente} — ${apt!.note}`
+                                : `Modifica: ${apt!.cliente}`
+                          }
                           onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openEdit(apt!)}
                           style={{
                             height: ROW_HEIGHT,
-                            borderBottom: editMode ? '1px solid #FCD34D' : `1px solid ${OPERATOR_COLOR_BORDER}`,
-                            backgroundColor: editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT,
-                            borderLeft: editMode ? '3px solid #F59E0B' : `3px solid ${OPERATOR_COLOR}`,
+                            borderBottom: `1px solid ${cellBorder}`,
+                            backgroundColor: cellBg,
+                            borderLeft: `3px solid ${cellLeftBorder}`,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 4,
-                            padding: '0 6px',
+                            gap: 3,
+                            padding: '0 5px 0 5px',
                             overflow: 'hidden',
                             cursor: 'pointer',
+                            position: 'relative',
                           }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = editMode ? '#FEF3C7' : OPERATOR_COLOR_HOVER)}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT)}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = cellBgHover)}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = cellBg)}
                         >
                           {editMode ? (
                             <>
@@ -616,17 +646,24 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                             </>
                           ) : (
                             <>
-                              <User size={8} style={{ color: OPERATOR_COLOR, flexShrink: 0 }} />
+                              <User size={8} style={{ color: cellTextColor, flexShrink: 0 }} />
                               <span style={{
                                 fontSize: 10,
                                 fontWeight: 600,
-                                color: OPERATOR_COLOR_TEXT,
+                                color: cellTextColor,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
+                                flex: 1,
                               }}>
                                 {apt!.cliente}
                               </span>
+                              {hasNote && (
+                                <StickyNote
+                                  size={8}
+                                  style={{ color: cellTextColor, flexShrink: 0, opacity: 0.75 }}
+                                />
+                              )}
                             </>
                           )}
                         </div>
