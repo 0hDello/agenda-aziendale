@@ -14,12 +14,13 @@ const normalizeApt = (apt: any) => ({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const result = await query(
       'SELECT * FROM epasa_appuntamenti WHERE id = $1',
-      [params.id]
+      [id]
     );
     if (!result.rows || result.rows.length === 0) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -33,9 +34,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { sede_id, operatore_id, data, ora, cliente, mese, note, highlight } = body;
 
@@ -55,7 +57,7 @@ export async function PUT(
         mese ?? null,
         note ?? null,
         highlight ?? null,
-        params.id,
+        id,
       ]
     );
 
@@ -83,12 +85,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const result = await query(
       'DELETE FROM epasa_appuntamenti WHERE id = $1 RETURNING *',
-      [params.id]
+      [id]
     );
     if (!result.rows || result.rows.length === 0) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
