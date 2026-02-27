@@ -1005,21 +1005,20 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
+                    {/* ── Pulsante Ricerca accanto a Live ── */}
+                    <button
+                      onClick={() => setShowSearch(true)}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
+                      title="Cerca appuntamenti (Ctrl+K)"
+                    >
+                      <Search size={11} /> Cerca
+                    </button>
                   </div>
                   <p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                {/* ── Pulsante Ricerca ── */}
-                <button
-                  onClick={() => setShowSearch(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-white border-2 border-gray-200 text-gray-600 hover:border-[#005CA9] hover:text-[#005CA9]"
-                  title="Cerca appuntamenti (Ctrl+K)"
-                >
-                  <Search size={15} /> Cerca
-                </button>
-
                 <button onClick={() => setShowLoredanaView(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080] hover:shadow-md"
                   title="Apri la vista mensile di Loredana">
