@@ -783,24 +783,10 @@ const handleCreateAppointment = async (data: any) => {
   // ═══════════════════════════════════════════════════════════════════════════
   const renderDailyView = () => (
     <div>
-      {editMode && (
-        <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b-2 border-amber-400">
-          <div className="flex items-center gap-2">
-            <Lock size={14} className="text-amber-600" />
-            <span className="text-sm font-semibold text-amber-700">
-              Modalità modifica attiva — clicca uno slot per bloccarlo o sbloccarlo
-            </span>
-          </div>
-          <button onClick={() => setEditMode(false)}
-            className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors flex items-center gap-1">
-            <X size={12} /> Esci
-          </button>
-        </div>
-      )}
       <div
         ref={setScrollRef}
         className="overflow-y-auto"
-        style={{ maxHeight: editMode ? 'calc(100vh - 145px)' : 'calc(100vh - 107px)' }}
+        style={{ maxHeight: 'calc(100vh - 107px)' }}
       >
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
           <thead className="sticky top-0 z-20">
@@ -855,7 +841,7 @@ const handleCreateAppointment = async (data: any) => {
                         const isMTC       = isMileceTimeBlocked(operator, dayLocal, time);
                         const isUffC      = isUffChiusoSlot(dateStr, time, operator);
 
-                        // ── Giorno strutturalmente chiuso (weekend / sede non aperta / MILECE time blocked)
+                        // ── Giorno strutturalmente chiuso
                         if (isDayClosed || isManually) {
                           const title = isDayClosed
                             ? (selectedSede!.id === 'cspt' ? 'CSPT: aperto solo il lunedì pomeriggio'
@@ -886,7 +872,7 @@ const handleCreateAppointment = async (data: any) => {
                           </td>
                         );
 
-                        // ── Slot UFF CHIUSO ── stesso colore bg-gray-100 dei giorni chiusi normali
+                        // ── Slot UFF CHIUSO ── stesso colore bg-gray-100
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
                             className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
@@ -903,7 +889,7 @@ const handleCreateAppointment = async (data: any) => {
                           </td>
                         );
 
-                        // ── Slot con appuntamento ── colori originali sempre, anche in editMode
+                        // ── Slot con appuntamento
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
@@ -930,8 +916,6 @@ const handleCreateAppointment = async (data: any) => {
                                   </div>
                                 </div>
                               </div>
-
-                              {/* Tooltip nota */}
                               {!editMode && apt.note && (
                                 <div
                                   className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
@@ -957,7 +941,7 @@ const handleCreateAppointment = async (data: any) => {
                           );
                         }
 
-                        // ── Slot vuoto ──
+                        // ── Slot vuoto
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
