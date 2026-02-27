@@ -16,6 +16,7 @@ import {
   Unlock,
   Trash2,
   Eye,
+  Search,
 } from 'lucide-react';
 import {
   format,
@@ -141,7 +142,6 @@ type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
 // ─── Costanti scroll ──────────────────────────────────────────────────────────
-// Finestra ampia: evita che il trim tagli i giorni appena aggiunti
 const MAX_VISIBLE_DAYS    = 30;
 const DAYS_PAST           = 3;
 const DAYS_FUTURE         = 10;
@@ -151,7 +151,7 @@ const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
 
-// ─── Colore unico operatori (stesso dell'agenda 730) ──────────────────────────
+// ─── Colore unico operatori ───────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
@@ -174,14 +174,19 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
   const [showLoredanaView, setShowLoredanaView] = useState(false);
 
+  // ─── Search state ─────────────────────────────────────────────────────────
+  const [showSearch, setShowSearch]           = useState(false);
+  const [searchQuery, setSearchQuery]         = useState('');
+  const [searchResults, setSearchResults]     = useState<Appointment[]>([]);
+
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
-  // 'idle' | 'fw' | 'bk'
   const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
   const anchorDateStrRef   = useRef<string | null>(null);
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
   const viewModeRef        = useRef<ViewMode>('daily');
+  const searchInputRef     = useRef<HTMLInputElement>(null);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
@@ -189,6 +194,48 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const formatDate         = (d: Date) => format(d, 'yyyy-MM-dd');
   const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
   const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
+
+  // ─── Shortcut Ctrl+K per aprire la ricerca ────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+      if (e.key === 'Escape' && showSearch) {
+        closeSearch();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
+
+  // ─── Funzione ricerca ─────────────────────────────────────────────────────
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const q = query.toLowerCase().trim();
+    const results = allAppointments.filter(a =>
+      a.cliente.trim().toUpperCase() !== 'UFF CHIUSO' && (
+        a.cliente.toLowerCase().includes(q) ||
+        (a.note?.toLowerCase().includes(q)) ||
+        a.operatore_id.toLowerCase().includes(q) ||
+        a.data.includes(q) ||
+        a.sede_id.toLowerCase().includes(q)
+      )
+    );
+    results.sort((a, b) => b.data.localeCompare(a.data));
+    setSearchResults(results.slice(0, 50));
+  };
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
 
   // ─── Business logic ───────────────────────────────────────────────────────
   const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
@@ -279,7 +326,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-    // Il guard verrà sbloccato dall'effect su visibleDays (direzione 'fw')
   }, []);
 
   // ─── Load backward ────────────────────────────────────────────────────────
@@ -289,7 +335,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     const firstDay = days[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
-    // Salva ancora per il ripristino posizione
     const container = scrollContainerRef.current;
     let anchorDate = firstDay;
     if (container) {
@@ -317,11 +362,9 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
     });
-    // Il guard + ripristino posizione vengono gestiti dall'effect su visibleDays
   }, []);
 
-  // ─── Effect su visibleDays: sblocca guard e ripristina scroll ─────────────
-  //     Questo è il SOLO posto dove loadingDirRef torna a 'idle'.
+  // ─── Effect su visibleDays ────────────────────────────────────────────────
   useEffect(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
@@ -337,15 +380,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         loadingDirRef.current = 'idle';
       }));
     } else {
-      // fw: nessun ripristino, sblocca subito dopo due frame
       requestAnimationFrame(() => requestAnimationFrame(() => {
         loadingDirRef.current = 'idle';
       }));
     }
   }, [visibleDays]);
 
-  // ─── Listener scroll: stabile, agganciato al div con ref callback ─────────
-  //     Non dipende da editMode perché usa scrollContainerRef.current direttamente.
+  // ─── Listener scroll ──────────────────────────────────────────────────────
   const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
     const container = scrollContainerRef.current;
@@ -359,8 +400,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [loadMoreDaysForward, loadMoreDaysBackward]);
 
-  // ─── Ref callback: ri-attacca il listener ogni volta che il div viene montato
-  //     (es. cambio editMode rimonta renderDailyView)
   const setScrollRef = useCallback((el: HTMLDivElement | null) => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.removeEventListener('scroll', onScroll);
@@ -755,7 +794,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           </button>
         </div>
       )}
-      {/* ref callback: ri-aggancia il listener ad ogni rimount del div */}
       <div
         ref={setScrollRef}
         className="overflow-y-auto"
@@ -973,6 +1011,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {/* ── Pulsante Ricerca ── */}
+                <button
+                  onClick={() => setShowSearch(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-white border-2 border-gray-200 text-gray-600 hover:border-[#005CA9] hover:text-[#005CA9]"
+                  title="Cerca appuntamenti (Ctrl+K)"
+                >
+                  <Search size={15} /> Cerca
+                </button>
+
                 <button onClick={() => setShowLoredanaView(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080] hover:shadow-md"
                   title="Apri la vista mensile di Loredana">
@@ -1043,6 +1090,102 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
           {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
         </div>
       </div>
+
+      {/* ── SEARCH OVERLAY ── */}
+      {showSearch && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-16"
+          onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}
+        >
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border-t-4 border-[#005CA9]">
+
+            {/* Header ricerca */}
+            <div className="flex items-center gap-3 p-4 border-b border-gray-200">
+              <Search size={18} className="text-[#005CA9] flex-shrink-0" />
+              <input
+                ref={searchInputRef}
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={e => handleSearch(e.target.value)}
+                placeholder="Cerca cliente, operatore, data (es. 2026-03)..."
+                className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
+              <button
+                onClick={closeSearch}
+                className="text-gray-400 hover:text-gray-700 transition-colors ml-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Risultati */}
+            <div className="max-h-[60vh] overflow-y-auto">
+              {!searchQuery && (
+                <div className="px-4 py-8 text-center">
+                  <Search size={32} className="text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400 font-medium">Inizia a digitare per cercare</p>
+                  <p className="text-xs text-gray-300 mt-1">Cerca per nome cliente, operatore o data</p>
+                </div>
+              )}
+              {searchQuery && searchResults.length === 0 && (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm text-gray-400">Nessun risultato per <strong>"{searchQuery}"</strong></p>
+                </div>
+              )}
+              {searchResults.map(apt => {
+                const sede = sedi.find(s => s.id === apt.sede_id);
+                return (
+                  <div
+                    key={apt.id}
+                    onClick={() => {
+                      navigateToDate(dateStrToLocal(apt.data));
+                      setViewMode('daily');
+                      closeSearch();
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <User size={15} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{apt.cliente}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        <span className="font-medium text-[#005CA9]">{apt.operatore_id}</span>
+                        {' · '}{sede?.nome || apt.sede_id}
+                        {' · '}{format(dateStrToLocal(apt.data), 'dd/MM/yyyy', { locale: it })}
+                        {' · '}{apt.ora}
+                      </p>
+                      {apt.note && (
+                        <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>
+                      )}
+                    </div>
+                    <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] transition-colors flex-shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            {searchResults.length > 0 && (
+              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between">
+                <p className="text-xs text-gray-400">
+                  {searchResults.length}{searchResults.length === 50 ? '+' : ''} risultat{searchResults.length === 1 ? 'o' : 'i'} — clicca per navigare
+                </p>
+                <kbd className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-mono">ESC</kbd>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showLoredanaView && (
         <LoredanaView
