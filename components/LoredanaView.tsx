@@ -77,6 +77,11 @@ const OPERATOR_COLOR_LIGHT  = '#E6F2FF';
 const OPERATOR_COLOR_HOVER  = '#D1E7FF';
 const OPERATOR_COLOR_BORDER = '#BFDBFE';
 
+// Slot UFF CHIUSO: grigio più scuro dei weekend (#F3F4F6)
+const UFF_CHIUSO_BG     = '#D1D5DB';
+const UFF_CHIUSO_BORDER = '#9CA3AF';
+const UFF_CHIUSO_ICON   = '#6B7280';
+
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
   cspt:  ['14:00','14:30','15:00','15:30','16:00','16:30'],
@@ -357,7 +362,7 @@ export default function LoredanaView({
             <span className="text-[10px] text-gray-500">Appuntamento</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-400" />
+            <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: UFF_CHIUSO_BG, border: `1px solid ${UFF_CHIUSO_BORDER}` }} />
             <span className="text-[10px] text-gray-500">Uff. chiuso</span>
           </div>
           <div className="flex items-center gap-1">
@@ -385,7 +390,7 @@ export default function LoredanaView({
         </button>
       </div>
 
-      {/* ══ TABELLA ══ (nessun banner editMode) */}
+      {/* ══ TABELLA ══ */}
       <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div style={{ display: 'flex', minWidth: `${LABEL_W + totalColsWidth}px`, minHeight: '100%' }}>
 
@@ -437,37 +442,54 @@ export default function LoredanaView({
                     const cellKey   = `${dateStr}-${time}`;
                     const isHovered = hoveredCell === cellKey;
 
-                    // ── Slot UFF CHIUSO ──
+                    // ── Slot UFF CHIUSO ── grigio scuro, niente giallo
                     if (uffClosed) {
                       return (
                         <div key={time}
                           title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
                           onClick={() => editMode && handleEditModeSlotClick(sedeId, dateStr, time)}
-                          style={{ height: ROW_HEIGHT, borderBottom: '1px solid #FDE68A', backgroundColor: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '0 4px', cursor: editMode ? 'pointer' : 'default' }}>
-                          <Lock size={8} style={{ color: '#F59E0B' }} />
-                          {editMode && <Unlock size={8} style={{ color: '#F59E0B', marginLeft: 2 }} />}
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: `1px solid ${UFF_CHIUSO_BORDER}`,
+                            backgroundColor: UFF_CHIUSO_BG,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            gap: 3, padding: '0 4px',
+                            cursor: editMode ? 'pointer' : 'default',
+                          }}>
+                          <Lock size={8} style={{ color: UFF_CHIUSO_ICON }} />
+                          {editMode && <Unlock size={8} style={{ color: UFF_CHIUSO_ICON, marginLeft: 2 }} />}
                         </div>
                       );
                     }
 
                     // ── Slot con appuntamento ──
                     if (hasPaz) {
-                      const hlKey  = apt!.highlight || '';
-                      const hl     = HL_CSS[hlKey] ?? HL_CSS[''];
+                      const hlKey   = apt!.highlight || '';
+                      const hl      = HL_CSS[hlKey] ?? HL_CSS[''];
                       const hasNote = !!(apt!.note?.trim());
 
-                      // In editMode: sfondo arancione, ma nome cliente visibile
-                      const cellBg         = editMode ? (isHovered ? '#FEF3C7' : '#FFFBEB') : (isHovered ? hl.bgHover : hl.bg);
-                      const cellBorder     = editMode ? '#FCD34D' : hl.border;
-                      const cellLeftBorder = editMode ? '#F59E0B' : hl.leftBorder;
-                      const cellTextColor  = editMode ? '#92400E' : hl.text;
+                      // I colori non cambiano in editMode: restano sempre quelli originali
+                      const cellBg         = isHovered ? hl.bgHover : hl.bg;
+                      const cellBorder     = hl.border;
+                      const cellLeftBorder = hl.leftBorder;
+                      const cellTextColor  = hl.text;
 
                       return (
                         <div key={time}
                           onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openEdit(apt!)}
                           onMouseEnter={() => setHoveredCell(cellKey)}
                           onMouseLeave={() => setHoveredCell(null)}
-                          style={{ height: ROW_HEIGHT, borderBottom: `1px solid ${cellBorder}`, backgroundColor: cellBg, borderLeft: `3px solid ${cellLeftBorder}`, display: 'flex', alignItems: 'center', gap: 3, padding: '0 5px', overflow: 'visible', cursor: 'pointer', position: 'relative', transition: 'background-color 0.1s' }}>
+                          style={{
+                            height: ROW_HEIGHT,
+                            borderBottom: `1px solid ${cellBorder}`,
+                            backgroundColor: cellBg,
+                            borderLeft: `3px solid ${cellLeftBorder}`,
+                            display: 'flex', alignItems: 'center',
+                            gap: 3, padding: '0 5px',
+                            overflow: 'visible', cursor: 'pointer',
+                            position: 'relative',
+                            transition: 'background-color 0.1s',
+                          }}>
 
                           <User size={8} style={{ color: cellTextColor, flexShrink: 0 }} />
                           <span style={{ fontSize: 10, fontWeight: 600, color: cellTextColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -499,7 +521,7 @@ export default function LoredanaView({
                       <div key={time}
                         onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openNew(dateStr, time)}
                         onMouseEnter={e => {
-                          e.currentTarget.style.backgroundColor = editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT;
+                          e.currentTarget.style.backgroundColor = editMode ? '#F3F4F6' : OPERATOR_COLOR_LIGHT;
                           const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
                           if (icon) icon.style.opacity = '1';
                         }}
@@ -510,7 +532,7 @@ export default function LoredanaView({
                         }}
                         style={{ height: ROW_HEIGHT, borderBottom: '1px solid #F1F5F9', backgroundColor: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.1s' }}>
                         {editMode
-                          ? <Lock size={12} className="lv-icon" style={{ color: '#F59E0B', opacity: 0, transition: 'opacity 0.15s' }} />
+                          ? <Lock size={12} className="lv-icon" style={{ color: UFF_CHIUSO_ICON, opacity: 0, transition: 'opacity 0.15s' }} />
                           : <Plus size={14} className="lv-icon" style={{ color: OPERATOR_COLOR, opacity: 0, transition: 'opacity 0.15s' }} />
                         }
                       </div>
