@@ -78,7 +78,7 @@ interface GiornoChiuso {
   motivo: string | null;
 }
 
-// ─── Slot per sede ────────────────────────────────────────────────────────────
+// ─── Slot per sede ─────────────────────────────────────────────────────────────
 const TIME_SLOTS_IMOLA: string[] = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
 ];
@@ -102,11 +102,11 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
   return allOperators;
 };
 
-// ─── Regole MILECE ────────────────────────────────────────────────────────────
+// ─── Regole MILECE ──────────────────────────────────────────────────────────────────────
 const MILECE_WORKING_DAYS = [2, 3, 5];
 const MILECE_START_TIME   = '08:30';
 
-// ─── Helpers data ─────────────────────────────────────────────────────────────
+// ─── Helpers data ─────────────────────────────────────────────────────────────────────
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
@@ -143,7 +143,7 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-// ─── Costanti scroll ──────────────────────────────────────────────────────────
+// ─── Costanti scroll ──────────────────────────────────────────────────────────────────
 const MAX_VISIBLE_DAYS    = 30;
 const DAYS_PAST           = 3;
 const DAYS_FUTURE         = 10;
@@ -153,8 +153,14 @@ const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
 
-// ─── Colore unico operatori ───────────────────────────────────────────────────
+// ─── Colore unico operatori ────────────────────────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
+
+// ─── Colori slot UFF CHIUSO ────────────────────────────────────────────────────────────────
+// Grigio più scuro dei giorni chiusi normali (bg-gray-100 = #F3F4F6)
+const UFF_CHIUSO_BG        = '#D1D5DB'; // gray-300
+const UFF_CHIUSO_BG_HOVER  = '#C4C9D1';
+const UFF_CHIUSO_ICON      = '#6B7280'; // gray-500
 
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -176,13 +182,13 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
   const [showLoredanaView, setShowLoredanaView] = useState(false);
 
-  // ─── Search state ─────────────────────────────────────────────────────────
+  // ─── Search state ──────────────────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]           = useState(false);
   const [searchQuery, setSearchQuery]         = useState('');
   const [searchResults, setSearchResults]     = useState<Appointment[]>([]);
 
-  // ─── Refs ─────────────────────────────────────────────────────────────────
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // ─── Refs ───────────────────────────────────────────────────────────────────────────
+const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
   const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
   const anchorDateStrRef   = useRef<string | null>(null);
@@ -197,7 +203,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
   const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
 
-  // ─── Shortcut Ctrl+K per aprire la ricerca ────────────────────────────────
+  // ─── Shortcut Ctrl+K per aprire la ricerca ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -212,8 +218,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearch]);
 
-  // ─── Funzione ricerca ─────────────────────────────────────────────────────
-  const handleSearch = (query: string) => {
+  // ─── Funzione ricerca ─────────────────────────────────────────────────────────────────────
+const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
@@ -239,8 +245,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     setSearchResults([]);
   };
 
-  // ─── Business logic ───────────────────────────────────────────────────────
-  const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
+  // ─── Business logic ────────────────────────────────────────────────────────────────────
+const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
     if (operator !== 'MILECE') return false;
     if (!isMileceWorkingDay(day)) return false;
     return TIME_SLOTS_IMOLA.indexOf(time) < TIME_SLOTS_IMOLA.indexOf(MILECE_START_TIME);
@@ -290,8 +296,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       .filter(t => isUffChiusoSlot(dateStr, t, operatoreId)).length;
   };
 
-  // ─── Scroll helpers ───────────────────────────────────────────────────────
-  const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
+  // ─── Scroll helpers ───────────────────────────────────────────────────────────────────
+const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
     if (el) el.scrollIntoView({ behavior, block: 'start' });
   };
@@ -317,8 +323,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, []);
 
-  // ─── Load forward ─────────────────────────────────────────────────────────
-  const loadMoreDaysForward = useCallback(() => {
+  // ─── Load forward ───────────────────────────────────────────────────────────────────────
+const loadMoreDaysForward = useCallback(() => {
     if (loadingDirRef.current !== 'idle') return;
     loadingDirRef.current = 'fw';
     setVisibleDays(prev => {
@@ -330,8 +336,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     });
   }, []);
 
-  // ─── Load backward ────────────────────────────────────────────────────────
-  const loadMoreDaysBackward = useCallback(() => {
+  // ─── Load backward ─────────────────────────────────────────────────────────────────────
+const loadMoreDaysBackward = useCallback(() => {
     if (loadingDirRef.current !== 'idle') return;
     const days = visibleDaysRef.current;
     const firstDay = days[0];
@@ -366,11 +372,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     });
   }, []);
 
-  // ─── Effect su visibleDays ────────────────────────────────────────────────
-  useEffect(() => {
+  // ─── Effect su visibleDays ───────────────────────────────────────────────────────────────────
+const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
-
     if (dir === 'bk') {
       const anchor = anchorDateStrRef.current;
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -386,10 +391,11 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
         loadingDirRef.current = 'idle';
       }));
     }
-  }, [visibleDays]);
+  }, []);
+  useEffect(ldEff, [visibleDays]);
 
-  // ─── Listener scroll ──────────────────────────────────────────────────────
-  const onScroll = useCallback(() => {
+  // ─── Listener scroll ────────────────────────────────────────────────────────────────────
+const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -412,8 +418,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [onScroll]);
 
-  // ─── Init ─────────────────────────────────────────────────────────────────
-  useEffect(() => {
+  // ─── Init ────────────────────────────────────────────────────────────────────────────────
+useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
@@ -430,8 +436,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   }, [sedi, selectedSede]);
 
-  // ─── SSE realtime ─────────────────────────────────────────────────────────
-  useEffect(() => {
+  // ─── SSE realtime ─────────────────────────────────────────────────────────────────────────
+const sseEffect = useCallback(() => {
     const es = new EventSource('/api/epasa/events');
     es.addEventListener('update', () => {
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
@@ -455,9 +461,10 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
     };
   }, []);
+  useEffect(sseEffect, []);
 
-  // ─── Load data ────────────────────────────────────────────────────────────
-  const loadData = async () => {
+  // ─── Load data ───────────────────────────────────────────────────────────────────────────
+const loadData = async () => {
     setLoading(true);
     try {
       const [sediRes, opRes, appRes, gcRes] = await Promise.all([
@@ -480,8 +487,8 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
     }
   };
 
-  // ─── CRUD ─────────────────────────────────────────────────────────────────
-  const handleCreateAppointment = async (data: any) => {
+  // ─── CRUD ─────────────────────────────────────────────────────────────────────────────────
+const handleCreateAppointment = async (data: any) => {
     try {
       const res = await fetch('/api/epasa/appuntamenti', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
@@ -854,6 +861,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                         const isMTC       = isMileceTimeBlocked(operator, dayLocal, time);
                         const isUffC      = isUffChiusoSlot(dateStr, time, operator);
 
+                        // ── Giorno strutturalmente chiuso (weekend / sede non aperta / MILECE time blocked)
                         if (isDayClosed || isManually) {
                           const title = isDayClosed
                             ? (selectedSede!.id === 'cspt' ? 'CSPT: aperto solo il lunedì pomeriggio'
@@ -883,27 +891,34 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                             </div>
                           </td>
                         );
+
+                        // ── Slot UFF CHIUSO ── grigio scuro
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
-                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
-                              editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 ${
+                              editMode ? 'cursor-pointer' : 'select-none'
                             }`}
-                            style={{ height: '45px' }}
+                            style={{
+                              height: '45px',
+                              backgroundColor: UFF_CHIUSO_BG,
+                            }}
                             title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                            onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}>
+                            onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
+                            onMouseEnter={e => { if (editMode) (e.currentTarget as HTMLElement).style.backgroundColor = UFF_CHIUSO_BG_HOVER; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = UFF_CHIUSO_BG; }}>
                             <div className="w-full h-full flex items-center justify-center gap-1">
-                              <Lock size={9} className="text-gray-400" />
-                              <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                              {editMode && <Unlock size={9} className="text-amber-400 ml-1" />}
+                              <Lock size={9} style={{ color: UFF_CHIUSO_ICON }} />
+                              <span className="text-[10px] font-medium" style={{ color: UFF_CHIUSO_ICON }}>uff. chiuso</span>
+                              {editMode && <Unlock size={9} style={{ color: UFF_CHIUSO_ICON, marginLeft: 4 }} />}
                             </div>
                           </td>
                         );
 
-                        // ── Slot con appuntamento ──
+                        // ── Slot con appuntamento ── colori originali sempre, anche in editMode
                         if (slotApts.length > 0) {
-                          const apt = slotApts[0];
+                          const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
-                          const hl  = HIGHLIGHT_STYLE[hlKey] ?? HIGHLIGHT_STYLE[''];
+                          const hl    = HIGHLIGHT_STYLE[hlKey] ?? HIGHLIGHT_STYLE[''];
                           return (
                             <td key={`${operator}-${time}`}
                               className="relative p-0 border-r border-gray-100 border-b border-gray-100 group/slot"
@@ -912,32 +927,22 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                 onClick={() => editMode
                                   ? handleEditModeSlotClick(dateStr, time, operator)
                                   : openModalForEditAppointment(apt)}
-                                className={`w-full h-full px-2 py-1 ${
-                                  editMode
-                                    ? 'bg-gray-50 border-l-4 border-amber-400 hover:bg-amber-50 cursor-pointer'
-                                    : `${hl.cell} border-l-4 ${hl.border} hover:brightness-95 cursor-pointer`
-                                } transition-all flex items-center`}
+                                className={`w-full h-full px-2 py-1 ${hl.cell} border-l-4 ${hl.border} hover:brightness-95 cursor-pointer transition-all flex items-center`}
                                 title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
                                 <div className="w-full overflow-hidden">
-                                  {editMode ? (
-                                    <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                                      <Lock size={9} /> blocca
+                                  <div className="flex items-center gap-1 w-full">
+                                    <User size={10} className={`${hl.text} flex-shrink-0`} />
+                                    <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1 min-w-0`}>
+                                      {apt.cliente}
                                     </span>
-                                  ) : (
-                                    <div className="flex items-center gap-1 w-full">
-                                      <User size={10} className={`${hl.text} flex-shrink-0`} />
-                                      <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1 min-w-0`}>
-                                        {apt.cliente}
-                                      </span>
-                                      {apt.note && (
-                                        <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />
-                                      )}
-                                    </div>
-                                  )}
+                                    {apt.note && !editMode && (
+                                      <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 
-                              {/* ── Tooltip nota: appare SOPRA la cella, rimane dentro la tabella ── */}
+                              {/* Tooltip nota */}
                               {!editMode && apt.note && (
                                 <div
                                   className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
@@ -950,7 +955,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                     </div>
                                     <p className="whitespace-pre-wrap break-words">{apt.note}</p>
                                   </div>
-                                  {/* triangolino punta in giù */}
                                   <div className="w-0 h-0 ml-4"
                                     style={{
                                       borderLeft: '5px solid transparent',
@@ -975,12 +979,12 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                 : openModalForNewAppointment(dateStr, time, operator)}
                               className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
                                 editMode
-                                  ? 'hover:bg-amber-50 group-hover:bg-amber-50'
+                                  ? 'hover:bg-gray-100 group-hover:bg-gray-100'
                                   : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
                               }`}
                               title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
                               {editMode
-                                ? <Lock size={12} className="text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                ? <Lock size={12} style={{ color: UFF_CHIUSO_ICON }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                 : <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
                             </div>
                           </td>
