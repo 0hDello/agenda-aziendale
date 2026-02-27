@@ -906,7 +906,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                           const hl  = HIGHLIGHT_STYLE[hlKey] ?? HIGHLIGHT_STYLE[''];
                           return (
                             <td key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group/slot"
                               style={{ height: '45px' }}>
                               <div
                                 onClick={() => editMode
@@ -918,7 +918,7 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                     : `${hl.cell} border-l-4 ${hl.border} hover:brightness-95 cursor-pointer`
                                 } transition-all flex items-center`}
                                 title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
-                                <div className="w-full">
+                                <div className="w-full overflow-hidden">
                                   {editMode ? (
                                     <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
                                       <Lock size={9} /> blocca
@@ -926,30 +926,38 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                                   ) : (
                                     <div className="flex items-center gap-1 w-full">
                                       <User size={10} className={`${hl.text} flex-shrink-0`} />
-                                      <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1`}>
+                                      <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1 min-w-0`}>
                                         {apt.cliente}
                                       </span>
                                       {apt.note && (
-                                        <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-70`} />
+                                        <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />
                                       )}
                                     </div>
                                   )}
                                 </div>
                               </div>
 
-                              {/* ── Tooltip nota al hover (solo quando non in editMode) ── */}
+                              {/* ── Tooltip nota: appare SOPRA la cella, rimane dentro la tabella ── */}
                               {!editMode && apt.note && (
-                                <div className="absolute left-full top-0 ml-2 z-50 hidden group-hover:flex flex-col pointer-events-none"
-                                  style={{ minWidth: '180px', maxWidth: '260px' }}>
-                                  <div className="bg-gray-900 text-white text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed">
-                                    <div className="flex items-center gap-1.5 mb-1 border-b border-white/20 pb-1">
+                                <div
+                                  className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
+                                             opacity-0 group-hover/slot:opacity-100 transition-opacity duration-150"
+                                  style={{ minWidth: '160px', maxWidth: '240px' }}>
+                                  <div className="bg-gray-900 text-white text-[11px] rounded-lg shadow-2xl px-3 py-2 leading-relaxed">
+                                    <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-white/20">
                                       <MessageSquare size={10} className="text-yellow-300 flex-shrink-0" />
                                       <span className="font-bold text-yellow-300 text-[10px] uppercase tracking-wide">Nota</span>
                                     </div>
                                     <p className="whitespace-pre-wrap break-words">{apt.note}</p>
                                   </div>
-                                  {/* Freccia del tooltip */}
-                                  <div className="absolute left-0 top-3 -ml-1.5 w-3 h-3 bg-gray-900 rotate-45" />
+                                  {/* triangolino punta in giù */}
+                                  <div className="w-0 h-0 ml-4"
+                                    style={{
+                                      borderLeft: '5px solid transparent',
+                                      borderRight: '5px solid transparent',
+                                      borderTop: '5px solid #111827',
+                                    }}
+                                  />
                                 </div>
                               )}
                             </td>
@@ -1034,7 +1042,6 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
                       }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
-                    {/* ── Pulsante Ricerca accanto a Live ── */}
                     <button
                       onClick={() => setShowSearch(true)}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
