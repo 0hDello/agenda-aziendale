@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus, StickyNote,
+  User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus, MessageSquare,
 } from 'lucide-react';
 import {
   format,
@@ -16,7 +16,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
-import EpasaAppointmentModal from './EpasaAppointmentModal';
+import EpasaAppointmentModal, { HIGHLIGHT_STYLE } from './EpasaAppointmentModal';
 
 // ─── Tipi ─────────────────────────────────────────────────────────────────────
 interface Appointment {
@@ -76,7 +76,6 @@ const OPERATOR_COLOR        = '#005CA9';
 const OPERATOR_COLOR_LIGHT  = '#E6F2FF';
 const OPERATOR_COLOR_HOVER  = '#D1E7FF';
 const OPERATOR_COLOR_BORDER = '#BFDBFE';
-const OPERATOR_COLOR_TEXT   = '#004080';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -86,23 +85,19 @@ const TIME_SLOTS_MAP: Record<string, string[]> = {
 
 const LOREDANA_SEDI = ['imola', 'cspt', 'borgo'];
 
-// ─── Colori highlight ────────────────────────────────────────────────────────
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
-}
-
-function getHighlightStyles(highlight: string | null | undefined) {
-  if (!highlight) return null;
-  const rgb = hexToRgb(highlight);
-  if (!rgb) return null;
-  return {
-    border: highlight,
-    bg: `rgba(${rgb.r},${rgb.g},${rgb.b},0.13)`,
-    bgHover: `rgba(${rgb.r},${rgb.g},${rgb.b},0.22)`,
-    text: highlight,
-  };
-}
+// ─── Mappa HIGHLIGHT_STYLE → colori CSS inline ────────────────────────────────
+// Usiamo direttamente la mappa da EpasaAppointmentModal ma convertiamo le classi
+// Tailwind in valori CSS concreti per poterli applicare con style inline.
+const HL_CSS: Record<string, { bg: string; bgHover: string; border: string; leftBorder: string; text: string }> = {
+  '':       { bg: '#EFF6FF', bgHover: '#DBEAFE', border: '#BFDBFE', leftBorder: '#3B82F6', text: '#1D4ED8' },
+  yellow:   { bg: '#FEF9C3', bgHover: '#FEF08A', border: '#EAB308', leftBorder: '#CA8A04', text: '#713F12' },
+  orange:   { bg: '#FFEDD5', bgHover: '#FED7AA', border: '#F97316', leftBorder: '#EA580C', text: '#7C2D12' },
+  red:      { bg: '#FEE2E2', bgHover: '#FECACA', border: '#EF4444', leftBorder: '#DC2626', text: '#7F1D1D' },
+  green:    { bg: '#DCFCE7', bgHover: '#BBF7D0', border: '#22C55E', leftBorder: '#16A34A', text: '#14532D' },
+  blue:     { bg: '#DBEAFE', bgHover: '#BFDBFE', border: '#3B82F6', leftBorder: '#2563EB', text: '#1E3A8A' },
+  purple:   { bg: '#F3E8FF', bgHover: '#E9D5FF', border: '#A855F7', leftBorder: '#9333EA', text: '#581C87' },
+  pink:     { bg: '#FCE7F3', bgHover: '#FBCFE8', border: '#EC4899', leftBorder: '#DB2777', text: '#831843' },
+};
 
 // ─── Regole apertura ─────────────────────────────────────────────────────────
 const isBorgoWorkingDay = (date: Date): boolean => {
@@ -184,6 +179,9 @@ export default function LoredanaView({
   const [modalSlot, setModalSlot]   = useState<{ date: string; time: string } | null>(null);
   const [editingApt, setEditingApt] = useState<Appointment | null>(null);
 
+  // Stato hover per il tooltip nota: key = "dateStr-time"
+  const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+
   // Stato locale degli appuntamenti (sincronizzato con prop + mutazioni)
   const [localApts, setLocalApts] = useState<Appointment[]>(allAppointments);
   useEffect(() => { setLocalApts(allAppointments); }, [allAppointments]);
@@ -229,54 +227,54 @@ export default function LoredanaView({
     apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
 
   // ─── Edit-mode: blocca / sblocca slot ─────────────────────────────────────────
-const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: string) => {
-  const uffApts = localApts.filter(
-    a => a.sede_id === sedeId && a.data === dateStr &&
-         a.ora === time && a.operatore_id === LOREDANA_ID &&
-         a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
-  );
-
-  if (uffApts.length > 0) {
-    for (const apt of uffApts) {
-      try {
-        const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error();
-      } catch { alert('Errore durante lo sblocco'); return; }
-    }
-    setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
-  } else {
-    const existing = localApts.filter(
+  const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: string) => {
+    const uffApts = localApts.filter(
       a => a.sede_id === sedeId && a.data === dateStr &&
-           a.ora === time && a.operatore_id === LOREDANA_ID
+           a.ora === time && a.operatore_id === LOREDANA_ID &&
+           a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
     );
-    const deletedIds: string[] = [];
-    for (const apt of existing) {
+
+    if (uffApts.length > 0) {
+      for (const apt of uffApts) {
+        try {
+          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+        } catch { alert('Errore durante lo sblocco'); return; }
+      }
+      setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
+    } else {
+      const existing = localApts.filter(
+        a => a.sede_id === sedeId && a.data === dateStr &&
+             a.ora === time && a.operatore_id === LOREDANA_ID
+      );
+      const deletedIds: string[] = [];
+      for (const apt of existing) {
+        try {
+          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+          deletedIds.push(apt.id);
+        } catch { alert('Errore durante il blocco'); return; }
+      }
+      setLocalApts(prev => prev.filter(a => !deletedIds.includes(a.id)));
       try {
-        const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
+        const res = await fetch('/api/epasa/appuntamenti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sede_id: sedeId,
+            operatore_id: LOREDANA_ID,
+            data: dateStr,
+            ora: time,
+            cliente: 'UFF CHIUSO',
+            mese: dateStr.substring(0, 7),
+          }),
+        });
         if (!res.ok) throw new Error();
-        deletedIds.push(apt.id);
-      } catch { alert('Errore durante il blocco'); return; }
+        const newApt = await res.json();
+        setLocalApts(prev => [...prev, newApt]);
+      } catch { alert('Errore durante il blocco'); }
     }
-    setLocalApts(prev => prev.filter(a => !deletedIds.includes(a.id)));
-    try {
-      const res = await fetch('/api/epasa/appuntamenti', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sede_id: sedeId,
-          operatore_id: LOREDANA_ID,
-          data: dateStr,
-          ora: time,
-          cliente: 'UFF CHIUSO',
-          mese: dateStr.substring(0, 7),
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const newApt = await res.json();
-      setLocalApts(prev => [...prev, newApt]);
-    } catch { alert('Errore durante il blocco'); }
-  }
-};
+  };
 
   const openNew = (dateStr: string, time: string) => {
     setEditingApt(null);
@@ -296,14 +294,8 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
     setModalSlot(null);
   };
 
-  const handleSave = async (data: any) => {
-    await onSave(data);
-  };
-
-  const handleUpdate = async (id: string, data: any) => {
-    await onUpdate(id, data);
-  };
-
+  const handleSave   = async (data: any) => { await onSave(data); };
+  const handleUpdate = async (id: string, data: any) => { await onUpdate(id, data); };
   const handleDelete = async (id: string) => {
     await onDelete(id);
     setLocalApts(prev => prev.filter(a => a.id !== id));
@@ -575,6 +567,8 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                     const uffClosed = isUffChiuso(apt);
                     const hasPaz    = apt !== null && !uffClosed;
                     const sedeId    = selectedSede?.id ?? 'imola';
+                    const cellKey   = `${dateStr}-${time}`;
+                    const isHovered = hoveredCell === cellKey;
 
                     if (uffClosed) {
                       return (
@@ -601,26 +595,22 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                     }
 
                     if (hasPaz) {
-                      const hl     = getHighlightStyles(apt!.highlight);
+                      // Usa la mappa HL_CSS con la chiave stringa (es. "yellow", "red", "")
+                      const hlKey  = apt!.highlight || '';
+                      const hl     = HL_CSS[hlKey] ?? HL_CSS[''];
                       const hasNote = !!(apt!.note?.trim());
 
-                      const cellBg        = editMode ? '#FFFBEB' : (hl ? hl.bg        : OPERATOR_COLOR_LIGHT);
-                      const cellBgHover   = editMode ? '#FEF3C7' : (hl ? hl.bgHover   : OPERATOR_COLOR_HOVER);
-                      const cellBorder    = editMode ? '#FCD34D' : (hl ? hl.border     : OPERATOR_COLOR_BORDER);
-                      const cellLeftBorder= editMode ? '#F59E0B' : (hl ? hl.border     : OPERATOR_COLOR);
-                      const cellTextColor = editMode ? '#92400E' : (hl ? hl.text       : OPERATOR_COLOR_TEXT);
+                      const cellBg         = editMode ? '#FFFBEB' : (isHovered ? hl.bgHover : hl.bg);
+                      const cellBorder     = editMode ? '#FCD34D' : hl.border;
+                      const cellLeftBorder = editMode ? '#F59E0B' : hl.leftBorder;
+                      const cellTextColor  = editMode ? '#92400E' : hl.text;
 
                       return (
                         <div
                           key={time}
-                          title={
-                            editMode
-                              ? 'Clicca per bloccare questo slot'
-                              : hasNote
-                                ? `${apt!.cliente} — ${apt!.note}`
-                                : `Modifica: ${apt!.cliente}`
-                          }
                           onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openEdit(apt!)}
+                          onMouseEnter={() => setHoveredCell(cellKey)}
+                          onMouseLeave={() => setHoveredCell(null)}
                           style={{
                             height: ROW_HEIGHT,
                             borderBottom: `1px solid ${cellBorder}`,
@@ -630,12 +620,11 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                             alignItems: 'center',
                             gap: 3,
                             padding: '0 5px 0 5px',
-                            overflow: 'hidden',
+                            overflow: 'visible',
                             cursor: 'pointer',
                             position: 'relative',
+                            transition: 'background-color 0.1s',
                           }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = cellBgHover)}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = cellBg)}
                         >
                           {editMode ? (
                             <>
@@ -659,12 +648,52 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                                 {apt!.cliente}
                               </span>
                               {hasNote && (
-                                <StickyNote
+                                <MessageSquare
                                   size={8}
                                   style={{ color: cellTextColor, flexShrink: 0, opacity: 0.75 }}
                                 />
                               )}
                             </>
+                          )}
+
+                          {/* ── Tooltip nota ── */}
+                          {!editMode && hasNote && isHovered && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                bottom: '100%',
+                                left: 0,
+                                marginBottom: 6,
+                                zIndex: 9999,
+                                minWidth: 160,
+                                maxWidth: 240,
+                                pointerEvents: 'none',
+                              }}
+                            >
+                              <div style={{
+                                backgroundColor: '#111827',
+                                color: '#fff',
+                                fontSize: 11,
+                                borderRadius: 8,
+                                padding: '6px 10px',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+                                lineHeight: 1.5,
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                                  <MessageSquare size={10} style={{ color: '#FDE047', flexShrink: 0 }} />
+                                  <span style={{ fontWeight: 700, color: '#FDE047', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nota</span>
+                                </div>
+                                <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{apt!.note}</p>
+                              </div>
+                              {/* triangolino */}
+                              <div style={{
+                                width: 0, height: 0,
+                                marginLeft: 12,
+                                borderLeft: '5px solid transparent',
+                                borderRight: '5px solid transparent',
+                                borderTop: '5px solid #111827',
+                              }} />
+                            </div>
                           )}
                         </div>
                       );
@@ -676,15 +705,6 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                         key={time}
                         title={editMode ? 'Clicca per bloccare questo slot' : 'Aggiungi appuntamento'}
                         onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openNew(dateStr, time)}
-                        style={{
-                          height: ROW_HEIGHT,
-                          borderBottom: '1px solid #F1F5F9',
-                          backgroundColor: '#FFFFFF',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
                         onMouseEnter={e => {
                           e.currentTarget.style.backgroundColor = editMode ? '#FFFBEB' : OPERATOR_COLOR_LIGHT;
                           const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
@@ -694,6 +714,16 @@ const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: st
                           e.currentTarget.style.backgroundColor = '#FFFFFF';
                           const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
                           if (icon) icon.style.opacity = '0';
+                        }}
+                        style={{
+                          height: ROW_HEIGHT,
+                          borderBottom: '1px solid #F1F5F9',
+                          backgroundColor: '#FFFFFF',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.1s',
                         }}
                       >
                         {editMode
