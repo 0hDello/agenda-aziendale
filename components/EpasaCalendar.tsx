@@ -156,12 +156,6 @@ const SSE_RELOAD_DEBOUNCE = 800;
 // ─── Colore unico operatori ────────────────────────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
 
-// ─── Colori slot UFF CHIUSO ────────────────────────────────────────────────────────────────
-// Grigio più scuro dei giorni chiusi normali (bg-gray-100 = #F3F4F6)
-const UFF_CHIUSO_BG        = '#D1D5DB'; // gray-300
-const UFF_CHIUSO_BG_HOVER  = '#C4C9D1';
-const UFF_CHIUSO_ICON      = '#6B7280'; // gray-500
-
 export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
   const [sedi, setSedi]                       = useState<Sede[]>([]);
@@ -892,24 +886,19 @@ const handleCreateAppointment = async (data: any) => {
                           </td>
                         );
 
-                        // ── Slot UFF CHIUSO ── grigio scuro
+                        // ── Slot UFF CHIUSO ── stesso colore bg-gray-100 dei giorni chiusi normali
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
-                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 ${
-                              editMode ? 'cursor-pointer' : 'select-none'
+                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
+                              editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
                             }`}
-                            style={{
-                              height: '45px',
-                              backgroundColor: UFF_CHIUSO_BG,
-                            }}
+                            style={{ height: '45px' }}
                             title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                            onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}
-                            onMouseEnter={e => { if (editMode) (e.currentTarget as HTMLElement).style.backgroundColor = UFF_CHIUSO_BG_HOVER; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = UFF_CHIUSO_BG; }}>
+                            onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}>
                             <div className="w-full h-full flex items-center justify-center gap-1">
-                              <Lock size={9} style={{ color: UFF_CHIUSO_ICON }} />
-                              <span className="text-[10px] font-medium" style={{ color: UFF_CHIUSO_ICON }}>uff. chiuso</span>
-                              {editMode && <Unlock size={9} style={{ color: UFF_CHIUSO_ICON, marginLeft: 4 }} />}
+                              <Lock size={9} className="text-gray-400" />
+                              <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                              {editMode && <Unlock size={9} className="text-gray-400 ml-1" />}
                             </div>
                           </td>
                         );
@@ -984,7 +973,7 @@ const handleCreateAppointment = async (data: any) => {
                               }`}
                               title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
                               {editMode
-                                ? <Lock size={12} style={{ color: UFF_CHIUSO_ICON }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                ? <Lock size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 : <Plus size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
                             </div>
                           </td>
