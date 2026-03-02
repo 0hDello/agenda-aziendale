@@ -2,6 +2,7 @@
 
 import { MessageSquare } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Appuntamento } from '@/lib/types';
 import { TIME_SLOTS } from '@/utils/dateUtils';
 
@@ -47,19 +48,27 @@ function AppointmentCell({
 }) {
   const hl = HIGHLIGHT_MAP[apt.highlight ?? ''] ?? HIGHLIGHT_MAP[''];
   const cellRef = useRef<HTMLDivElement>(null);
-  const [showNote, setShowNote] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
   const [above, setAbove] = useState(false);
 
   const handleMouseEnter = useCallback(() => {
-    if (!apt.note) return;
-    if (cellRef.current) {
-      const rect = cellRef.current.getBoundingClientRect();
-      setAbove(window.innerHeight - rect.bottom < 130);
-    }
-    setShowNote(true);
+    if (!apt.note || !cellRef.current) return;
+    const rect = cellRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const isAbove = spaceBelow < 150;
+    setAbove(isAbove);
+    setTooltipStyle({
+      position: 'fixed',
+      left: rect.left,
+      top: isAbove ? rect.top - 8 : rect.bottom + 6,
+      minWidth: '160px',
+      maxWidth: '260px',
+      zIndex: 99999,
+      transform: isAbove ? 'translateY(-100%)' : 'none',
+    });
   }, [apt.note]);
 
-  const handleMouseLeave = useCallback(() => setShowNote(false), []);
+  const handleMouseLeave = useCallback(() => setTooltipStyle(null), []);
 
   return (
     <div
@@ -85,19 +94,9 @@ function AppointmentCell({
         {apt.cliente || 'Appuntamento'}
       </p>
 
-      {/* Tooltip nota */}
-      {apt.note && showNote && (
-        <div
-          className="absolute left-0 pointer-events-none"
-          style={{
-            zIndex: 9999,
-            minWidth: '160px',
-            maxWidth: '260px',
-            ...(above
-              ? { bottom: '100%', marginBottom: '6px' }
-              : { top: '100%',    marginTop: '6px'    }),
-          }}
-        >
+      {/* Tooltip nota via portal — esce dall'overflow container */}
+      {apt.note && tooltipStyle && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div style={tooltipStyle} className="pointer-events-none">
           {!above && (
             <div className="w-0 h-0 ml-3" style={{
               borderLeft: '5px solid transparent',
@@ -119,7 +118,8 @@ function AppointmentCell({
               borderTop: '5px solid #93c5fd',
             }} />
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
