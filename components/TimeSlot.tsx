@@ -1,7 +1,7 @@
 'use client';
 
 import { MessageSquare } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Appuntamento } from '@/lib/types';
 import { TIME_SLOTS } from '@/utils/dateUtils';
 
@@ -26,61 +26,97 @@ interface TimeSlotProps {
   onDragOver?: (e: React.DragEvent) => void;
 }
 
-// Tooltip che calcola dinamicamente se aprirsi sopra o sotto
-function NoteTooltip({ note }: { note: string }) {
+function AppointmentCell({
+  apt,
+  style,
+  className,
+  onDragStart,
+  onDrop,
+  onDragOver,
+  onClick,
+  textSize = 'text-xs',
+}: {
+  apt: Appuntamento;
+  style: React.CSSProperties;
+  className: string;
+  onDragStart: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onClick: (e: React.MouseEvent) => void;
+  textSize?: string;
+}) {
+  const hl = HIGHLIGHT_MAP[apt.highlight ?? ''] ?? HIGHLIGHT_MAP[''];
+  const cellRef = useRef<HTMLDivElement>(null);
+  const [showNote, setShowNote] = useState(false);
   const [above, setAbove] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
-  const handleMouseEnter = () => {
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setAbove(spaceBelow < 120);
+  const handleMouseEnter = useCallback(() => {
+    if (!apt.note) return;
+    if (cellRef.current) {
+      const rect = cellRef.current.getBoundingClientRect();
+      setAbove(window.innerHeight - rect.bottom < 130);
     }
-    setVisible(true);
-  };
+    setShowNote(true);
+  }, [apt.note]);
+
+  const handleMouseLeave = useCallback(() => setShowNote(false), []);
 
   return (
     <div
-      ref={ref}
-      className="absolute inset-0 z-[60] pointer-events-none"
+      ref={cellRef}
+      draggable
+      onDragStart={onDragStart}
+      onClick={onClick}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setVisible(false)}
-      style={{ pointerEvents: 'auto' }}
+      onMouseLeave={handleMouseLeave}
+      data-appointment-id={apt.id}
+      style={{
+        ...style,
+        backgroundColor: hl.bg,
+        borderLeftColor: hl.border,
+        borderLeftWidth: '4px',
+        borderLeftStyle: 'solid',
+      }}
+      className={`appointment-cell px-2 cursor-move transition-colors flex items-center ${className}`}
     >
-      {visible && (
+      <p className={`${textSize} font-bold truncate pointer-events-none`} style={{ color: hl.text }}>
+        {apt.cliente || 'Appuntamento'}
+      </p>
+
+      {/* Tooltip nota */}
+      {apt.note && showNote && (
         <div
           className="absolute left-0 pointer-events-none"
           style={{
-            ...(above
-              ? { bottom: '100%', marginBottom: '4px' }
-              : { top: '100%', marginTop: '4px' }),
-            minWidth: '160px',
-            maxWidth: '240px',
             zIndex: 9999,
+            minWidth: '160px',
+            maxWidth: '260px',
+            ...(above
+              ? { bottom: '100%', marginBottom: '6px' }
+              : { top: '100%',    marginTop: '6px'    }),
           }}
         >
-          {/* Freccia */}
           {!above && (
-            <div className="w-0 h-0 ml-4" style={{
+            <div className="w-0 h-0 ml-3" style={{
               borderLeft: '5px solid transparent',
               borderRight: '5px solid transparent',
-              borderBottom: '5px solid #bfdbfe',
+              borderBottom: '5px solid #93c5fd',
             }} />
           )}
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
+          <div className="bg-blue-50 border border-blue-300 text-blue-800 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed">
             <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
               <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
               <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
             </div>
-            <p className="whitespace-pre-wrap break-words text-blue-700">{note}</p>
+            <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
           </div>
           {above && (
-            <div className="w-0 h-0 ml-4" style={{
+            <div className="w-0 h-0 ml-3" style={{
               borderLeft: '5px solid transparent',
               borderRight: '5px solid transparent',
-              borderTop: '5px solid #bfdbfe',
+              borderTop: '5px solid #93c5fd',
             }} />
           )}
         </div>
@@ -99,14 +135,10 @@ export default function TimeSlot({
   onDragOver,
 }: TimeSlotProps) {
 
-  const getHL = (apt: Appuntamento) =>
-    HIGHLIGHT_MAP[apt.highlight ?? ''] ?? HIGHLIGHT_MAP[''];
-
-  const handleDragStart = (e: React.DragEvent, appointment: Appuntamento) => {
+  const handleDragStartInner = (e: React.DragEvent, appointment: Appuntamento) => {
     if (onDragStart) {
       e.stopPropagation();
-      const startTime = appointment.ora_inizio.substring(0, 5);
-      onDragStart(appointment, startTime);
+      onDragStart(appointment, appointment.ora_inizio.substring(0, 5));
       const dragImage = document.createElement('div');
       dragImage.style.cssText = 'position:absolute;top:-1000px;width:200px;padding:10px;background:#E6F2FF;border:3px solid #005CA9;border-radius:8px;color:#005CA9;font-weight:bold;';
       dragImage.innerHTML = `
@@ -167,32 +199,17 @@ export default function TimeSlot({
     if (startsHere.length === 1 && maxCols === 1) {
       const apt = startsHere[0];
       const h   = calculateHeight(apt);
-      const hl  = getHL(apt);
       return (
-        <div
-          draggable
-          onDragStart={e => handleDragStart(e, apt)}
+        <AppointmentCell
+          apt={apt}
+          style={{ height: `${h}px`, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 }}
+          className=""
+          textSize="text-xs"
+          onDragStart={e => handleDragStartInner(e, apt)}
           onClick={() => onClick(apt)}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          data-appointment-id={apt.id}
-          style={{
-            height: `${h}px`,
-            position: 'absolute',
-            top: 0, left: 0, right: 0,
-            zIndex: 5,
-            backgroundColor: hl.bg,
-            borderLeftColor: hl.border,
-            borderLeftWidth: '4px',
-            borderLeftStyle: 'solid',
-          }}
-          className="appointment-cell px-2 cursor-move transition-colors flex items-center"
-        >
-          <p className="text-xs font-bold truncate pointer-events-none" style={{ color: hl.text }}>
-            {apt.cliente || 'Appuntamento'}
-          </p>
-          {apt.note && <NoteTooltip note={apt.note} />}
-        </div>
+        />
       );
     }
 
@@ -203,16 +220,10 @@ export default function TimeSlot({
         {startsHere.map(apt => {
           const ci = colMap.get(apt.id) ?? 0;
           const h  = calculateHeight(apt);
-          const hl = getHL(apt);
           return (
-            <div
+            <AppointmentCell
               key={apt.id}
-              draggable
-              onDragStart={e => handleDragStart(e, apt)}
-              onClick={e => { e.stopPropagation(); onClick(apt); }}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              data-appointment-id={apt.id}
+              apt={apt}
               style={{
                 position: 'absolute',
                 left:   `calc(${ci * colW}% + ${ci > 0 ? gap : 0}px)`,
@@ -220,18 +231,14 @@ export default function TimeSlot({
                 top: 0,
                 height: `${h}px`,
                 zIndex: 5,
-                backgroundColor: hl.bg,
-                borderLeftColor: hl.border,
-                borderLeftWidth: '4px',
-                borderLeftStyle: 'solid',
               }}
-              className="appointment-cell px-1.5 cursor-move transition-all flex items-center"
-            >
-              <p className="text-[10px] font-bold truncate leading-tight pointer-events-none" style={{ color: hl.text }}>
-                {apt.cliente || 'App.'}
-              </p>
-              {apt.note && <NoteTooltip note={apt.note} />}
-            </div>
+              className=""
+              textSize="text-[10px]"
+              onDragStart={e => handleDragStartInner(e, apt)}
+              onClick={e => { e.stopPropagation(); onClick(apt); }}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            />
           );
         })}
       </div>
