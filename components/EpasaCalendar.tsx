@@ -45,6 +45,7 @@ import LoredanaView from './LoredanaView';
 
 interface EpasaCalendarProps {
   agendaId: string;
+  initialLoredana?: boolean;
 }
 
 interface Sede {
@@ -78,7 +79,7 @@ interface GiornoChiuso {
   motivo: string | null;
 }
 
-// ─── Slot per sede ─────────────────────────────────────────────────────────────
+// ─── Slot per sede ──────────────────────────────────────────────────────────────────────
 const TIME_SLOTS_IMOLA: string[] = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
 ];
@@ -102,11 +103,11 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
   return allOperators;
 };
 
-// ─── Regole MILECE ──────────────────────────────────────────────────────────────────────
+// ─── Regole MILECE ──────────────────────────────────────────────────────────────────────────────────
 const MILECE_WORKING_DAYS = [2, 3, 5];
 const MILECE_START_TIME   = '08:30';
 
-// ─── Helpers data ─────────────────────────────────────────────────────────────────────
+// ─── Helpers data ───────────────────────────────────────────────────────────────────────────────────
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
@@ -143,7 +144,7 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-// ─── Costanti scroll ──────────────────────────────────────────────────────────────────
+// ─── Costanti scroll ───────────────────────────────────────────────────────────────────────────────────
 const MAX_VISIBLE_DAYS    = 30;
 const DAYS_PAST           = 3;
 const DAYS_FUTURE         = 10;
@@ -152,13 +153,12 @@ const MIN_DATE            = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
-// Altezza dell'header sticky della tabella (riga "Orario / LOREDANA / MILECE")
 const STICKY_HEADER_HEIGHT = 41;
 
-// ─── Colore unico operatori ────────────────────────────────────────────────────────────────────
+// ─── Colore unico operatori ────────────────────────────────────────────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
 
-export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
+export default function EpasaCalendar({ agendaId, initialLoredana = false }: EpasaCalendarProps) {
   const [selectedDate, setSelectedDate]       = useState(new Date());
   const [sedi, setSedi]                       = useState<Sede[]>([]);
   const [operatori, setOperatori]             = useState<Operatore[]>([]);
@@ -176,15 +176,15 @@ export default function EpasaCalendar({ agendaId }: EpasaCalendarProps) {
   const [editMode, setEditMode]               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
-  const [showLoredanaView, setShowLoredanaView] = useState(false);
+  const [showLoredanaView, setShowLoredanaView] = useState(initialLoredana);
 
-  // ─── Search state ──────────────────────────────────────────────────────────────────────
+  // ─── Search state ────────────────────────────────────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]           = useState(false);
   const [searchQuery, setSearchQuery]         = useState('');
   const [searchResults, setSearchResults]     = useState<Appointment[]>([]);
 
-  // ─── Refs ───────────────────────────────────────────────────────────────────────────
-const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // ─── Refs ───────────────────────────────────────────────────────────────────────────────────────
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
   const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
   const anchorDateStrRef   = useRef<string | null>(null);
@@ -199,7 +199,7 @@ const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
   const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
 
-  // ─── Shortcut Ctrl+K per aprire la ricerca ─────────────────────────────────────────────
+  // ─── Shortcut Ctrl+K per aprire la ricerca ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -214,8 +214,8 @@ const scrollContainerRef = useRef<HTMLDivElement>(null);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearch]);
 
-  // ─── Funzione ricerca ─────────────────────────────────────────────────────────────────────
-const handleSearch = (query: string) => {
+  // ─── Funzione ricerca ───────────────────────────────────────────────────────────────────────────────────────────
+  const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
@@ -241,8 +241,8 @@ const handleSearch = (query: string) => {
     setSearchResults([]);
   };
 
-  // ─── Business logic ────────────────────────────────────────────────────────────────────
-const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
+  // ─── Business logic ────────────────────────────────────────────────────────────────────────────────────────
+  const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
     if (operator !== 'MILECE') return false;
     if (!isMileceWorkingDay(day)) return false;
     return TIME_SLOTS_IMOLA.indexOf(time) < TIME_SLOTS_IMOLA.indexOf(MILECE_START_TIME);
@@ -292,7 +292,7 @@ const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
       .filter(t => isUffChiusoSlot(dateStr, t, operatoreId)).length;
   };
 
-  // ─── Scroll helpers ───────────────────────────────────────────────────────────────────
+  // ─── Scroll helpers ───────────────────────────────────────────────────────────────────────────────────
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const container = scrollContainerRef.current;
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
@@ -326,8 +326,7 @@ const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
     }
   }, []);
 
-  // ─── Load forward ───────────────────────────────────────────────────────────────────────
-const loadMoreDaysForward = useCallback(() => {
+  const loadMoreDaysForward = useCallback(() => {
     if (loadingDirRef.current !== 'idle') return;
     loadingDirRef.current = 'fw';
     setVisibleDays(prev => {
@@ -339,8 +338,7 @@ const loadMoreDaysForward = useCallback(() => {
     });
   }, []);
 
-  // ─── Load backward ─────────────────────────────────────────────────────────────────────
-const loadMoreDaysBackward = useCallback(() => {
+  const loadMoreDaysBackward = useCallback(() => {
     if (loadingDirRef.current !== 'idle') return;
     const days = visibleDaysRef.current;
     const firstDay = days[0];
@@ -375,8 +373,7 @@ const loadMoreDaysBackward = useCallback(() => {
     });
   }, []);
 
-  // ─── Effect su visibleDays ───────────────────────────────────────────────────────────────────
-const ldEff = useCallback(() => {
+  const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
     if (dir === 'bk') {
@@ -403,8 +400,7 @@ const ldEff = useCallback(() => {
   }, []);
   useEffect(ldEff, [visibleDays]);
 
-  // ─── Listener scroll ────────────────────────────────────────────────────────────────────
-const onScroll = useCallback(() => {
+  const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -427,8 +423,7 @@ const onScroll = useCallback(() => {
     }
   }, [onScroll]);
 
-  // ─── Init ────────────────────────────────────────────────────────────────────────────────
-useEffect(() => {
+  useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
@@ -445,8 +440,7 @@ useEffect(() => {
     }
   }, [sedi, selectedSede]);
 
-  // ─── SSE realtime ─────────────────────────────────────────────────────────────────────────
-const sseEffect = useCallback(() => {
+  const sseEffect = useCallback(() => {
     const es = new EventSource('/api/epasa/events');
     es.addEventListener('update', () => {
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
@@ -472,8 +466,7 @@ const sseEffect = useCallback(() => {
   }, []);
   useEffect(sseEffect, []);
 
-  // ─── Load data ───────────────────────────────────────────────────────────────────────────
-const loadData = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
       const [sediRes, opRes, appRes, gcRes] = await Promise.all([
@@ -496,8 +489,7 @@ const loadData = async () => {
     }
   };
 
-  // ─── CRUD ─────────────────────────────────────────────────────────────────────────────────
-const handleCreateAppointment = async (data: any) => {
+  const handleCreateAppointment = async (data: any) => {
     try {
       const res = await fetch('/api/epasa/appuntamenti', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
@@ -856,7 +848,6 @@ const handleCreateAppointment = async (data: any) => {
                         const isMTC       = isMileceTimeBlocked(operator, dayLocal, time);
                         const isUffC      = isUffChiusoSlot(dateStr, time, operator);
 
-                        // ── Giorno strutturalmente chiuso
                         if (isDayClosed || isManually) {
                           const title = isDayClosed
                             ? (selectedSede!.id === 'cspt' ? 'CSPT: aperto solo il lunedì pomeriggio'
@@ -887,7 +878,6 @@ const handleCreateAppointment = async (data: any) => {
                           </td>
                         );
 
-                        // ── Slot UFF CHIUSO ── stesso colore bg-gray-100
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
                             className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
@@ -904,7 +894,6 @@ const handleCreateAppointment = async (data: any) => {
                           </td>
                         );
 
-                        // ── Slot con appuntamento
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
@@ -956,7 +945,6 @@ const handleCreateAppointment = async (data: any) => {
                           );
                         }
 
-                        // ── Slot vuoto
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
