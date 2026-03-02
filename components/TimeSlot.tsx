@@ -1,8 +1,20 @@
 'use client';
 
+import { MessageSquare, User } from 'lucide-react';
 import { Appuntamento } from '@/lib/types';
 import { TIME_SLOTS } from '@/utils/dateUtils';
-import { HIGHLIGHT_STYLE } from './AppointmentModal';
+
+// Mappa highlight → colori esatti (stili inline per evitare purge Tailwind)
+const HIGHLIGHT_MAP: Record<string, { bg: string; border: string; text: string }> = {
+  '':      { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8' },
+  yellow:  { bg: '#fef9c3', border: '#eab308', text: '#713f12' },
+  orange:  { bg: '#ffedd5', border: '#f97316', text: '#7c2d12' },
+  red:     { bg: '#fee2e2', border: '#ef4444', text: '#7f1d1d' },
+  green:   { bg: '#dcfce7', border: '#22c55e', text: '#14532d' },
+  blue:    { bg: '#dbeafe', border: '#3b82f6', text: '#1e3a8a' },
+  purple:  { bg: '#f3e8ff', border: '#a855f7', text: '#581c87' },
+  pink:    { bg: '#fce7f3', border: '#ec4899', text: '#831843' },
+};
 
 interface TimeSlotProps {
   time: string;
@@ -14,18 +26,18 @@ interface TimeSlotProps {
   onDragOver?: (e: React.DragEvent) => void;
 }
 
-export default function TimeSlot({ 
-  time, 
-  appointments = [], 
+export default function TimeSlot({
+  time,
+  appointments = [],
   allDayAppointments = [],
-  onClick, 
-  onDragStart, 
+  onClick,
+  onDragStart,
   onDrop,
   onDragOver,
 }: TimeSlotProps) {
 
-  const getHighlight = (apt: Appuntamento) =>
-    HIGHLIGHT_STYLE[apt.highlight ?? ''] ?? HIGHLIGHT_STYLE[''];
+  const getHL = (apt: Appuntamento) =>
+    HIGHLIGHT_MAP[apt.highlight ?? ''] ?? HIGHLIGHT_MAP[''];
 
   const handleDragStart = (e: React.DragEvent, appointment: Appuntamento) => {
     if (onDragStart) {
@@ -92,7 +104,7 @@ export default function TimeSlot({
     if (startsHere.length === 1 && maxCols === 1) {
       const apt = startsHere[0];
       const h   = calculateHeight(apt);
-      const hl  = getHighlight(apt);
+      const hl  = getHL(apt);
       return (
         <div
           draggable
@@ -101,21 +113,57 @@ export default function TimeSlot({
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           data-appointment-id={apt.id}
-          style={{ height: `${h}px`, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 }}
-          className={`appointment-cell border-l-4 p-2 cursor-move transition-colors group mb-1 ${hl.cell} ${hl.border}`}
+          style={{
+            height: `${h}px`,
+            position: 'absolute',
+            top: 0, left: 0, right: 0,
+            zIndex: 5,
+            backgroundColor: hl.bg,
+            borderLeftColor: hl.border,
+            borderLeftWidth: '4px',
+            borderLeftStyle: 'solid',
+          }}
+          className="appointment-cell p-2 cursor-move transition-colors group/apt"
         >
           <div className="flex items-start gap-2 pointer-events-none">
-            <div className={`rounded-full w-3 h-3 flex-shrink-0 mt-0.5 ${hl.border.replace('border-','bg-')}`} />
+            <div className="rounded-full w-3 h-3 flex-shrink-0 mt-0.5" style={{ backgroundColor: hl.border }} />
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-bold truncate ${hl.text}`}>
-                {apt.cliente || 'Appuntamento'}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-sm font-bold truncate flex-1" style={{ color: hl.text }}>
+                  {apt.cliente || 'Appuntamento'}
+                </p>
+                {apt.note && (
+                  <MessageSquare size={10} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
+                )}
+              </div>
               <p className="text-xs text-gray-600 truncate">
                 {apt.ora_inizio?.substring(0,5)} - {apt.ora_fine?.substring(0,5)}
               </p>
-              {apt.note && <p className="text-xs text-gray-500 truncate mt-1">{apt.note}</p>}
             </div>
           </div>
+          {/* Tooltip note stile Epasa */}
+          {apt.note && (
+            <div
+              className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
+                         opacity-0 group-hover/apt:opacity-100 transition-opacity duration-150"
+              style={{ minWidth: '160px', maxWidth: '240px' }}
+            >
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
+                <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
+                  <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
+                  <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
+                </div>
+                <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
+              </div>
+              <div className="w-0 h-0 ml-4"
+                style={{
+                  borderLeft: '5px solid transparent',
+                  borderRight: '5px solid transparent',
+                  borderTop: '5px solid #bfdbfe',
+                }}
+              />
+            </div>
+          )}
         </div>
       );
     }
@@ -127,7 +175,7 @@ export default function TimeSlot({
         {startsHere.map(apt => {
           const ci = colMap.get(apt.id) ?? 0;
           const h  = calculateHeight(apt);
-          const hl = getHighlight(apt);
+          const hl = getHL(apt);
           return (
             <div
               key={apt.id}
@@ -144,20 +192,51 @@ export default function TimeSlot({
                 top: 0,
                 height: `${h}px`,
                 zIndex: 5,
+                backgroundColor: hl.bg,
+                borderLeftColor: hl.border,
+                borderLeftWidth: '4px',
+                borderLeftStyle: 'solid',
               }}
-              className={`appointment-cell border-l-4 p-1.5 cursor-move transition-all group mb-1 ${hl.cell} ${hl.border}`}
+              className="appointment-cell p-1.5 cursor-move transition-all group/apt"
             >
               <div className="flex items-start gap-1 pointer-events-none">
-                <div className={`rounded-full w-2 h-2 flex-shrink-0 mt-0.5 ${hl.border.replace('border-','bg-')}`} />
+                <div className="rounded-full w-2 h-2 flex-shrink-0 mt-0.5" style={{ backgroundColor: hl.border }} />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-bold truncate leading-tight ${hl.text}`}>
-                    {apt.cliente || 'App.'}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-bold truncate leading-tight flex-1" style={{ color: hl.text }}>
+                      {apt.cliente || 'App.'}
+                    </p>
+                    {apt.note && (
+                      <MessageSquare size={8} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
+                    )}
+                  </div>
                   <p className="text-[10px] text-gray-600 truncate leading-tight mt-0.5">
                     {apt.ora_inizio?.substring(0,5)} - {apt.ora_fine?.substring(0,5)}
                   </p>
                 </div>
               </div>
+              {apt.note && (
+                <div
+                  className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
+                             opacity-0 group-hover/apt:opacity-100 transition-opacity duration-150"
+                  style={{ minWidth: '160px', maxWidth: '240px' }}
+                >
+                  <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
+                    <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
+                      <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
+                      <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
+                  </div>
+                  <div className="w-0 h-0 ml-4"
+                    style={{
+                      borderLeft: '5px solid transparent',
+                      borderRight: '5px solid transparent',
+                      borderTop: '5px solid #bfdbfe',
+                    }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
