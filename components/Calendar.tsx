@@ -45,8 +45,6 @@ const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD = 400;
-// Cooldown (ms) applicato SOLO allo scroll verso l'alto dopo la compensazione.
-// Non viene mai usato per bloccare lo scroll verso il basso.
 const POST_COMPENSATE_COOLDOWN = 400;
 
 type ViewMode = 'daily' | 'monthly';
@@ -64,14 +62,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedSedeId, setSelectedSedeId] = useState<string>('');
   const [isModalOpen, setIsModalOpen]       = useState(false);
   const [selectedSlot, setSelectedSlot]     = useState({ date: '', time: '', personaId: '' });
-  const [selectedAppointment, setSelectedAppointment]   = useState<Appuntamento | null>(null);
-  const [draggedAppointment, setDraggedAppointment]     = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
-  const [resizingAppointment, setResizingAppointment]   = useState<Appuntamento | null>(null);
-  const [isResizing, setIsResizing]         = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
+  const [draggedAppointment, setDraggedAppointment]   = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
-  // Lock generico: impedisce chiamate multiple simultanee (forward O backward)
   const isLoadingRef              = useRef(false);
   const scrollListenerAttachedRef = useRef(false);
   const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
@@ -79,18 +74,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const scrollSnapshotRef         = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   const userScrollDirectionRef    = useRef<'up' | 'down' | null>(null);
   const lastUserScrollTopRef      = useRef(0);
-  // Segnala il singolo evento DOM di compensazione posizione
   const isCompensatingRef         = useRef(false);
-  // Blocca SOLO loadMoreDaysBackward per POST_COMPENSATE_COOLDOWN ms dopo la compensazione.
-  // Non interferisce mai con loadMoreDaysForward.
   const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
-  // Wrapper stabile: punta sempre all'handleScroll più recente (no closure stale)
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
-  // ─── helpers ────────────────────────────────────────────────────────────────
+  // ─── helpers ─────────────────────────────────────────────────────────────────────────
 
   const scrollToDate = (date: Date) => {
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
@@ -118,156 +109,82 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [visibleDays]);
 
-  // ─── carica giorni futuri ───────────────────────────────────────────────────
-  // Il lock viene rilasciato nella rAF successiva al paint, non dopo 200ms fissi.
-  // Questo consente scroll veloci verso il basso senza blocchi artificiali.
-
   const loadMoreDaysForward = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
-
     setVisibleDays(prev => {
       const lastDay = prev[prev.length - 1];
       const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
       let updated = [...prev, ...newDays];
-      if (updated.length > MAX_VISIBLE_DAYS)
-        updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
       return updated;
     });
-
-    // Rilascia il lock dopo il prossimo paint: nessun blocco artificiale da 200ms
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        isLoadingRef.current = false;
-      });
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => { isLoadingRef.current = false; }));
   };
 
-  // ─── carica giorni passati ──────────────────────────────────────────────────
-  // Il cooldown (backwardCooldownRef) blocca SOLO questo metodo, non forward.
-  // isLoadingRef viene rilasciato PRIMA dell'avvio del cooldown, così handleScroll
-  // può chiamare loadMoreDaysForward senza essere bloccato durante il cooldown.
-
   const loadMoreDaysBackward = () => {
-    if (isLoadingRef.current) return;
-    if (backwardCooldownRef.current) return;
-
+    if (isLoadingRef.current || backwardCooldownRef.current) return;
     const container = scrollContainerRef.current;
     if (!container) return;
-
     const firstDay = visibleDaysRef.current[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
-
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
-    if (newDays.length === 0) return;
-
+    if (!newDays.length) return;
     isLoadingRef.current = true;
-
-    scrollSnapshotRef.current = {
-      scrollTop:    container.scrollTop,
-      scrollHeight: container.scrollHeight,
-    };
-
+    scrollSnapshotRef.current = { scrollTop: container.scrollTop, scrollHeight: container.scrollHeight };
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
-      if (updated.length > MAX_VISIBLE_DAYS)
-        updated = updated.slice(0, MAX_VISIBLE_DAYS);
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
       return updated;
     });
-
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (container && scrollSnapshotRef.current) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
-          const heightDiff = container.scrollHeight - snapHeight;
-          if (heightDiff > 0) {
-            isCompensatingRef.current = true;
-            container.scrollTop = snapTop + heightDiff;
-          }
+          const diff = container.scrollHeight - snapHeight;
+          if (diff > 0) { isCompensatingRef.current = true; container.scrollTop = snapTop + diff; }
           scrollSnapshotRef.current = null;
         }
-
-        // Rilascia il lock generico PRIMA di avviare il cooldown:
-        // in questo modo handleScroll può già chiamare loadMoreDaysForward
-        // senza aspettare la fine del cooldown.
         isLoadingRef.current = false;
-
-        // Avvia il cooldown specifico per backward: blocca solo lo scroll in alto
         backwardCooldownRef.current = true;
         if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-        cooldownTimerRef.current = setTimeout(() => {
-          backwardCooldownRef.current = false;
-        }, POST_COMPENSATE_COOLDOWN);
+        cooldownTimerRef.current = setTimeout(() => { backwardCooldownRef.current = false; }, POST_COMPENSATE_COOLDOWN);
       });
     });
   };
 
-  // ─── handler scroll (stabile via ref) ──────────────────────────────────────
-
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-
     const currentScrollTop = container.scrollTop;
-
-    // Evento singolo di compensazione DOM: aggiorna riferimento ed esci
-    if (isCompensatingRef.current) {
-      isCompensatingRef.current    = false;
-      lastUserScrollTopRef.current = currentScrollTop;
-      return;
-    }
-
-    // Durante il cooldown backward: aggiorna il riferimento ma non triggera backward.
-    // Lo scroll verso il basso viene comunque gestito normalmente.
-    if (backwardCooldownRef.current) {
-      lastUserScrollTopRef.current = currentScrollTop;
-      // Permettiamo comunque il debounce per gestire lo scroll in avanti
-    }
-
+    if (isCompensatingRef.current) { isCompensatingRef.current = false; lastUserScrollTopRef.current = currentScrollTop; return; }
+    if (backwardCooldownRef.current) lastUserScrollTopRef.current = currentScrollTop;
     if (isLoadingRef.current) return;
-
-    const direction: 'up' | 'down' =
-      currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
+    const direction: 'up' | 'down' = currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
     lastUserScrollTopRef.current   = currentScrollTop;
     userScrollDirectionRef.current = direction;
-
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-
     loadTimeoutRef.current = setTimeout(() => {
       if (!container || isLoadingRef.current) return;
-
       const { scrollTop, scrollHeight, clientHeight } = container;
-      const distanceFromTop    = scrollTop;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
       const dir = userScrollDirectionRef.current;
-
-      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) {
-        // Forward: mai bloccato dal cooldown backward
-        loadMoreDaysForward();
-      } else if (dir === 'up' && distanceFromTop < SCROLL_THRESHOLD) {
-        // Backward: bloccato solo dal suo cooldown specifico
-        loadMoreDaysBackward();
-      }
+      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
+      else if (dir === 'up' && scrollTop < SCROLL_THRESHOLD) loadMoreDaysBackward();
     }, 80);
   }, []);
 
-  // Mantieni il ref sempre aggiornato
   useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
-
-  // ─── inizializzazione (una sola volta) ─────────────────────────────────────
 
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      setTimeout(() => {
-        scrollToDate(selectedDate);
-        attachScrollListener();
-      }, 200);
+      setTimeout(() => { scrollToDate(selectedDate); attachScrollListener(); }, 200);
     }
   }, []);
 
@@ -290,12 +207,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   useEffect(() => {
-    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) {
-      attachScrollListener();
-    }
+    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) attachScrollListener();
     return () => {
       detachScrollListener();
-      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+      if (loadTimeoutRef.current)  clearTimeout(loadTimeoutRef.current);
       if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
     };
   }, [isInitialized]);
@@ -305,31 +220,28 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       detachScrollListener();
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     }
-    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized) {
+    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized)
       setTimeout(() => attachScrollListener(), 100);
-    }
   }, [viewMode]);
 
-  // ─── dati ──────────────────────────────────────────────────────────────────
+  // ─── dati ────────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     loadData();
-    const intervalId = setInterval(() => { loadData(); }, 30000);
-    return () => clearInterval(intervalId);
+    const id = setInterval(() => loadData(), 30000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
     if (sedi.length > 0 && !selectedSedeId) {
-      const imolaSede = sedi.find(s => s.nome.toLowerCase().includes('imola'));
-      setSelectedSedeId(imolaSede ? imolaSede.id : sedi[0].id);
+      const imola = sedi.find(s => s.nome.toLowerCase().includes('imola'));
+      setSelectedSedeId(imola ? imola.id : sedi[0].id);
     }
   }, [sedi, selectedSedeId]);
 
   useEffect(() => {
     const handleMouseEnter = (e: Event) => {
-      const target = e.target;
-      if (!(target instanceof HTMLElement)) return;
-      const cell = target.closest('[data-appointment-id]');
+      const cell = (e.target as HTMLElement)?.closest('[data-appointment-id]');
       if (cell) {
         const id = cell.getAttribute('data-appointment-id');
         if (id) document.querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`)
@@ -337,9 +249,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       }
     };
     const handleMouseLeave = (e: Event) => {
-      const target = e.target;
-      if (!(target instanceof HTMLElement)) return;
-      const cell = target.closest('[data-appointment-id]');
+      const cell = (e.target as HTMLElement)?.closest('[data-appointment-id]');
       if (cell) {
         const id = cell.getAttribute('data-appointment-id');
         if (id) document.querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`)
@@ -351,139 +261,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return () => {
       document.removeEventListener('mouseenter', handleMouseEnter, true);
       document.removeEventListener('mouseleave', handleMouseLeave, true);
-      document.querySelectorAll<HTMLElement>('.appointment-hover')
-        .forEach(el => el.classList.remove('appointment-hover'));
+      document.querySelectorAll<HTMLElement>('.appointment-hover').forEach(el => el.classList.remove('appointment-hover'));
     };
   }, []);
-
-  useEffect(() => {
-    if (!resizingAppointment) {
-      document.querySelectorAll('.resize-overlay').forEach(el => el.remove());
-      document.querySelectorAll<HTMLElement>('[data-appointment-id]')
-        .forEach(el => { el.style.opacity = ''; });
-      return;
-    }
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) setIsResizing(true);
-      const table = document.querySelector('table tbody');
-      if (!table) return;
-      const rect = table.getBoundingClientRect();
-      const rowHeight = 45;
-      const targetSlotIndex = Math.floor((e.clientY - rect.top) / rowHeight);
-      if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
-        const startTime  = resizingAppointment.ora_inizio.substring(0, 5);
-        const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
-        const appointmentElement = document.querySelector<HTMLElement>(
-          `[data-appointment-id="${resizingAppointment.id}"]`);
-        if (appointmentElement) {
-          appointmentElement.querySelector<HTMLElement>('.resize-overlay')?.remove();
-          const currentEndTime = resizingAppointment.ora_fine.substring(0, 5);
-          let currentEndIndex  = TIME_SLOTS.findIndex(slot => slot.label === currentEndTime);
-          if (currentEndIndex === -1 && currentEndTime === '18:00') currentEndIndex = TIME_SLOTS.length;
-          if (targetSlotIndex > currentEndIndex) {
-            const overlay = document.createElement('div');
-            overlay.className = 'resize-overlay';
-            Object.assign(overlay.style, {
-              position: 'absolute', top: '0', left: '0', right: '0',
-              height: `${(targetSlotIndex - startIndex) * rowHeight}px`,
-              backgroundColor: 'rgba(34,197,94,0.2)',
-              border: '2px dashed rgb(34,197,94)',
-              pointerEvents: 'none', zIndex: '20',
-            });
-            appointmentElement.appendChild(overlay);
-            appointmentElement.style.opacity = '0.7';
-          } else if (targetSlotIndex < currentEndIndex && targetSlotIndex > startIndex) {
-            const overlay = document.createElement('div');
-            overlay.className = 'resize-overlay';
-            Object.assign(overlay.style, {
-              position: 'absolute',
-              top: `${(targetSlotIndex - startIndex) * rowHeight}px`,
-              left: '0', right: '0', bottom: '0',
-              backgroundColor: 'rgba(239,68,68,0.3)',
-              border: '2px dashed rgb(239,68,68)',
-              pointerEvents: 'none', zIndex: '20',
-            });
-            appointmentElement.appendChild(overlay);
-            appointmentElement.style.opacity = '0.8';
-          }
-        }
-      }
-    };
-    const cleanupResizeEffects = () => {
-      document.querySelectorAll('.resize-overlay').forEach(el => el.remove());
-      document.querySelectorAll<HTMLElement>('[data-appointment-id]')
-        .forEach(el => { el.style.opacity = ''; });
-    };
-    const handleMouseUp = async (e: MouseEvent) => {
-      if (!resizingAppointment) return;
-      cleanupResizeEffects();
-      const table = document.querySelector('table tbody');
-      if (!table) {
-        setResizingAppointment(null);
-        setTimeout(() => setIsResizing(false), 100);
-        return;
-      }
-      const rect = table.getBoundingClientRect();
-      const targetSlotIndex = Math.floor((e.clientY - rect.top) / 45);
-      if (targetSlotIndex >= 0 && targetSlotIndex < TIME_SLOTS.length) {
-        const newEndTime = targetSlotIndex < TIME_SLOTS.length
-          ? TIME_SLOTS[targetSlotIndex].label : '18:00';
-        const startTime  = resizingAppointment.ora_inizio.substring(0, 5);
-        const startIndex = TIME_SLOTS.findIndex(slot => slot.label === startTime);
-        if (targetSlotIndex <= startIndex) {
-          alert("La durata minima dell'appuntamento è 30 minuti");
-          setResizingAppointment(null);
-          setTimeout(() => setIsResizing(false), 100);
-          return;
-        }
-        if (newEndTime > startTime) {
-          const hasConflict = appointments.some(apt => {
-            if (apt.id === resizingAppointment.id ||
-                apt.persona_id !== resizingAppointment.persona_id ||
-                apt.sede_id    !== resizingAppointment.sede_id ||
-                apt.data       !== resizingAppointment.data) return false;
-            return startTime < apt.ora_fine.substring(0,5) &&
-                   newEndTime > apt.ora_inizio.substring(0,5);
-          });
-          if (hasConflict) {
-            alert('Impossibile ridimensionare: fascia oraria già occupata');
-          } else {
-            try {
-              const res = await fetch(`/api/appuntamenti/${resizingAppointment.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  persona_id: resizingAppointment.persona_id,
-                  sede_id:    resizingAppointment.sede_id,
-                  ora_inizio: startTime,
-                  ora_fine:   newEndTime,
-                  cliente:    resizingAppointment.cliente,
-                  note:       resizingAppointment.note,
-                }),
-              });
-              if (!res.ok) throw new Error();
-              await loadData();
-            } catch { alert('Errore durante il ridimensionamento'); }
-          }
-        }
-      }
-      setResizingAppointment(null);
-      setTimeout(() => setIsResizing(false), 100);
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      cleanupResizeEffects();
-    };
-  }, [resizingAppointment, appointments, isResizing]);
 
   const loadData = async () => {
     try {
       const [sediRes, personeRes, psRes, appRes] = await Promise.all([
-        fetch('/api/sedi'), fetch('/api/persone'),
-        fetch('/api/persona-sede'), fetch('/api/appuntamenti'),
+        fetch('/api/sedi'), fetch('/api/persone'), fetch('/api/persona-sede'), fetch('/api/appuntamenti'),
       ]);
       const [sediData, personeData, psData, appData] = await Promise.all([
         sediRes.json(), personeRes.json(), psRes.json(), appRes.json(),
@@ -531,11 +316,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
 
-  const handleSlotClick = (
-    date: string, time: string, personaId: string,
-    existingAppointment?: Appuntamento
-  ) => {
-    if (isResizing) return;
+  const handleSlotClick = (date: string, time: string, personaId: string, existingAppointment?: Appuntamento) => {
     if (existingAppointment) {
       setSelectedAppointment(existingAppointment);
     } else {
@@ -565,7 +346,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const diff     = newIdx - origIdx;
     const startIdx = TIME_SLOTS.findIndex(s => s.label === appointment.ora_inizio.substring(0, 5));
     let   endIdx   = TIME_SLOTS.findIndex(s => s.label === appointment.ora_fine.substring(0, 5));
-    if (endIdx === -1 && appointment.ora_fine.substring(0, 5) === '18:00') endIdx = TIME_SLOTS.length;
+    if (endIdx === -1) endIdx = TIME_SLOTS.length;
     const ns = startIdx + diff;
     const ne = endIdx   + diff;
     if (ns < 0 || ne > TIME_SLOTS.length) {
@@ -573,16 +354,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       setDraggedAppointment(null); return;
     }
     const newStart = TIME_SLOTS[ns].label;
-    const newEnd   = ne < TIME_SLOTS.length ? TIME_SLOTS[ne].label : '18:00';
+    const newEnd   = ne < TIME_SLOTS.length ? TIME_SLOTS[ne].label : '17:30';
     const hasConflict = appointments.some(apt => {
       if (apt.id === appointment.id || apt.persona_id !== personaId ||
           apt.sede_id !== appointment.sede_id || apt.data !== date) return false;
       return newStart < apt.ora_fine.substring(0,5) && newEnd > apt.ora_inizio.substring(0,5);
     });
-    if (hasConflict) {
-      alert("Impossibile spostare: fascia già occupata");
-      setDraggedAppointment(null); return;
-    }
+    if (hasConflict) { alert('Impossibile spostare: fascia già occupata'); setDraggedAppointment(null); return; }
     try {
       const res = await fetch(`/api/appuntamenti/${appointment.id}`, {
         method: 'PUT',
@@ -594,6 +372,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           ora_fine:   newEnd,
           cliente:    appointment.cliente,
           note:       appointment.note,
+          highlight:  appointment.highlight,
         }),
       });
       if (!res.ok) throw new Error();
@@ -602,10 +381,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setDraggedAppointment(null);
   };
 
-  const handleDragOver    = (e: React.DragEvent) => e.preventDefault();
-  const handleResizeStart = (appointment: Appuntamento) => setResizingAppointment(appointment);
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ─── VISTA MENSILE ──────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ────────────────────────────────────────────────────────────────
 
   const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
     const n = appointments.filter(apt =>
@@ -629,10 +407,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   const renderMonthlyView = () => {
-    const days = eachDayOfInterval({
-      start: startOfMonth(selectedDate),
-      end:   endOfMonth(selectedDate),
-    });
+    const days = eachDayOfInterval({ start: startOfMonth(selectedDate), end: endOfMonth(selectedDate) });
     return (
       <div className="p-4">
         <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -676,8 +451,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 return (
                   <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
                     <td className={`p-3 font-medium border-r ${
-                      isToday ? 'bg-[#005CA9] text-white' :
-                      isWe    ? 'bg-gray-200 text-gray-400' : 'text-gray-700'
+                      isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-200 text-gray-400' : 'text-gray-700'
                     }`}>
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{format(day, 'd')}</span>
@@ -722,7 +496,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────────────
 
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
@@ -786,7 +560,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             onDragStart={handleDragStart}
                             onDrop={t => handleDrop(dateStr, t, persona.id)}
                             onDragOver={handleDragOver}
-                            onResizeStart={handleResizeStart}
                           />
                         </td>
                       );
@@ -841,19 +614,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 </div>
 
                 {viewMode === 'daily' && (
-                  <button
-                    onClick={() => navigateToDate(subDays(selectedDate, 1))}
-                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                  >
+                  <button onClick={() => navigateToDate(subDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200">
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
                 {viewMode === 'monthly' && (
-                  <button
-                    onClick={() => setSelectedDate(subMonths(selectedDate, 1))}
-                    disabled={selectedDate <= MIN_DATE}
-                    className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
+                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50">
                     <ChevronLeft className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
@@ -871,25 +637,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
                 {viewMode === 'daily' && (
                   <>
-                    <button
-                      onClick={() => navigateToDate(addDays(selectedDate, 1))}
-                      className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200"
-                    >
+                    <button onClick={() => navigateToDate(addDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200">
                       <ChevronRight className="w-4 h-4 text-gray-600" />
                     </button>
-                    <button
-                      onClick={() => navigateToDate(new Date())}
-                      className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] hover:shadow-lg transition-all duration-200 font-medium"
-                    >
+                    <button onClick={() => navigateToDate(new Date())} className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-all font-medium">
                       Oggi
                     </button>
                   </>
                 )}
                 {viewMode === 'monthly' && (
-                  <button
-                    onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-                    className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200"
-                  >
+                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
                     <ChevronRight className="w-4 h-4 text-gray-600" />
                   </button>
                 )}
@@ -903,9 +660,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
                     >
                       {sedi.map(sede => (
-                        <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">
-                          {sede.nome}
-                        </option>
+                        <option key={sede.id} value={sede.id} className="text-gray-800 bg-white">{sede.nome}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
@@ -924,10 +679,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Data</h3>
-              <button
-                onClick={() => setShowDatePicker(false)}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              >
+              <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>

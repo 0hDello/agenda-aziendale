@@ -12,7 +12,6 @@ interface TimeSlotProps {
   onDragStart?: (appointment: Appuntamento, time: string) => void;
   onDrop?: (time: string) => void;
   onDragOver?: (e: React.DragEvent) => void;
-  onResizeStart?: (appointment: Appuntamento) => void;
 }
 
 export default function TimeSlot({ 
@@ -23,7 +22,6 @@ export default function TimeSlot({
   onDragStart, 
   onDrop,
   onDragOver,
-  onResizeStart
 }: TimeSlotProps) {
 
   const getHighlight = (apt: Appuntamento) =>
@@ -46,14 +44,12 @@ export default function TimeSlot({
     }
   };
 
-  const handleDrop      = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onDrop?.(time); };
-  const handleDragOver  = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onDragOver?.(e); };
-  const handleResizeMD  = (e: React.MouseEvent, apt: Appuntamento) => { e.stopPropagation(); e.preventDefault(); onResizeStart?.(apt); };
+  const handleDrop     = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onDrop?.(time); };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onDragOver?.(e); };
 
   const calculateHeight = (apt: Appuntamento): number => {
     const si = TIME_SLOTS.findIndex(s => s.label === apt.ora_inizio.substring(0, 5));
     let   ei = TIME_SLOTS.findIndex(s => s.label === apt.ora_fine.substring(0, 5));
-    // 17:30 non è in TIME_SLOTS: è END_TIME_SLOTS-only, va oltre l'ultimo slot
     if (ei === -1) ei = TIME_SLOTS.length;
     return (ei - si) * 45;
   };
@@ -90,13 +86,13 @@ export default function TimeSlot({
     const startsHere = appointments.filter(a => a.ora_inizio.substring(0,5) === time);
     if (!startsHere.length) return <div className="h-full" onDrop={handleDrop} onDragOver={handleDragOver} />;
 
-    const colMap    = assignColumns(allDayAppointments);
-    const maxCols   = getMaxColumns(allDayAppointments);
+    const colMap  = assignColumns(allDayAppointments);
+    const maxCols = getMaxColumns(allDayAppointments);
 
     if (startsHere.length === 1 && maxCols === 1) {
-      const apt  = startsHere[0];
-      const h    = calculateHeight(apt);
-      const hl   = getHighlight(apt);
+      const apt = startsHere[0];
+      const h   = calculateHeight(apt);
+      const hl  = getHighlight(apt);
       return (
         <div
           draggable
@@ -120,13 +116,6 @@ export default function TimeSlot({
               {apt.note && <p className="text-xs text-gray-500 truncate mt-1">{apt.note}</p>}
             </div>
           </div>
-          <div
-            onMouseDown={e => handleResizeMD(e, apt)}
-            className={`absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${hl.cell} hover:opacity-60`}
-            style={{ zIndex: 10 }}
-          >
-            <div className={`w-12 h-1 rounded-full ${hl.border.replace('border-','bg-')}`} />
-          </div>
         </div>
       );
     }
@@ -136,9 +125,9 @@ export default function TimeSlot({
     return (
       <div className="relative h-full">
         {startsHere.map(apt => {
-          const ci  = colMap.get(apt.id) ?? 0;
-          const h   = calculateHeight(apt);
-          const hl  = getHighlight(apt);
+          const ci = colMap.get(apt.id) ?? 0;
+          const h  = calculateHeight(apt);
+          const hl = getHighlight(apt);
           return (
             <div
               key={apt.id}
@@ -169,11 +158,6 @@ export default function TimeSlot({
                   </p>
                 </div>
               </div>
-              <div
-                onMouseDown={e => handleResizeMD(e, apt)}
-                className={`absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity ${hl.cell} hover:opacity-60`}
-                style={{ zIndex: 10 }}
-              />
             </div>
           );
         })}
