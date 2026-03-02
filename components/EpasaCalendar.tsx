@@ -152,6 +152,8 @@ const MIN_DATE            = new Date(2026, 0, 1);
 const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
+// Altezza dell'header sticky della tabella (riga "Orario / LOREDANA / MILECE")
+const STICKY_HEADER_HEIGHT = 41;
 
 // ─── Colore unico operatori ────────────────────────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
@@ -291,9 +293,16 @@ const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
   };
 
   // ─── Scroll helpers ───────────────────────────────────────────────────────────────────
-const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
+  const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
+    const container = scrollContainerRef.current;
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
-    if (el) el.scrollIntoView({ behavior, block: 'start' });
+    if (!el || !container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const scrollOffset = elRect.top - containerRect.top + container.scrollTop - STICKY_HEADER_HEIGHT;
+
+    container.scrollTo({ top: scrollOffset, behavior });
   };
 
   const buildWindowAround = (center: Date): Date[] => {
@@ -374,8 +383,14 @@ const ldEff = useCallback(() => {
       const anchor = anchorDateStrRef.current;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (anchor) {
+          const container = scrollContainerRef.current;
           const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchor}"]`);
-          if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+          if (el && container) {
+            const containerRect = container.getBoundingClientRect();
+            const elRect = el.getBoundingClientRect();
+            const scrollOffset = elRect.top - containerRect.top + container.scrollTop - STICKY_HEADER_HEIGHT;
+            container.scrollTo({ top: scrollOffset, behavior: 'instant' });
+          }
         }
         anchorDateStrRef.current = null;
         loadingDirRef.current = 'idle';
