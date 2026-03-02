@@ -86,10 +86,8 @@ const TIME_SLOTS_IMOLA: string[] = [
 const TIME_SLOTS_CSPT: string[] = [
   '14:00','14:30','15:00','15:30','16:00','16:30',
 ];
-// Borgo: mercoledì 08:30-12:00 (mattina) + 14:00-17:30 (pomeriggio)
 const TIME_SLOTS_BORGO: string[] = [
-  '08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
-  '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
+  '09:00','09:30','10:00','10:30','11:00','11:30',
 ];
 const IMOLA_SPECIAL_SLOTS: string[] = ['08:00'];
 
@@ -127,10 +125,20 @@ const getWeekOfMonthFromFirstMonday = (date: Date): number => {
   return Math.round(diffDays / 7) + 1;
 };
 
-// Borgo: aperto tutti i mercoledì (getDay === 3)
+const BORGO_EXCEPTIONS: Record<string, number[]> = {
+  '2026-9':  [8, 15],
+  '2026-10': [6, 20],
+  '2026-12': [15],
+};
+
 const isBorgoWorkingDay = (date: Date): boolean => {
-  const dow = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12).getDay();
-  return dow === 3; // mercoledì
+  const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
+  const dow = new Date(y, m, d, 12).getDay();
+  if (dow !== 2) return false;
+  const exKey = `${y}-${m + 1}`;
+  if (BORGO_EXCEPTIONS[exKey] !== undefined) return BORGO_EXCEPTIONS[exKey].includes(d);
+  const week = getWeekOfMonthFromFirstMonday(date);
+  return week === 2 || week === 3;
 };
 
 type ViewMode = 'daily' | 'monthly';
@@ -617,7 +625,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const getSedeOrariLabel = () => {
     if (!selectedSede) return '';
     if (selectedSede.id === 'cspt')  return 'Lunedì 14:00-16:30';
-    if (selectedSede.id === 'borgo') return 'Mercoledì 8:30-12:00 / 14:00-17:30';
+    if (selectedSede.id === 'borgo') return 'Martedì (sett. 2 e 3) 9:00-11:30';
     return 'Lun-Ven 8:00-12:00';
   };
 
@@ -843,7 +851,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         if (isDayClosed || isManually) {
                           const title = isDayClosed
                             ? (selectedSede!.id === 'cspt' ? 'CSPT: aperto solo il lunedì pomeriggio'
-                              : selectedSede!.id === 'borgo' ? 'Borgo: aperto tutti i mercoledì'
+                              : selectedSede!.id === 'borgo' ? 'Borgo: martedì della 2ª e 3ª settimana'
                               : operator === 'MILECE' ? 'MILECE non lavora questo giorno' : 'Ufficio chiuso')
                             : 'Ufficio chiuso';
                           return (
