@@ -936,18 +936,18 @@ const handleCreateAppointment = async (data: any) => {
                                   className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
                                              opacity-0 group-hover/slot:opacity-100 transition-opacity duration-150"
                                   style={{ minWidth: '160px', maxWidth: '240px' }}>
-                                  <div className="bg-gray-900 text-white text-[11px] rounded-lg shadow-2xl px-3 py-2 leading-relaxed">
-                                    <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-white/20">
-                                      <MessageSquare size={10} className="text-yellow-300 flex-shrink-0" />
-                                      <span className="font-bold text-yellow-300 text-[10px] uppercase tracking-wide">Nota</span>
+                                  <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
+                                    <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
+                                      <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
+                                      <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
                                     </div>
-                                    <p className="whitespace-pre-wrap break-words">{apt.note}</p>
+                                    <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
                                   </div>
                                   <div className="w-0 h-0 ml-4"
                                     style={{
                                       borderLeft: '5px solid transparent',
                                       borderRight: '5px solid transparent',
-                                      borderTop: '5px solid #111827',
+                                      borderTop: '5px solid #bfdbfe',
                                     }}
                                   />
                                 </div>
