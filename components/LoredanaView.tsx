@@ -18,7 +18,7 @@ import {
 import { it } from 'date-fns/locale';
 import EpasaAppointmentModal, { HIGHLIGHT_STYLE } from './EpasaAppointmentModal';
 
-// ─── Tipi ─────────────────────────────────────────────────────────────────────
+// ─── Tipi ───────────────────────────────────────────────────────────────────────────────
 interface Appointment {
   id: string;
   sede_id: string;
@@ -61,7 +61,7 @@ export interface LoredanaViewProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-// ─── Costanti ─────────────────────────────────────────────────────────────────
+// ─── Costanti ────────────────────────────────────────────────────────────────────────────
 const LOREDANA_ID  = 'LOREDANA';
 const MIN_DATE     = new Date(2026, 0, 1);
 const TOPBAR_H     = 53;
@@ -90,7 +90,7 @@ const TIME_SLOTS_MAP: Record<string, string[]> = {
 
 const LOREDANA_SEDI = ['imola', 'cspt', 'borgo'];
 
-// ─── Mappa highlight → colori CSS ─────────────────────────────────────────────
+// ─── Mappa highlight → colori CSS ─────────────────────────────────────────────────────────────
 const HL_CSS: Record<string, { bg: string; bgHover: string; border: string; leftBorder: string; text: string }> = {
   '':       { bg: '#EFF6FF', bgHover: '#DBEAFE', border: '#BFDBFE', leftBorder: '#3B82F6', text: '#1D4ED8' },
   yellow:   { bg: '#FEF9C3', bgHover: '#FEF08A', border: '#EAB308', leftBorder: '#CA8A04', text: '#713F12' },
@@ -102,7 +102,7 @@ const HL_CSS: Record<string, { bg: string; bgHover: string; border: string; left
   pink:     { bg: '#FCE7F3', bgHover: '#FBCFE8', border: '#EC4899', leftBorder: '#DB2777', text: '#831843' },
 };
 
-// ─── Regole apertura ──────────────────────────────────────────────────────────
+// ─── Regole apertura ────────────────────────────────────────────────────────────────────────────
 const isBorgoWorkingDay = (date: Date): boolean => {
   const y   = date.getFullYear();
   const m   = date.getMonth();
@@ -137,7 +137,7 @@ const isSedeOpenOnDay = (sedeId: string, date: Date): boolean => {
 
 const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
-// ─── Hook: altezza riga ───────────────────────────────────────────────────────
+// ─── Hook: altezza riga ───────────────────────────────────────────────────────────────────────────
 function useRowHeight(slotCount: number): number {
   const [rowH, setRowH] = useState<number>(ROW_MIN);
   useEffect(() => {
@@ -153,7 +153,7 @@ function useRowHeight(slotCount: number): number {
   return rowH;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// ─── Componente ───────────────────────────────────────────────────────────────────────────────
 export default function LoredanaView({
   allAppointments,
   giorniChiusi,
@@ -502,14 +502,14 @@ export default function LoredanaView({
                           {/* Tooltip nota */}
                           {!editMode && hasNote && isHovered && (
                             <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, zIndex: 9999, minWidth: 160, maxWidth: 240, pointerEvents: 'none' }}>
-                              <div style={{ backgroundColor: '#111827', color: '#fff', fontSize: 11, borderRadius: 8, padding: '6px 10px', boxShadow: '0 4px 20px rgba(0,0,0,0.35)', lineHeight: 1.5 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
-                                  <MessageSquare size={10} style={{ color: '#FDE047', flexShrink: 0 }} />
-                                  <span style={{ fontWeight: 700, color: '#FDE047', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nota</span>
+                              <div style={{ backgroundColor: '#EFF6FF', color: '#1D4ED8', fontSize: 11, borderRadius: 8, padding: '6px 10px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', lineHeight: 1.5, border: '1px solid #BFDBFE' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid #BFDBFE' }}>
+                                  <MessageSquare size={10} style={{ color: '#3B82F6', flexShrink: 0 }} />
+                                  <span style={{ fontWeight: 700, color: '#2563EB', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nota</span>
                                 </div>
-                                <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{apt!.note}</p>
+                                <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#1D4ED8' }}>{apt!.note}</p>
                               </div>
-                              <div style={{ width: 0, height: 0, marginLeft: 12, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #111827' }} />
+                              <div style={{ width: 0, height: 0, marginLeft: 12, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #BFDBFE' }} />
                             </div>
                           )}
                         </div>
