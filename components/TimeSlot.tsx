@@ -93,6 +93,30 @@ export default function TimeSlot({
     return max;
   };
 
+  // Tooltip note riutilizzabile
+  const NoteTooltip = ({ note }: { note: string }) => (
+    <div
+      className="absolute top-full left-0 mt-1 z-[60] pointer-events-none
+                 opacity-0 group-hover/apt:opacity-100 transition-opacity duration-150"
+      style={{ minWidth: '160px', maxWidth: '240px' }}
+    >
+      <div className="w-0 h-0 ml-4"
+        style={{
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderBottom: '5px solid #bfdbfe',
+        }}
+      />
+      <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
+        <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
+          <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
+          <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
+        </div>
+        <p className="whitespace-pre-wrap break-words text-blue-700">{note}</p>
+      </div>
+    </div>
+  );
+
   if (appointments.length > 0) {
     const startsHere = appointments.filter(a => a.ora_inizio.substring(0,5) === time);
     if (!startsHere.length) return <div className="h-full" onDrop={handleDrop} onDragOver={handleDragOver} />;
@@ -127,28 +151,7 @@ export default function TimeSlot({
           <p className="text-xs font-bold truncate pointer-events-none" style={{ color: hl.text }}>
             {apt.cliente || 'Appuntamento'}
           </p>
-          {apt.note && (
-            <div
-              className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
-                         opacity-0 group-hover/apt:opacity-100 transition-opacity duration-150"
-              style={{ minWidth: '160px', maxWidth: '240px' }}
-            >
-              <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
-                <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
-                  <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
-                  <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
-                </div>
-                <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
-              </div>
-              <div className="w-0 h-0 ml-4"
-                style={{
-                  borderLeft: '5px solid transparent',
-                  borderRight: '5px solid transparent',
-                  borderTop: '5px solid #bfdbfe',
-                }}
-              />
-            </div>
-          )}
+          {apt.note && <NoteTooltip note={apt.note} />}
         </div>
       );
     }
@@ -187,28 +190,7 @@ export default function TimeSlot({
               <p className="text-[10px] font-bold truncate leading-tight pointer-events-none" style={{ color: hl.text }}>
                 {apt.cliente || 'App.'}
               </p>
-              {apt.note && (
-                <div
-                  className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
-                             opacity-0 group-hover/apt:opacity-100 transition-opacity duration-150"
-                  style={{ minWidth: '160px', maxWidth: '240px' }}
-                >
-                  <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
-                    <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
-                      <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
-                      <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
-                    </div>
-                    <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
-                  </div>
-                  <div className="w-0 h-0 ml-4"
-                    style={{
-                      borderLeft: '5px solid transparent',
-                      borderRight: '5px solid transparent',
-                      borderTop: '5px solid #bfdbfe',
-                    }}
-                  />
-                </div>
-              )}
+              {apt.note && <NoteTooltip note={apt.note} />}
             </div>
           );
         })}
