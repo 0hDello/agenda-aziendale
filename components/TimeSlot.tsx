@@ -1,6 +1,7 @@
 'use client';
 
 import { MessageSquare } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { Appuntamento } from '@/lib/types';
 import { TIME_SLOTS } from '@/utils/dateUtils';
 
@@ -23,6 +24,69 @@ interface TimeSlotProps {
   onDragStart?: (appointment: Appuntamento, time: string) => void;
   onDrop?: (time: string) => void;
   onDragOver?: (e: React.DragEvent) => void;
+}
+
+// Tooltip che calcola dinamicamente se aprirsi sopra o sotto
+function NoteTooltip({ note }: { note: string }) {
+  const [above, setAbove] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setAbove(spaceBelow < 120);
+    }
+    setVisible(true);
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="absolute inset-0 z-[60] pointer-events-none"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setVisible(false)}
+      style={{ pointerEvents: 'auto' }}
+    >
+      {visible && (
+        <div
+          className="absolute left-0 pointer-events-none"
+          style={{
+            ...(above
+              ? { bottom: '100%', marginBottom: '4px' }
+              : { top: '100%', marginTop: '4px' }),
+            minWidth: '160px',
+            maxWidth: '240px',
+            zIndex: 9999,
+          }}
+        >
+          {/* Freccia */}
+          {!above && (
+            <div className="w-0 h-0 ml-4" style={{
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderBottom: '5px solid #bfdbfe',
+            }} />
+          )}
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
+            <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
+              <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
+              <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
+            </div>
+            <p className="whitespace-pre-wrap break-words text-blue-700">{note}</p>
+          </div>
+          {above && (
+            <div className="w-0 h-0 ml-4" style={{
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #bfdbfe',
+            }} />
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function TimeSlot({
@@ -93,30 +157,6 @@ export default function TimeSlot({
     return max;
   };
 
-  // Tooltip note riutilizzabile
-  const NoteTooltip = ({ note }: { note: string }) => (
-    <div
-      className="absolute top-full left-0 mt-1 z-[60] pointer-events-none
-                 opacity-0 group-hover/apt:opacity-100 transition-opacity duration-150"
-      style={{ minWidth: '160px', maxWidth: '240px' }}
-    >
-      <div className="w-0 h-0 ml-4"
-        style={{
-          borderLeft: '5px solid transparent',
-          borderRight: '5px solid transparent',
-          borderBottom: '5px solid #bfdbfe',
-        }}
-      />
-      <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
-        <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
-          <MessageSquare size={10} className="text-blue-500 flex-shrink-0" />
-          <span className="font-bold text-blue-600 text-[10px] uppercase tracking-wide">Nota</span>
-        </div>
-        <p className="whitespace-pre-wrap break-words text-blue-700">{note}</p>
-      </div>
-    </div>
-  );
-
   if (appointments.length > 0) {
     const startsHere = appointments.filter(a => a.ora_inizio.substring(0,5) === time);
     if (!startsHere.length) return <div className="h-full" onDrop={handleDrop} onDragOver={handleDragOver} />;
@@ -146,7 +186,7 @@ export default function TimeSlot({
             borderLeftWidth: '4px',
             borderLeftStyle: 'solid',
           }}
-          className="appointment-cell px-2 cursor-move transition-colors group/apt flex items-center"
+          className="appointment-cell px-2 cursor-move transition-colors flex items-center"
         >
           <p className="text-xs font-bold truncate pointer-events-none" style={{ color: hl.text }}>
             {apt.cliente || 'Appuntamento'}
@@ -185,7 +225,7 @@ export default function TimeSlot({
                 borderLeftWidth: '4px',
                 borderLeftStyle: 'solid',
               }}
-              className="appointment-cell px-1.5 cursor-move transition-all group/apt flex items-center"
+              className="appointment-cell px-1.5 cursor-move transition-all flex items-center"
             >
               <p className="text-[10px] font-bold truncate leading-tight pointer-events-none" style={{ color: hl.text }}>
                 {apt.cliente || 'App.'}
