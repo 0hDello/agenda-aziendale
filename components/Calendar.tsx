@@ -413,7 +413,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
-  // ─── VISTA MENSILE — griglia stile EpasaCalendar ──────────────────────────
+  // ─── VISTA MENSILE ───────────────────────────────────────────────────────
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona))
       ? selectedMonthlyPersona
@@ -435,9 +435,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     return (
       <div className="p-3 md:p-4">
-        {/* toolbar */}
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          {/* switcher persona */}
           {sedePersone.length > 1 ? (
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
               <User size={16} className="text-gray-500" />
@@ -469,7 +467,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               <span className="font-bold text-sm text-[#005CA9]">{personaNome}</span>
             </div>
           )}
-
           <div className="flex items-center gap-4 flex-wrap">
             {fa && (
               <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
@@ -489,8 +486,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             </div>
           </div>
         </div>
-
-        {/* griglia */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="grid grid-cols-7 border-b border-gray-200">
             {DAY_NAMES.map((name, idx) => (
@@ -521,7 +516,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';
                 const avDot    = isWe ? 'bg-gray-300' :
                   av === 'free' ? 'bg-green-500' : av === 'partial' ? 'bg-yellow-400' : 'bg-red-500';
-
                 return (
                   <div key={dateStr}
                     onClick={() => { if (!isWe && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
@@ -637,12 +631,27 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some(ps => ps.persona_id === p.id && ps.sede_id === selectedSedeId)
   );
 
+  // ─── label data e navigazione — sempre la stessa larghezza fissa ───
+  const dateLabel = viewMode === 'daily'
+    ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
+    : format(selectedDate, 'MMMM yyyy', { locale: it });
+
+  const handlePrev = () => {
+    if (viewMode === 'daily') navigateToDate(subDays(selectedDate, 1));
+    else if (selectedDate > MIN_DATE) setSelectedDate(subMonths(selectedDate, 1));
+  };
+  const handleNext = () => {
+    if (viewMode === 'daily') navigateToDate(addDays(selectedDate, 1));
+    else setSelectedDate(addMonths(selectedDate, 1));
+  };
+
   return (
     <div className="min-h-screen p-1 md:p-2 animate-fade-in">
       <div className="max-w-[1800px] mx-auto">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
           <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+              {/* titolo */}
               <div className="flex items-center gap-3">
                 <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
                   <CalendarIcon className="w-6 h-6 text-white" />
@@ -652,7 +661,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   <p className="text-xs text-gray-600 mt-0.5">Gestione appuntamenti</p>
                 </div>
               </div>
+
+              {/* controlli — larghezza stabile */}
               <div className="flex items-center gap-2 flex-wrap">
+
+                {/* switcher vista */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
                   <button
                     onClick={() => setViewMode('daily')}
@@ -672,44 +685,48 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </button>
                 </div>
 
-                {viewMode === 'daily' && (
-                  <button onClick={() => navigateToDate(subDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200">
-                    <ChevronLeft className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
-                {viewMode === 'monthly' && (
-                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50">
-                    <ChevronLeft className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
+                {/* freccia sinistra */}
+                <button
+                  onClick={handlePrev}
+                  disabled={selectedDate <= MIN_DATE}
+                  className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-600" />
+                </button>
 
+                {/* bottone data — larghezza fissa per non far saltare il layout */}
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer"
+                  style={{ minWidth: '240px', textAlign: 'center' }}
                 >
                   <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
-                    {viewMode === 'daily'
-                      ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
-                      : format(selectedDate, 'MMMM yyyy', { locale: it })}
+                    {dateLabel}
                   </span>
                 </button>
 
-                {viewMode === 'daily' && (
-                  <>
-                    <button onClick={() => navigateToDate(addDays(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200">
-                      <ChevronRight className="w-4 h-4 text-gray-600" />
-                    </button>
-                    <button onClick={() => navigateToDate(new Date())} className="px-4 py-2 text-sm bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-all font-medium">
-                      Oggi
-                    </button>
-                  </>
-                )}
-                {viewMode === 'monthly' && (
-                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
-                  </button>
-                )}
+                {/* freccia destra */}
+                <button
+                  onClick={handleNext}
+                  className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                </button>
 
+                {/* bottone Oggi — visibile sempre, ma attivo solo in modalità giornaliera */}
+                <button
+                  onClick={() => navigateToDate(new Date())}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium transition-all ${
+                    viewMode === 'daily'
+                      ? 'bg-[#005CA9] text-white hover:bg-[#004080]'
+                      : 'bg-gray-100 text-gray-400 cursor-default'
+                  }`}
+                  disabled={viewMode === 'monthly'}
+                >
+                  Oggi
+                </button>
+
+                {/* selezione sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
                   <Building2 className="w-5 h-5 text-[#005CA9]" />
                   <div className="relative">
