@@ -14,6 +14,7 @@ export const formatDateDisplay = (date: Date) => {
   return format(date, 'EEEE dd/MM', { locale: it });
 };
 
+// Slot visibili nella griglia (righe dell'agenda)
 export const TIME_SLOTS = [
   { hour: 9,  minute: 0,  label: '09:00' },
   { hour: 9,  minute: 30, label: '09:30' },
@@ -29,4 +30,10 @@ export const TIME_SLOTS = [
   { hour: 16, minute: 0,  label: '16:00' },
   // 16:30 rimosso: salto diretto a 17:00
   { hour: 17, minute: 0,  label: '17:00' },
+];
+
+// Slot disponibili come ora fine (include 17:30 come termine ultimo)
+export const END_TIME_SLOTS = [
+  ...TIME_SLOTS,
+  { hour: 17, minute: 30, label: '17:30' },
 ];
