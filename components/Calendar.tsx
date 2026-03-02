@@ -27,6 +27,8 @@ import {
   isWeekend,
   isSameDay,
   startOfDay,
+  getMonth,
+  getDay,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
@@ -65,6 +67,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
   const [draggedAppointment, setDraggedAppointment]   = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -80,8 +83,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
-
-  // ─── helpers ─────────────────────────────────────────────────────────────────────────
 
   const scrollToDate = (date: Date) => {
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
@@ -224,8 +225,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       setTimeout(() => attachScrollListener(), 100);
   }, [viewMode]);
 
-  // ─── dati ────────────────────────────────────────────────────────────────────────────
-
   useEffect(() => {
     loadData();
     const id = setInterval(() => loadData(), 30000);
@@ -242,7 +241,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   useEffect(() => {
     const getCell = (e: Event) =>
       e.target instanceof Element ? e.target.closest('[data-appointment-id]') : null;
-
     const handleMouseEnter = (e: Event) => {
       const cell = getCell(e);
       if (cell) {
@@ -386,8 +384,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ─── VISTA MENSILE ────────────────────────────────────────────────────────────────
-
+  // ─── helpers mensile ──────────────────────────────────────────────────────
   const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
     const n = appointments.filter(apt =>
       apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId
@@ -395,6 +392,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (n === 0) return 'free';
     if (n >= TIME_SLOTS.length * 0.8) return 'full';
     return 'partial';
+  };
+
+  const getFreeSlots = (dateStr: string, personaId: string): number => {
+    const occupied = appointments.filter(apt =>
+      apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId
+    ).length;
+    return Math.max(0, TIME_SLOTS.length - occupied);
   };
 
   const getFirstAvailableDay = (personaId: string): string | null => {
@@ -409,98 +413,150 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
+  // ─── VISTA MENSILE — griglia stile EpasaCalendar ──────────────────────────
   const renderMonthlyView = () => {
-    const days = eachDayOfInterval({ start: startOfMonth(selectedDate), end: endOfMonth(selectedDate) });
+    const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona))
+      ? selectedMonthlyPersona
+      : sedePersone[0]?.id ?? null;
+
+    if (!activePersona) return null;
+
+    const fa = getFirstAvailableDay(activePersona);
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd   = endOfMonth(selectedDate);
+    const allCalDays = eachDayOfInterval({
+      start: startOfWeek(monthStart, { weekStartsOn: 1 }),
+      end:   endOfWeek(monthEnd,     { weekStartsOn: 1 }),
+    });
+    const weeks: Date[][] = [];
+    for (let i = 0; i < allCalDays.length; i += 7) weeks.push(allCalDays.slice(i, i + 7));
+    const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+    const personaNome = sedePersone.find(p => p.id === activePersona)?.nome ?? '';
+
     return (
-      <div className="p-4">
-        <div className="mb-4 flex items-center justify-center gap-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-green-500" /><span className="text-xs font-medium text-gray-700">Libero</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-yellow-500" /><span className="text-xs font-medium text-gray-700">Parzialmente occupato</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-500" /><span className="text-xs font-medium text-gray-700">Pieno</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-gray-300" /><span className="text-xs font-medium text-gray-700">Weekend (chiuso)</span></div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-3 text-left text-sm font-semibold text-gray-700 border-b border-r">Giorno</th>
-                {sedePersone.map(persona => {
-                  const fa = getFirstAvailableDay(persona.id);
+      <div className="p-3 md:p-4">
+        {/* toolbar */}
+        <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          {/* switcher persona */}
+          {sedePersone.length > 1 ? (
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+              <User size={16} className="text-gray-500" />
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Persona</span>
+              <div className="flex items-center gap-1">
+                {sedePersone.map(p => {
+                  const isActive = p.id === activePersona;
                   return (
-                    <th key={persona.id} className="p-3 text-center text-sm font-semibold border-b">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#005CA9] flex items-center justify-center">
-                            <User size={14} className="text-white" />
-                          </div>
-                          <span className="text-[#005CA9]">{persona.nome}</span>
-                        </div>
-                        {fa && (
-                          <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                            Primo libero: {format(new Date(fa), 'dd/MM')}
-                          </div>
-                        )}
+                    <button key={p.id} onClick={() => setSelectedMonthlyPersona(p.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        isActive ? 'text-white shadow-md scale-105' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                      }`}
+                      style={isActive ? { backgroundColor: '#005CA9' } : {}}>
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : '#005CA9' }}>
+                        <User size={11} className="text-white" />
                       </div>
-                    </th>
+                      {p.nome}
+                    </button>
                   );
                 })}
-              </tr>
-            </thead>
-            <tbody>
-              {days.map(day => {
-                const dateStr = formatDate(day);
-                const isToday = formatDate(new Date()) === dateStr;
-                const isWe    = isWeekend(day);
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-[#005CA9]">
+                <User size={14} className="text-white" />
+              </div>
+              <span className="font-bold text-sm text-[#005CA9]">{personaNome}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4 flex-wrap">
+            {fa && (
+              <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+                <CalendarIcon size={12} className="text-blue-600" />
+                <span className="text-xs font-semibold text-blue-700">
+                  Primo libero: {format(new Date(fa), 'dd/MM', { locale: it })}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-200">
+              {[['bg-green-500','Libero'],['bg-yellow-400','Parziale'],['bg-red-500','Pieno'],['bg-gray-300','Chiuso']].map(([c,l]) => (
+                <div key={l} className="flex items-center gap-1.5">
+                  <div className={`w-3 h-3 rounded ${c}`} />
+                  <span className="text-[11px] text-gray-600">{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* griglia */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="grid grid-cols-7 border-b border-gray-200">
+            {DAY_NAMES.map((name, idx) => (
+              <div key={name} className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${
+                idx >= 5 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600'
+              }`}>{name}</div>
+            ))}
+          </div>
+          {weeks.map((week, wIdx) => (
+            <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
+              {week.map((day, dIdx) => {
+                const dateStr    = format(day, 'yyyy-MM-dd');
+                const isThisMonth = getMonth(day) === getMonth(selectedDate);
+                if (!isThisMonth) return (
+                  <div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${
+                    dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
+                  }`} />
+                );
+                const isToday  = format(new Date(), 'yyyy-MM-dd') === dateStr;
+                const isWe     = isWeekend(day);
+                const isBefore = day < MIN_DATE;
+                const av       = isWe ? null : getDayAvailability(dateStr, activePersona);
+                const freeSlots = (!isWe && av !== 'full') ? getFreeSlots(dateStr, activePersona) : 0;
+                const avBg     = isWe ? 'bg-gray-100' :
+                  av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
+                const avBorder = isWe ? '' :
+                  av === 'free' ? 'border-t-2 border-green-400' :
+                  av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';
+                const avDot    = isWe ? 'bg-gray-300' :
+                  av === 'free' ? 'bg-green-500' : av === 'partial' ? 'bg-yellow-400' : 'bg-red-500';
+
                 return (
-                  <tr key={dateStr} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className={`p-3 font-medium border-r ${
-                      isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-200 text-gray-400' : 'text-gray-700'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{format(day, 'd')}</span>
-                        <span className="text-xs capitalize">{format(day, 'EEE', { locale: it })}</span>
+                  <div key={dateStr}
+                    onClick={() => { if (!isWe && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
+                    className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${
+                      !isWe && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
+                    } ${isBefore && !isWe ? 'opacity-40' : ''}`}
+                    title={isWe ? 'Chiuso' : freeSlots > 0
+                      ? `${personaNome} - ${format(day,'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots===1?'o':'i'}`
+                      : `${personaNome} - ${format(day,'dd/MM/yyyy')} - Pieno`}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                        isToday ? 'bg-[#005CA9] text-white' : isWe ? 'text-gray-400' : 'text-gray-700'
+                      }`}>{format(day, 'd')}</span>
+                      {!isWe && <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />}
+                    </div>
+                    {!isWe && freeSlots > 0 && (
+                      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                        <span className="text-[10px] font-semibold text-green-700">
+                          {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
+                        </span>
                       </div>
-                    </td>
-                    {sedePersone.map(persona => {
-                      if (isWe) return (
-                        <td key={`${dateStr}-${persona.id}`} className="p-2 text-center bg-gray-200 opacity-50">
-                          <span className="text-xs text-gray-500">-</span>
-                        </td>
-                      );
-                      const av = getDayAvailability(dateStr, persona.id);
-                      const bg = av === 'free' ? 'bg-green-100' : av === 'partial' ? 'bg-yellow-100' : 'bg-red-100';
-                      const bd = av === 'free' ? 'border-green-500' : av === 'partial' ? 'border-yellow-500' : 'border-red-500';
-                      const n  = appointments.filter(apt =>
-                        apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === persona.id
-                      ).length;
-                      return (
-                        <td
-                          key={`${dateStr}-${persona.id}`}
-                          className={`p-2 text-center cursor-pointer ${bg} border-l-4 ${bd} hover:opacity-80`}
-                          onClick={() => { navigateToDate(day); setViewMode('daily'); }}
-                          title={`${persona.nome} - ${format(day, 'dd/MM/yyyy')}\n${n} appuntamenti`}
-                        >
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-sm font-bold text-gray-700">{n}</span>
-                            <span className="text-xs text-gray-600">
-                              {av === 'free' ? 'Vuoto' : av === 'partial' ? 'App.' : 'Pieno'}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
+                    )}
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+          ))}
         </div>
       </div>
     );
   };
 
-  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────────────
-
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
       <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
