@@ -240,8 +240,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   }, [sedi, selectedSedeId]);
 
   useEffect(() => {
+    const getCell = (e: Event) =>
+      e.target instanceof Element ? e.target.closest('[data-appointment-id]') : null;
+
     const handleMouseEnter = (e: Event) => {
-      const cell = (e.target as HTMLElement)?.closest('[data-appointment-id]');
+      const cell = getCell(e);
       if (cell) {
         const id = cell.getAttribute('data-appointment-id');
         if (id) document.querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`)
@@ -249,7 +252,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       }
     };
     const handleMouseLeave = (e: Event) => {
-      const cell = (e.target as HTMLElement)?.closest('[data-appointment-id]');
+      const cell = getCell(e);
       if (cell) {
         const id = cell.getAttribute('data-appointment-id');
         if (id) document.querySelectorAll<HTMLElement>(`[data-appointment-id="${id}"]`)
