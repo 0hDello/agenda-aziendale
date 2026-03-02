@@ -5,7 +5,7 @@ import { X, Calendar, Clock, User, MapPin, UserCircle, CalendarDays, Plus, Minus
 import { format, parseISO, isValid, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Persona, Sede, PersonaSede, Appuntamento } from '@/lib/types';
-import { TIME_SLOTS } from '@/utils/dateUtils';
+import { TIME_SLOTS, END_TIME_SLOTS } from '@/utils/dateUtils';
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -166,13 +166,13 @@ export default function AppointmentModal({
   );
 
   const getAvailableSlots = (isStartTime: boolean) => {
-    return TIME_SLOTS.filter((slot) => {
-      if (isStartTime) {
-        return slot.label >= minTime;
-      } else {
-        return slot.label > formData.ora_inizio;
-      }
-    });
+    if (isStartTime) {
+      // Ora inizio: usa solo TIME_SLOTS (griglia visibile, senza 17:30)
+      return TIME_SLOTS.filter((slot) => slot.label >= minTime);
+    } else {
+      // Ora fine: usa END_TIME_SLOTS così 17:30 è disponibile come termine
+      return END_TIME_SLOTS.filter((slot) => slot.label > formData.ora_inizio);
+    }
   };
 
   const handleOraInizioChange = (newOraInizio: string) => {
@@ -182,6 +182,9 @@ export default function AppointmentModal({
         const currentIndex = TIME_SLOTS.findIndex((slot) => slot.label === newOraInizio);
         if (currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1) {
           newFormData.ora_fine = TIME_SLOTS[currentIndex + 1].label;
+        } else {
+          // Caso 17:00: ora fine di default è 17:30
+          newFormData.ora_fine = '17:30';
         }
       }
       return newFormData;
