@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, User, FileText, Trash2, Palette } from 'lucide-react';
 
 interface EpasaAppointmentModalProps {
@@ -64,6 +64,19 @@ export default function EpasaAppointmentModal({
     note:         '',
     highlight:    '' as string,
   });
+
+  const clienteRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea cliente
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    autoResize(clienteRef.current);
+  }, [formData.cliente]);
 
   useEffect(() => {
     if (existingAppointment) {
@@ -157,14 +170,25 @@ export default function EpasaAppointmentModal({
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
               <User size={14} className="text-[#005CA9]" /> Cliente *
             </label>
-            <input
-              type="text"
+            <textarea
+              ref={clienteRef}
               value={formData.cliente}
-              onChange={e => setFormData({ ...formData, cliente: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm"
+              onChange={e => {
+                setFormData({ ...formData, cliente: e.target.value });
+                autoResize(e.target);
+              }}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm resize-none overflow-hidden"
               placeholder="Nome cliente"
+              rows={1}
               required
               autoFocus
+              onKeyDown={e => {
+                // Invio non va a capo, submit del form
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  (e.currentTarget.closest('form') as HTMLFormElement)?.requestSubmit();
+                }
+              }}
             />
           </div>
 
