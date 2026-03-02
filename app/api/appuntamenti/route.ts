@@ -20,27 +20,23 @@ export async function GET(request: Request) {
     sql += ' ORDER BY data, ora_inizio';
 
     const result = await query(sql, params);
-    
-    
+
     if (result.rows) {
       const normalized = result.rows.map(apt => ({
         ...apt,
-        
-        data: apt.data instanceof Date 
-          ? format(apt.data, 'yyyy-MM-dd') 
+        data: apt.data instanceof Date
+          ? format(apt.data, 'yyyy-MM-dd')
           : (typeof apt.data === 'string' ? apt.data.split('T')[0] : apt.data),
-        
-        ora_inizio: typeof apt.ora_inizio === 'string' 
-          ? apt.ora_inizio.substring(0, 5) 
+        ora_inizio: typeof apt.ora_inizio === 'string'
+          ? apt.ora_inizio.substring(0, 5)
           : apt.ora_inizio,
-        
-        ora_fine: typeof apt.ora_fine === 'string' 
-          ? apt.ora_fine.substring(0, 5) 
+        ora_fine: typeof apt.ora_fine === 'string'
+          ? apt.ora_fine.substring(0, 5)
           : apt.ora_fine,
       }));
       return NextResponse.json(normalized);
     }
-    
+
     return NextResponse.json([]);
   } catch (error) {
     console.error('Errore caricamento appuntamenti:', error);
@@ -52,9 +48,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note } = body;
+    const { persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note, highlight } = body;
 
-    
     if (!persona_id || !sede_id || !data || !ora_inizio || !ora_fine) {
       return NextResponse.json(
         { error: 'Tutti i campi obbligatori devono essere compilati' },
@@ -63,26 +58,25 @@ export async function POST(request: Request) {
     }
 
     const result = await query(
-      `INSERT INTO appuntamenti (persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      `INSERT INTO appuntamenti (persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note, highlight, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
        RETURNING *`,
-      [persona_id, sede_id, data, ora_inizio, ora_fine, cliente || null, note || null]
+      [persona_id, sede_id, data, ora_inizio, ora_fine, cliente || null, note || null, highlight || null]
     );
 
-    
     if (result.rows && result.rows[0]) {
       const normalized = {
         ...result.rows[0],
-        data: result.rows[0].data instanceof Date 
-          ? format(result.rows[0].data, 'yyyy-MM-dd') 
-          : (typeof result.rows[0].data === 'string' 
-            ? result.rows[0].data.split('T')[0] 
+        data: result.rows[0].data instanceof Date
+          ? format(result.rows[0].data, 'yyyy-MM-dd')
+          : (typeof result.rows[0].data === 'string'
+            ? result.rows[0].data.split('T')[0]
             : result.rows[0].data),
-        ora_inizio: typeof result.rows[0].ora_inizio === 'string' 
-          ? result.rows[0].ora_inizio.substring(0, 5) 
+        ora_inizio: typeof result.rows[0].ora_inizio === 'string'
+          ? result.rows[0].ora_inizio.substring(0, 5)
           : result.rows[0].ora_inizio,
-        ora_fine: typeof result.rows[0].ora_fine === 'string' 
-          ? result.rows[0].ora_fine.substring(0, 5) 
+        ora_fine: typeof result.rows[0].ora_fine === 'string'
+          ? result.rows[0].ora_fine.substring(0, 5)
           : result.rows[0].ora_fine,
       };
       return NextResponse.json(normalized, { status: 201 });
