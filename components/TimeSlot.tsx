@@ -1,10 +1,9 @@
 'use client';
 
-import { MessageSquare, User } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { Appuntamento } from '@/lib/types';
 import { TIME_SLOTS } from '@/utils/dateUtils';
 
-// Mappa highlight → colori esatti (stili inline per evitare purge Tailwind)
 const HIGHLIGHT_MAP: Record<string, { bg: string; border: string; text: string }> = {
   '':      { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8' },
   yellow:  { bg: '#fef9c3', border: '#eab308', text: '#713f12' },
@@ -123,25 +122,11 @@ export default function TimeSlot({
             borderLeftWidth: '4px',
             borderLeftStyle: 'solid',
           }}
-          className="appointment-cell p-2 cursor-move transition-colors group/apt"
+          className="appointment-cell px-2 cursor-move transition-colors group/apt flex items-center"
         >
-          <div className="flex items-start gap-2 pointer-events-none">
-            <div className="rounded-full w-3 h-3 flex-shrink-0 mt-0.5" style={{ backgroundColor: hl.border }} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1">
-                <p className="text-sm font-bold truncate flex-1" style={{ color: hl.text }}>
-                  {apt.cliente || 'Appuntamento'}
-                </p>
-                {apt.note && (
-                  <MessageSquare size={10} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
-                )}
-              </div>
-              <p className="text-xs text-gray-600 truncate">
-                {apt.ora_inizio?.substring(0,5)} - {apt.ora_fine?.substring(0,5)}
-              </p>
-            </div>
-          </div>
-          {/* Tooltip note stile Epasa */}
+          <p className="text-xs font-bold truncate pointer-events-none" style={{ color: hl.text }}>
+            {apt.cliente || 'Appuntamento'}
+          </p>
           {apt.note && (
             <div
               className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
@@ -197,24 +182,11 @@ export default function TimeSlot({
                 borderLeftWidth: '4px',
                 borderLeftStyle: 'solid',
               }}
-              className="appointment-cell p-1.5 cursor-move transition-all group/apt"
+              className="appointment-cell px-1.5 cursor-move transition-all group/apt flex items-center"
             >
-              <div className="flex items-start gap-1 pointer-events-none">
-                <div className="rounded-full w-2 h-2 flex-shrink-0 mt-0.5" style={{ backgroundColor: hl.border }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs font-bold truncate leading-tight flex-1" style={{ color: hl.text }}>
-                      {apt.cliente || 'App.'}
-                    </p>
-                    {apt.note && (
-                      <MessageSquare size={8} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-gray-600 truncate leading-tight mt-0.5">
-                    {apt.ora_inizio?.substring(0,5)} - {apt.ora_fine?.substring(0,5)}
-                  </p>
-                </div>
-              </div>
+              <p className="text-[10px] font-bold truncate leading-tight pointer-events-none" style={{ color: hl.text }}>
+                {apt.cliente || 'App.'}
+              </p>
               {apt.note && (
                 <div
                   className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
