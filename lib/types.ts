@@ -26,6 +26,7 @@ export interface Appuntamento {
   ora_fine: string;
   cliente?: string;
   note?: string;
+  highlight?: string;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -38,7 +39,6 @@ export interface TimeSlot {
   minute: number;
   label: string;
 }
-
 
 export interface Agenda {
   id: string;
