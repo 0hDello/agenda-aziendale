@@ -11,6 +11,7 @@ import {
   X,
   LayoutGrid,
   List,
+  Lock,
 } from 'lucide-react';
 import {
   format,
@@ -32,7 +33,7 @@ import {
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
-import { formatDate, TIME_SLOTS } from '@/utils/dateUtils';
+import { formatDate, getTimeSlotsForSede, getEndTimeSlotsForSede, isSedeWorkingDay, TIME_SLOTS } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
 import AppointmentModal from './AppointmentModal';
 import React from 'react';
@@ -50,7 +51,7 @@ const SCROLL_THRESHOLD = 400;
 const POST_COMPENSATE_COOLDOWN = 400;
 
 type ViewMode = 'daily' | 'monthly';
-type DayAvailability = 'free' | 'partial' | 'full';
+type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedDate, setSelectedDate]     = useState(new Date());
@@ -83,6 +84,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleScrollRef           = useRef<() => void>(() => {});
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
+
+  // ─── Sede corrente e suoi slot ──────────────────────────────────────────────
+  const selectedSede = sedi.find(s => s.id === selectedSedeId) ?? null;
+  const selectedSedeNome = selectedSede?.nome ?? '';
+  const currentTimeSlots = getTimeSlotsForSede(selectedSedeNome);
+  const currentEndTimeSlots = getEndTimeSlotsForSede(selectedSedeNome);
+
+  const isBorgoSede = selectedSedeNome.toLowerCase().includes('borgo');
+
+  const isDayClosedForSede = (day: Date): boolean => {
+    if (isWeekend(day)) return true;
+    return !isSedeWorkingDay(selectedSedeNome, day);
+  };
 
   const scrollToDate = (date: Date) => {
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
@@ -341,21 +355,23 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDrop = async (date: string, newTime: string, personaId: string) => {
     if (!draggedAppointment) return;
     const { appointment, originalTime } = draggedAppointment;
-    const origIdx  = TIME_SLOTS.findIndex(s => s.label === originalTime);
-    const newIdx   = TIME_SLOTS.findIndex(s => s.label === newTime);
+    const slots   = currentTimeSlots;
+    const origIdx  = slots.findIndex(s => s.label === originalTime);
+    const newIdx   = slots.findIndex(s => s.label === newTime);
     if (origIdx === -1 || newIdx === -1) { setDraggedAppointment(null); return; }
     const diff     = newIdx - origIdx;
-    const startIdx = TIME_SLOTS.findIndex(s => s.label === appointment.ora_inizio.substring(0, 5));
-    let   endIdx   = TIME_SLOTS.findIndex(s => s.label === appointment.ora_fine.substring(0, 5));
-    if (endIdx === -1) endIdx = TIME_SLOTS.length;
+    const startIdx = slots.findIndex(s => s.label === appointment.ora_inizio.substring(0, 5));
+    let   endIdx   = slots.findIndex(s => s.label === appointment.ora_fine.substring(0, 5));
+    if (endIdx === -1) endIdx = slots.length;
     const ns = startIdx + diff;
     const ne = endIdx   + diff;
-    if (ns < 0 || ne > TIME_SLOTS.length) {
+    if (ns < 0 || ne > slots.length) {
       alert("Impossibile spostare l'appuntamento in questo orario");
       setDraggedAppointment(null); return;
     }
-    const newStart = TIME_SLOTS[ns].label;
-    const newEnd   = ne < TIME_SLOTS.length ? TIME_SLOTS[ne].label : '17:30';
+    const lastSlotLabel = currentEndTimeSlots[currentEndTimeSlots.length - 1].label;
+    const newStart = slots[ns].label;
+    const newEnd   = ne < slots.length ? slots[ne].label : lastSlotLabel;
     const hasConflict = appointments.some(apt => {
       if (apt.id === appointment.id || apt.persona_id !== personaId ||
           apt.sede_id !== appointment.sede_id || apt.data !== date) return false;
@@ -385,12 +401,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   // ─── helpers mensile ──────────────────────────────────────────────────────
-  const getDayAvailability = (dateStr: string, personaId: string): DayAvailability => {
+  const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
+    if (isDayClosedForSede(day)) return 'closed';
+    const slots = currentTimeSlots;
     const n = appointments.filter(apt =>
       apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId
     ).length;
     if (n === 0) return 'free';
-    if (n >= TIME_SLOTS.length * 0.8) return 'full';
+    if (n >= slots.length * 0.8) return 'full';
     return 'partial';
   };
 
@@ -398,16 +416,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const occupied = appointments.filter(apt =>
       apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId
     ).length;
-    return Math.max(0, TIME_SLOTS.length - occupied);
+    return Math.max(0, currentTimeSlots.length - occupied);
   };
 
   const getFirstAvailableDay = (personaId: string): string | null => {
     const today = new Date();
     for (let i = 0; i < 90; i++) {
       const d = addDays(today, i);
-      if (isWeekend(d)) continue;
+      if (isDayClosedForSede(d)) continue;
       const s = format(d, 'yyyy-MM-dd');
-      const a = getDayAvailability(s, personaId);
+      const a = getDayAvailability(s, personaId, d);
       if (a === 'free' || a === 'partial') return s;
     }
     return null;
@@ -504,35 +522,35 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                     dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
                   }`} />
                 );
-                const isToday  = format(new Date(), 'yyyy-MM-dd') === dateStr;
-                const isWe     = isWeekend(day);
-                const isBefore = day < MIN_DATE;
-                const av       = isWe ? null : getDayAvailability(dateStr, activePersona);
-                const freeSlots = (!isWe && av !== 'full') ? getFreeSlots(dateStr, activePersona) : 0;
-                const avBg     = isWe ? 'bg-gray-100' :
+                const isToday   = format(new Date(), 'yyyy-MM-dd') === dateStr;
+                const isClosed  = isDayClosedForSede(day);
+                const isBefore  = day < MIN_DATE;
+                const av        = getDayAvailability(dateStr, activePersona, day);
+                const freeSlots = (!isClosed && av !== 'full') ? getFreeSlots(dateStr, activePersona) : 0;
+                const avBg     = isClosed ? 'bg-gray-100' :
                   av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
-                const avBorder = isWe ? '' :
+                const avBorder = isClosed ? '' :
                   av === 'free' ? 'border-t-2 border-green-400' :
                   av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';
-                const avDot    = isWe ? 'bg-gray-300' :
+                const avDot    = isClosed ? 'bg-gray-300' :
                   av === 'free' ? 'bg-green-500' : av === 'partial' ? 'bg-yellow-400' : 'bg-red-500';
                 return (
                   <div key={dateStr}
-                    onClick={() => { if (!isWe && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
+                    onClick={() => { if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
                     className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${
-                      !isWe && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
-                    } ${isBefore && !isWe ? 'opacity-40' : ''}`}
-                    title={isWe ? 'Chiuso' : freeSlots > 0
+                      !isClosed && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
+                    } ${isBefore && !isClosed ? 'opacity-40' : ''}`}
+                    title={isClosed ? 'Chiuso' : freeSlots > 0
                       ? `${personaNome} - ${format(day,'dd/MM/yyyy')} - ${freeSlots} slot liber${freeSlots===1?'o':'i'}`
                       : `${personaNome} - ${format(day,'dd/MM/yyyy')} - Pieno`}
                   >
                     <div className="flex items-start justify-between mb-1">
                       <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
-                        isToday ? 'bg-[#005CA9] text-white' : isWe ? 'text-gray-400' : 'text-gray-700'
+                        isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'text-gray-400' : 'text-gray-700'
                       }`}>{format(day, 'd')}</span>
-                      {!isWe && <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />}
+                      {!isClosed && <div className={`w-2 h-2 rounded-full mt-1 ${avDot}`} />}
                     </div>
-                    {!isWe && freeSlots > 0 && (
+                    {!isClosed && freeSlots > 0 && (
                       <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
                         <span className="text-[10px] font-semibold text-green-700">
@@ -573,52 +591,71 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         </thead>
         <tbody>
           {visibleDays.map(day => {
-            const dateStr = formatDate(day);
-            const isToday = formatDate(new Date()) === dateStr;
+            const dateStr   = formatDate(day);
+            const isToday   = formatDate(new Date()) === dateStr;
+            const isClosed  = isDayClosedForSede(day);
             return (
               <React.Fragment key={dateStr}>
                 <tr data-date={dateStr}>
                   <td
                     colSpan={sedePersone.length + 1}
                     className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                      isToday ? 'bg-[#005CA9] text-white' : 'bg-gray-100 text-gray-700'
+                      isToday  ? 'bg-[#005CA9] text-white' :
+                      isClosed ? 'bg-gray-300 text-gray-500' :
+                                 'bg-gray-100 text-gray-700'
                     }`}
                   >
                     {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                    {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
                   </td>
                 </tr>
-                {TIME_SLOTS.map(slot => (
-                  <tr key={`${dateStr}-${slot.label}`}>
-                    <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                      <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
+                {isClosed ? (
+                  <tr>
+                    <td colSpan={sedePersone.length + 1}
+                      className="p-4 text-center bg-gray-50 border-b border-gray-200"
+                      style={{ height: '60px' }}>
+                      <div className="flex items-center justify-center gap-2 text-gray-400">
+                        <Lock size={14} />
+                        <span className="text-xs font-medium">
+                          {isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}
+                        </span>
+                      </div>
                     </td>
-                    {sedePersone.map(persona => {
-                      const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
-                      const dayApts  = appointments.filter(apt =>
-                        apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
-                      );
-                      return (
-                        <td
-                          key={`${persona.id}-${slot.label}`}
-                          className={`relative p-0 border-r border-gray-100 ${
-                            !slotApts.length ? 'border-b border-gray-100' : ''
-                          }`}
-                          style={{ height: '45px' }}
-                        >
-                          <TimeSlot
-                            time={slot.label}
-                            appointments={slotApts}
-                            allDayAppointments={dayApts}
-                            onClick={apt => handleSlotClick(dateStr, slot.label, persona.id, apt)}
-                            onDragStart={handleDragStart}
-                            onDrop={t => handleDrop(dateStr, t, persona.id)}
-                            onDragOver={handleDragOver}
-                          />
-                        </td>
-                      );
-                    })}
                   </tr>
-                ))}
+                ) : (
+                  currentTimeSlots.map(slot => (
+                    <tr key={`${dateStr}-${slot.label}`}>
+                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                        <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
+                      </td>
+                      {sedePersone.map(persona => {
+                        const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
+                        const dayApts  = appointments.filter(apt =>
+                          apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
+                        );
+                        return (
+                          <td
+                            key={`${persona.id}-${slot.label}`}
+                            className={`relative p-0 border-r border-gray-100 ${
+                              !slotApts.length ? 'border-b border-gray-100' : ''
+                            }`}
+                            style={{ height: '45px' }}
+                          >
+                            <TimeSlot
+                              time={slot.label}
+                              appointments={slotApts}
+                              allDayAppointments={dayApts}
+                              onClick={apt => handleSlotClick(dateStr, slot.label, persona.id, apt)}
+                              onDragStart={handleDragStart}
+                              onDrop={t => handleDrop(dateStr, t, persona.id)}
+                              onDragOver={handleDragOver}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
               </React.Fragment>
             );
           })}
@@ -631,10 +668,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some(ps => ps.persona_id === p.id && ps.sede_id === selectedSedeId)
   );
 
-  // ─── label data e navigazione — sempre la stessa larghezza fissa ───
+  // ─── label data e navigazione ───────────────────────────────────────────────
   const dateLabel = viewMode === 'daily'
     ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
     : format(selectedDate, 'MMMM yyyy', { locale: it });
+
+  const getSedeOrariLabel = () => {
+    if (isBorgoSede) return 'Solo mercoledì · 8:30-12:30 / 14:00-18:00';
+    return 'Lun-Ven · 9:00-12:00 / 14:00-17:30';
+  };
 
   const handlePrev = () => {
     if (viewMode === 'daily') navigateToDate(subDays(selectedDate, 1));
@@ -658,11 +700,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-[#005CA9]">Agenda 730</h1>
-                  <p className="text-xs text-gray-600 mt-0.5">Gestione appuntamenti</p>
+                  <p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>
                 </div>
               </div>
 
-              {/* controlli — larghezza stabile */}
+              {/* controlli */}
               <div className="flex items-center gap-2 flex-wrap">
 
                 {/* switcher vista */}
@@ -694,7 +736,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* bottone data — larghezza fissa per non far saltare il layout */}
+                {/* bottone data */}
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer"
@@ -713,7 +755,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* bottone Oggi — visibile sempre, ma attivo solo in modalità giornaliera */}
+                {/* bottone Oggi */}
                 <button
                   onClick={() => navigateToDate(new Date())}
                   className={`px-4 py-2 text-sm rounded-lg font-medium transition-all ${
@@ -784,18 +826,20 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   end:   endOfWeek(me,   { weekStartsOn: 1 }),
                 });
                 return days.map((day, i) => {
-                  const isCurr = isSameMonth(day, selectedDate);
-                  const isSel  = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-                  const isTod  = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                  const isCurr   = isSameMonth(day, selectedDate);
+                  const isSel    = format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                  const isTod    = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                  const isClosed = isDayClosedForSede(day);
                   return (
                     <button
                       key={i} type="button"
                       onClick={() => { navigateToDate(day); setShowDatePicker(false); }}
                       className={`aspect-square rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                        isSel  ? 'bg-[#005CA9] text-white shadow-md scale-105' :
-                        isTod  ? 'bg-[#E6F2FF] text-[#005CA9] font-bold' :
-                        isCurr ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' :
-                                 'bg-transparent text-gray-300'
+                        isSel    ? 'bg-[#005CA9] text-white shadow-md scale-105' :
+                        isTod    ? 'bg-[#E6F2FF] text-[#005CA9] font-bold' :
+                        isClosed && isCurr ? 'bg-gray-200 text-gray-400' :
+                        isCurr   ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' :
+                                   'bg-transparent text-gray-300'
                       }`}
                     >
                       {format(day, 'd')}
