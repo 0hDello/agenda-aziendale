@@ -191,9 +191,11 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
   const viewModeRef        = useRef<ViewMode>('daily');
   const searchInputRef     = useRef<HTMLInputElement>(null);
+  const sediRef            = useRef<Sede[]>([]);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
+  useEffect(() => { sediRef.current = sedi; }, [sedi]);
 
   const formatDate         = (d: Date) => format(d, 'yyyy-MM-dd');
   const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
@@ -239,6 +241,21 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     setShowSearch(false);
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  // ─── Navigazione da risultato di ricerca: cambia sede + data ──────────────────────────────────────────
+  const navigateToSearchResult = (apt: Appointment) => {
+    // 1. Cambia sede se necessario
+    const targetSede = sediRef.current.find(s => s.id === apt.sede_id);
+    if (targetSede) {
+      setSelectedSede(targetSede);
+    }
+    // 2. Naviga alla data (con un piccolo delay per dare tempo al cambio sede di propagarsi)
+    setTimeout(() => {
+      navigateToDate(dateStrToLocal(apt.data));
+    }, 50);
+    setViewMode('daily');
+    closeSearch();
   };
 
   // ─── Business logic ────────────────────────────────────────────────────────────────────────────────────────
@@ -893,7 +910,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         );
 
                         // Slot con appuntamento reale
-                        // In editMode il lucchetto NON può bloccare uno slot già occupato: cursore not-allowed, nessuna azione
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
@@ -945,7 +961,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                           );
                         }
 
-                        // Slot vuoto: in editMode mette lucchetto, altrimenti apre nuovo appuntamento
+                        // Slot vuoto
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
@@ -1154,7 +1170,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                 return (
                   <div
                     key={apt.id}
-                    onClick={() => { navigateToDate(dateStrToLocal(apt.data)); setViewMode('daily'); closeSearch(); }}
+                    onClick={() => navigateToSearchResult(apt)}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group"
                   >
                     <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm">
