@@ -85,7 +85,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
-  // ─── Sede corrente e suoi slot ─────────────────────────────────────────────────────────────────────────
+  // ─── Sede corrente e suoi slot ──────────────────────────────────────────────
   const selectedSede = sedi.find(s => s.id === selectedSedeId) ?? null;
   const selectedSedeNome = selectedSede?.nome ?? '';
   const currentTimeSlots = getTimeSlotsForSede(selectedSedeNome);
@@ -211,21 +211,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         const dateStr = formatDate(selectedDate);
         const el = container?.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
         if (container && el) {
-<<<<<<< HEAD
-  const thead = container.querySelector<HTMLElement>('thead');
-  const theadHeight = thead?.offsetHeight ?? 0;
-  const containerRect = container.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
-}
-=======
           const thead = container.querySelector<HTMLElement>('thead');
           const theadHeight = thead?.offsetHeight ?? 0;
           const containerRect = container.getBoundingClientRect();
           const elRect = el.getBoundingClientRect();
           container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
         }
->>>>>>> 13dfa65ff92a26d9165ed7aeea3d55e435a6d924
         attachScrollListener();
       }, 300);
     }
@@ -428,7 +419,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ─── helpers mensile ─────────────────────────────────────────────────────────────────────────────
+  // ─── helpers mensile ────────────────────────────────────────────────────────
   const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
     if (isDayClosedForSede(day)) return 'closed';
     const slots = currentTimeSlots;
@@ -459,7 +450,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona))
       ? selectedMonthlyPersona
@@ -596,7 +587,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ─────────────────────────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ──────────────────────────────────────────────────────
   const renderDailyView = () => (
     <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
       <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
@@ -696,7 +687,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some(ps => ps.persona_id === p.id && ps.sede_id === selectedSedeId)
   );
 
-  // ─── label data e navigazione ────────────────────────────────────────────────────────────────────────
+  // ─── label data e navigazione ───────────────────────────────────────────────
   const dateLabel = viewMode === 'daily'
     ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
     : format(selectedDate, 'MMMM yyyy', { locale: it });
