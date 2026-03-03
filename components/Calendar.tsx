@@ -99,8 +99,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   const scrollToDate = (date: Date) => {
-    const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
-    if (el && scrollContainerRef.current) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const container = scrollContainerRef.current;
+    const el = container?.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
+    if (container && el) {
+      const thead = container.querySelector<HTMLElement>('thead');
+      const theadHeight = thead?.offsetHeight ?? 0;
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
+    }
   };
 
   const buildWindowAround = (center: Date): Date[] => {
@@ -199,15 +206,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      // Scroll iniziale: porta la riga del giorno di oggi in cima usando getBoundingClientRect
       setTimeout(() => {
         const container = scrollContainerRef.current;
         const dateStr = formatDate(selectedDate);
         const el = container?.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
         if (container && el) {
+          const thead = container.querySelector<HTMLElement>('thead');
+          const theadHeight = thead?.offsetHeight ?? 0;
           const containerRect = container.getBoundingClientRect();
           const elRect = el.getBoundingClientRect();
-          container.scrollTop += (elRect.top - containerRect.top);
+          container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
         }
         attachScrollListener();
       }, 300);
