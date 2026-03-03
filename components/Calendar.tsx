@@ -199,9 +199,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      // All'apertura NON scrolliamo al giorno corrente: il container parte dall'inizio (09:00 visibile)
-      // Lo scroll automatico avverrebbe solo tramite navigateToDate (frecce, date picker, ecc.)
-      setTimeout(() => { attachScrollListener(); }, 200);
+      // Scroll iniziale: porta la riga del giorno di oggi in cima usando getBoundingClientRect
+      setTimeout(() => {
+        const container = scrollContainerRef.current;
+        const dateStr = formatDate(selectedDate);
+        const el = container?.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
+        if (container && el) {
+          const containerRect = container.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          container.scrollTop += (elRect.top - containerRect.top);
+        }
+        attachScrollListener();
+      }, 300);
     }
   }, []);
 
