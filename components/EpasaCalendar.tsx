@@ -521,8 +521,18 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
+
+    // Se c'è un appuntamento reale (non UFF CHIUSO), non fare nulla
+    const realApts = allAppointments.filter(
+      a => a.sede_id === selectedSede.id && a.data === dateStr &&
+           a.ora === time && a.operatore_id === operator &&
+           a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+    );
+    if (realApts.length > 0) return;
+
     const uffApts = getUffChiusoApts(dateStr, time, operator);
     if (uffApts.length > 0) {
+      // Sblocca: rimuove UFF CHIUSO
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -531,19 +541,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
       }
       setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
-      const existing = allAppointments.filter(
-        a => a.sede_id === selectedSede.id && a.data === dateStr &&
-             a.ora === time && a.operatore_id === operator
-      );
-      const deletedIds: string[] = [];
-      for (const apt of existing) {
-        try {
-          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error();
-          deletedIds.push(apt.id);
-        } catch { alert('Errore durante il blocco'); return; }
-      }
-      setAllAppointments(prev => prev.filter(a => !deletedIds.includes(a.id)));
+      // Blocca: crea UFF CHIUSO (lo slot è vuoto)
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -894,6 +892,8 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                           </td>
                         );
 
+                        // Slot con appuntamento reale
+                        // In editMode il lucchetto NON può bloccare uno slot già occupato: cursore not-allowed, nessuna azione
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
@@ -903,11 +903,11 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                               className="relative p-0 border-r border-gray-100 border-b border-gray-100 group/slot"
                               style={{ height: '45px' }}>
                               <div
-                                onClick={() => editMode
-                                  ? handleEditModeSlotClick(dateStr, time, operator)
-                                  : openModalForEditAppointment(apt)}
-                                className={`w-full h-full px-2 py-1 ${hl.cell} border-l-4 ${hl.border} hover:brightness-95 cursor-pointer transition-all flex items-center`}
-                                title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
+                                onClick={() => !editMode && openModalForEditAppointment(apt)}
+                                className={`w-full h-full px-2 py-1 ${hl.cell} border-l-4 ${hl.border} transition-all flex items-center ${
+                                  editMode ? 'cursor-not-allowed' : 'hover:brightness-95 cursor-pointer'
+                                }`}
+                                title={editMode ? 'Slot occupato: non bloccabile' : undefined}>
                                 <div className="w-full overflow-hidden">
                                   <div className="flex items-center gap-1 w-full">
                                     <User size={10} className={`${hl.text} flex-shrink-0`} />
@@ -945,6 +945,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                           );
                         }
 
+                        // Slot vuoto: in editMode mette lucchetto, altrimenti apre nuovo appuntamento
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
