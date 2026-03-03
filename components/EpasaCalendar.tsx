@@ -187,7 +187,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
   const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
+  // Ora salviamo sia la dateStr sia i pixel dell'anchor PRIMA del render
   const anchorDateStrRef   = useRef<string | null>(null);
+  const anchorScrollTopRef = useRef<number | null>(null); // scrollTop del container al momento del capture
+  const anchorOffsetTopRef = useRef<number | null>(null); // offsetTop dell'elemento anchor nel documento scorrevole
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
   const viewModeRef        = useRef<ViewMode>('daily');
   const searchInputRef     = useRef<HTMLInputElement>(null);
@@ -245,15 +248,9 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
   // ─── Navigazione da risultato di ricerca: cambia sede + data ──────────────────────────────────────────
   const navigateToSearchResult = (apt: Appointment) => {
-    // 1. Cambia sede se necessario
     const targetSede = sediRef.current.find(s => s.id === apt.sede_id);
-    if (targetSede) {
-      setSelectedSede(targetSede);
-    }
-    // 2. Naviga alla data (con un piccolo delay per dare tempo al cambio sede di propagarsi)
-    setTimeout(() => {
-      navigateToDate(dateStrToLocal(apt.data));
-    }, 50);
+    if (targetSede) setSelectedSede(targetSede);
+    setTimeout(() => navigateToDate(dateStrToLocal(apt.data)), 50);
     setViewMode('daily');
     closeSearch();
   };
@@ -362,18 +359,31 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
     const container = scrollContainerRef.current;
-    let anchorDate = firstDay;
+
+    // Trova l'elemento anchor visibile e salva la sua posizione ASSOLUTA nel
+    // contenitore scorrevole (offsetTop relativo al scrollable content),
+    // non la posizione relativa alla viewport che cambia dopo il render.
+    let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
+    let anchorOffsetTop = 0;
     if (container) {
       const containerTop = container.getBoundingClientRect().top;
       const rows = container.querySelectorAll<HTMLElement>('[data-epasa-date]');
       for (const row of Array.from(rows)) {
         if (row.getBoundingClientRect().top >= containerTop - 5) {
           const ds = row.getAttribute('data-epasa-date');
-          if (ds) { anchorDate = dateStrToLocal(ds); break; }
+          if (ds) {
+            anchorDateStr = ds;
+            // offsetTop dell'elemento rispetto al contenitore scorrevole
+            anchorOffsetTop = row.offsetTop;
+            break;
+          }
         }
       }
     }
-    anchorDateStrRef.current = formatDate(anchorDate);
+
+    anchorDateStrRef.current   = anchorDateStr;
+    anchorOffsetTopRef.current = anchorOffsetTop;
+    anchorScrollTopRef.current = container ? container.scrollTop : 0;
     loadingDirRef.current = 'bk';
 
     const newDays: Date[] = [];
@@ -390,23 +400,33 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     });
   }, []);
 
+  // Dopo il render dei nuovi giorni, ripristina la posizione di scroll
+  // usando l'offsetTop aggiornato dell'elemento anchor e la distanza
+  // che aveva rispetto al top visibile del container prima del caricamento.
   const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
     if (dir === 'bk') {
-      const anchor = anchorDateStrRef.current;
+      const anchorDate   = anchorDateStrRef.current;
+      const prevScrollTop = anchorScrollTopRef.current ?? 0;
+      const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
+      // Distanza che l'anchor aveva dal top visibile del container prima del render
+      const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
+
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (anchor) {
+        if (anchorDate) {
           const container = scrollContainerRef.current;
-          const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchor}"]`);
+          const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchorDate}"]`);
           if (el && container) {
-            const containerRect = container.getBoundingClientRect();
-            const elRect = el.getBoundingClientRect();
-            const scrollOffset = elRect.top - containerRect.top + container.scrollTop - STICKY_HEADER_HEIGHT;
-            container.scrollTo({ top: scrollOffset, behavior: 'instant' });
+            // Nuovo offsetTop dell'anchor dopo il render (i nuovi giorni sono stati prepend)
+            const newOffsetTop = el.offsetTop;
+            // Vogliamo che l'anchor sia esattamente dove era: newOffsetTop - distanceFromTop
+            container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
           }
         }
-        anchorDateStrRef.current = null;
+        anchorDateStrRef.current   = null;
+        anchorOffsetTopRef.current = null;
+        anchorScrollTopRef.current = null;
         loadingDirRef.current = 'idle';
       }));
     } else {
@@ -539,7 +559,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
 
-    // Se c'è un appuntamento reale (non UFF CHIUSO), non fare nulla
     const realApts = allAppointments.filter(
       a => a.sede_id === selectedSede.id && a.data === dateStr &&
            a.ora === time && a.operatore_id === operator &&
@@ -549,7 +568,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
     const uffApts = getUffChiusoApts(dateStr, time, operator);
     if (uffApts.length > 0) {
-      // Sblocca: rimuove UFF CHIUSO
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -558,7 +576,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
       }
       setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
-      // Blocca: crea UFF CHIUSO (lo slot è vuoto)
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -909,7 +926,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                           </td>
                         );
 
-                        // Slot con appuntamento reale
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
@@ -961,7 +977,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                           );
                         }
 
-                        // Slot vuoto
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
