@@ -224,12 +224,21 @@ export default function LoredanaView({
     apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
 
   const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: string) => {
+    // Se c'è un appuntamento reale (non UFF CHIUSO), non fare nulla
+    const realApts = localApts.filter(
+      a => a.sede_id === sedeId && a.data === dateStr &&
+           a.ora === time && a.operatore_id === LOREDANA_ID &&
+           a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+    );
+    if (realApts.length > 0) return;
+
     const uffApts = localApts.filter(
       a => a.sede_id === sedeId && a.data === dateStr &&
            a.ora === time && a.operatore_id === LOREDANA_ID &&
            a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
     );
     if (uffApts.length > 0) {
+      // Sblocca: rimuove UFF CHIUSO
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -238,19 +247,7 @@ export default function LoredanaView({
       }
       setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
-      const existing = localApts.filter(
-        a => a.sede_id === sedeId && a.data === dateStr &&
-             a.ora === time && a.operatore_id === LOREDANA_ID
-      );
-      const deletedIds: string[] = [];
-      for (const apt of existing) {
-        try {
-          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error();
-          deletedIds.push(apt.id);
-        } catch { alert('Errore durante il blocco'); return; }
-      }
-      setLocalApts(prev => prev.filter(a => !deletedIds.includes(a.id)));
+      // Blocca: crea UFF CHIUSO (lo slot è vuoto)
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -442,7 +439,7 @@ export default function LoredanaView({
                     const cellKey   = `${dateStr}-${time}`;
                     const isHovered = hoveredCell === cellKey;
 
-                    // ── Slot UFF CHIUSO ── grigio scuro, niente giallo
+                    // ── Slot UFF CHIUSO ── grigio scuro, sblocco in editMode
                     if (uffClosed) {
                       return (
                         <div key={time}
@@ -462,13 +459,13 @@ export default function LoredanaView({
                       );
                     }
 
-                    // ── Slot con appuntamento ──
+                    // ── Slot con appuntamento reale ──
+                    // In editMode il lucchetto NON può bloccare uno slot già occupato: click apre modifica normalmente
                     if (hasPaz) {
                       const hlKey   = apt!.highlight || '';
                       const hl      = HL_CSS[hlKey] ?? HL_CSS[''];
                       const hasNote = !!(apt!.note?.trim());
 
-                      // I colori non cambiano in editMode: restano sempre quelli originali
                       const cellBg         = isHovered ? hl.bgHover : hl.bg;
                       const cellBorder     = hl.border;
                       const cellLeftBorder = hl.leftBorder;
@@ -476,7 +473,7 @@ export default function LoredanaView({
 
                       return (
                         <div key={time}
-                          onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openEdit(apt!)}
+                          onClick={() => !editMode && openEdit(apt!)}
                           onMouseEnter={() => setHoveredCell(cellKey)}
                           onMouseLeave={() => setHoveredCell(null)}
                           style={{
@@ -486,7 +483,9 @@ export default function LoredanaView({
                             borderLeft: `3px solid ${cellLeftBorder}`,
                             display: 'flex', alignItems: 'center',
                             gap: 3, padding: '0 5px',
-                            overflow: 'visible', cursor: 'pointer',
+                            overflow: 'visible',
+                            // In editMode cursore not-allowed per indicare che non è bloccabile
+                            cursor: editMode ? 'not-allowed' : 'pointer',
                             position: 'relative',
                             transition: 'background-color 0.1s',
                           }}>
@@ -516,7 +515,7 @@ export default function LoredanaView({
                       );
                     }
 
-                    // ── Slot vuoto ──
+                    // ── Slot vuoto ── in editMode mette lucchetto, altrimenti apre nuovo appuntamento
                     return (
                       <div key={time}
                         onClick={() => editMode ? handleEditModeSlotClick(sedeId, dateStr, time) : openNew(dateStr, time)}
