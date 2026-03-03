@@ -205,10 +205,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         const dateStr = formatDate(selectedDate);
         const el = container?.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
         if (container && el) {
-          const containerRect = container.getBoundingClientRect();
-          const elRect = el.getBoundingClientRect();
-          container.scrollTop += (elRect.top - containerRect.top);
-        }
+  const thead = container.querySelector<HTMLElement>('thead');
+  const theadHeight = thead?.offsetHeight ?? 0;
+  const containerRect = container.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
+}
         attachScrollListener();
       }, 300);
     }
