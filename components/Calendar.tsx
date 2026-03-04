@@ -910,18 +910,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
 
-                {/* bottone Oggi */}
-                <button
-                  onClick={() => navigateToDate(new Date())}
-                  className={`px-4 py-2 text-sm rounded-lg font-medium transition-all ${
-                    viewMode === 'daily'
-                      ? 'bg-[#005CA9] text-white hover:bg-[#004080]'
-                      : 'bg-gray-100 text-gray-400 cursor-default'
-                  }`}
-                  disabled={viewMode === 'monthly'}
-                >
-                  Oggi
-                </button>
+                
 
                 {/* selezione sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
