@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
+import { broadcast730Update } from '@/lib/sse';
 
 
 export async function PUT(
@@ -47,6 +48,7 @@ export async function PUT(
         : result.rows[0].ora_fine,
     };
 
+    broadcast730Update();
     return NextResponse.json(normalized);
   } catch (error) {
     console.error('Errore aggiornamento appuntamento:', error);
@@ -70,6 +72,7 @@ export async function DELETE(
       );
     }
 
+    broadcast730Update();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Errore eliminazione appuntamento:', error);
