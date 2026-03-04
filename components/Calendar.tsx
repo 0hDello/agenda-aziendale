@@ -730,7 +730,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-[#005CA9]">Agenda 730</h1>
-                  <p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>
+                  {/*<p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>*/}
                 </div>
               </div>
 
