@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
+import { broadcast730Update } from '@/lib/sse';
 
 
 export async function GET(request: Request) {
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
           ? result.rows[0].ora_fine.substring(0, 5)
           : result.rows[0].ora_fine,
       };
+      broadcast730Update();
       return NextResponse.json(normalized, { status: 201 });
     }
 
