@@ -46,19 +46,21 @@ export async function GET(req: NextRequest) {
       `SELECT COUNT(*) FROM activity_log ${where}`,
       params
     );
-    const total = parseInt(countResult.rows[0].count, 10);
+    const total      = parseInt(countResult.rows[0].count, 10);
+    const totalPages = Math.max(1, Math.ceil(total / LIMIT)); // ← AGGIUNTO
 
     const dataResult = await query(
-      `SELECT * FROM activity_log ${where} ORDER BY created_at DESC LIMIT ${LIMIT} OFFSET ${offset}`,
-      params
+      `SELECT * FROM activity_log ${where} ORDER BY created_at DESC LIMIT ${LIMIT} OFFSET $${idx}`,
+      [...params, offset] // ← LIMIT e OFFSET come parametri sicuri
     );
 
     return NextResponse.json({
-      data:    dataResult.rows || [],
+      data:       dataResult.rows || [],
       total,
+      totalPages, // ← AGGIUNTO
       page,
-      limit:   LIMIT,
-      hasMore: offset + LIMIT < total,
+      limit:      LIMIT,
+      hasMore:    offset + LIMIT < total,
     });
   } catch (error) {
     console.error('Errore caricamento cronologia:', error);
