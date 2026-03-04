@@ -85,13 +85,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
-  // ─── Sede corrente e suoi slot ──────────────────────────────────────────────
-  const selectedSede = sedi.find(s => s.id === selectedSedeId) ?? null;
+  // ─── Sede corrente ───────────────────────────────────────────────────────────
+  const selectedSede     = sedi.find(s => s.id === selectedSedeId) ?? null;
   const selectedSedeNome = selectedSede?.nome ?? '';
-  const currentTimeSlots = getTimeSlotsForSede(selectedSedeNome);
-  const currentEndTimeSlots = getEndTimeSlotsForSede(selectedSedeNome);
+  const isBorgoSede      = selectedSedeNome.toLowerCase().includes('borgo');
 
-  const isBorgoSede = selectedSedeNome.toLowerCase().includes('borgo');
+  // Slot per-giorno: usati nel render giornaliero (viene passato il day specifico)
+  const getTimeSlotsForDay    = (day: Date) => getTimeSlotsForSede(selectedSedeNome, day);
+  const getEndTimeSlotsForDay = (day: Date) => getEndTimeSlotsForSede(selectedSedeNome, day);
+
+  // Slot fallback (usati dove non si ha un giorno specifico, es. drag&drop su selectedDate)
+  const currentTimeSlots    = getTimeSlotsForSede(selectedSedeNome, selectedDate);
+  const currentEndTimeSlots = getEndTimeSlotsForSede(selectedSedeNome, selectedDate);
 
   const isDayClosedForSede = (day: Date): boolean => {
     if (isWeekend(day)) return true;
@@ -371,10 +376,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDragStart = (appointment: Appuntamento, time: string) =>
     setDraggedAppointment({ appointment, originalTime: time });
 
-  const handleDrop = async (date: string, newTime: string, personaId: string) => {
+  const handleDrop = async (date: string, newTime: string, personaId: string, day: Date) => {
     if (!draggedAppointment) return;
     const { appointment, originalTime } = draggedAppointment;
-    const slots   = currentTimeSlots;
+    const slots   = getTimeSlotsForDay(day);
+    const endSlots = getEndTimeSlotsForDay(day);
     const origIdx  = slots.findIndex(s => s.label === originalTime);
     const newIdx   = slots.findIndex(s => s.label === newTime);
     if (origIdx === -1 || newIdx === -1) { setDraggedAppointment(null); return; }
@@ -388,7 +394,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       alert("Impossibile spostare l'appuntamento in questo orario");
       setDraggedAppointment(null); return;
     }
-    const lastSlotLabel = currentEndTimeSlots[currentEndTimeSlots.length - 1].label;
+    const lastSlotLabel = endSlots[endSlots.length - 1].label;
     const newStart = slots[ns].label;
     const newEnd   = ne < slots.length ? slots[ne].label : lastSlotLabel;
     const hasConflict = appointments.some(apt => {
@@ -422,7 +428,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   // ─── helpers mensile ────────────────────────────────────────────────────────
   const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
     if (isDayClosedForSede(day)) return 'closed';
-    const slots = currentTimeSlots;
+    const slots = getTimeSlotsForDay(day);
     const n = appointments.filter(apt =>
       apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId
     ).length;
@@ -431,11 +437,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return 'partial';
   };
 
-  const getFreeSlots = (dateStr: string, personaId: string): number => {
+  const getFreeSlots = (dateStr: string, personaId: string, day: Date): number => {
     const occupied = appointments.filter(apt =>
       apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId
     ).length;
-    return Math.max(0, currentTimeSlots.length - occupied);
+    return Math.max(0, getTimeSlotsForDay(day).length - occupied);
   };
 
   const getFirstAvailableDay = (personaId: string): string | null => {
@@ -545,7 +551,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const isClosed  = isDayClosedForSede(day);
                 const isBefore  = day < MIN_DATE;
                 const av        = getDayAvailability(dateStr, activePersona, day);
-                const freeSlots = (!isClosed && av !== 'full') ? getFreeSlots(dateStr, activePersona) : 0;
+                const freeSlots = (!isClosed && av !== 'full') ? getFreeSlots(dateStr, activePersona, day) : 0;
                 const avBg     = isClosed ? 'bg-gray-100' :
                   av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
                 const avBorder = isClosed ? '' :
@@ -610,9 +616,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         </thead>
         <tbody>
           {visibleDays.map(day => {
-            const dateStr   = formatDate(day);
-            const isToday   = formatDate(new Date()) === dateStr;
-            const isClosed  = isDayClosedForSede(day);
+            const dateStr      = formatDate(day);
+            const isToday      = formatDate(new Date()) === dateStr;
+            const isClosed     = isDayClosedForSede(day);
+            // slot specifici per questo giorno
+            const dayTimeSlots = getTimeSlotsForDay(day);
             return (
               <React.Fragment key={dateStr}>
                 <tr data-date={dateStr}>
@@ -642,7 +650,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                     </td>
                   </tr>
                 ) : (
-                  currentTimeSlots.map(slot => (
+                  dayTimeSlots.map(slot => (
                     <tr key={`${dateStr}-${slot.label}`}>
                       <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
                         <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
@@ -666,7 +674,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                               allDayAppointments={dayApts}
                               onClick={apt => handleSlotClick(dateStr, slot.label, persona.id, apt)}
                               onDragStart={handleDragStart}
-                              onDrop={t => handleDrop(dateStr, t, persona.id)}
+                              onDrop={t => handleDrop(dateStr, t, persona.id, day)}
                               onDragOver={handleDragOver}
                             />
                           </td>
@@ -694,7 +702,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const getSedeOrariLabel = () => {
     if (isBorgoSede) return 'Solo mercoledì · 8:30-12:30 / 14:00-18:00';
-    return 'Lun-Ven · 9:00-12:00 / 14:00-17:30';
+    const dow = selectedDate.getDay();
+    if (dow === 4) return 'Gio · 9:00-12:30 / 16:00-19:30';
+    if (dow === 5) return 'Ven · 9:00-12:00';
+    return 'Lun-Mar-Mer · 9:00-12:30 / 14:00-17:30';
   };
 
   const handlePrev = () => {
