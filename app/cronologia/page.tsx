@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, History, RefreshCw, Building2, Calendar,
@@ -74,24 +74,20 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function getPaginationItems(currentPage: number, totalPages: number) {
-  // returns array of numbers and '…'
   if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-
   const items: Array<number | '…'> = [];
   const left = clamp(currentPage - 1, 2, totalPages - 1);
   const right = clamp(currentPage + 1, 2, totalPages - 1);
-
   items.push(1);
-
   if (left > 2) items.push('…');
   for (let p = left; p <= right; p++) items.push(p);
   if (right < totalPages - 1) items.push('…');
-
   items.push(totalPages);
   return items;
 }
 
-export default function CronologiaPage() {
+// ─── Componente interno che usa useSearchParams ───────────────────────────────
+function CronologiaInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -130,11 +126,9 @@ export default function CronologiaPage() {
   const loadLogs = async () => {
     setLoading(true);
     setError(null);
-
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -142,10 +136,8 @@ export default function CronologiaPage() {
       if (sourceParam !== 'ALL') params.set('source', sourceParam);
       if (actionParam !== 'ALL') params.set('action', actionParam);
       if (qParam.trim()) params.set('q', qParam.trim());
-
       const res = await fetch(`/api/cronologia?${params.toString()}`, { signal: controller.signal });
       if (!res.ok) throw new Error(`Errore API: ${res.status}`);
-
       const json = await res.json();
       setLogs(Array.isArray(json?.data) ? json.data : []);
       setTotal(Number.isFinite(json?.total) ? json.total : 0);
@@ -177,7 +169,6 @@ export default function CronologiaPage() {
 
   const grouped = useMemo(() => groupByDate(logs), [logs]);
   const paginationItems = useMemo(() => getPaginationItems(page, totalPages), [page, totalPages]);
-
   const hasFilters = sourceParam !== 'ALL' || actionParam !== 'ALL' || !!qParam;
 
   return (
@@ -315,7 +306,6 @@ export default function CronologiaPage() {
 
                   <div className="relative pl-8">
                     <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-gray-200" />
-
                     <div className="space-y-3">
                       {entries.map((log) => {
                         const ac = ACTION_CONFIG[log.action];
@@ -324,7 +314,6 @@ export default function CronologiaPage() {
                         const SourceIcon = sc.icon;
                         const isExp = expanded.has(log.id);
                         const hasDetails = !!(log.dettagli && Object.keys(log.dettagli).length > 0);
-
                         return (
                           <div key={log.id} className="relative">
                             <div className={`absolute -left-5 top-4 w-3 h-3 rounded-full border-2 border-white shadow-sm ${ac.dot}`} />
@@ -336,7 +325,6 @@ export default function CronologiaPage() {
                                 <div className={`p-2 rounded-xl ${ac.bg} flex-shrink-0`}>
                                   <ActionIcon className={`w-4 h-4 ${ac.text}`} />
                                 </div>
-
                                 <div className="flex-1 min-w-0">
                                   <div className="flex flex-wrap items-center gap-1.5 mb-1">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ac.bg} ${ac.text} uppercase tracking-wide`}>
@@ -349,7 +337,6 @@ export default function CronologiaPage() {
                                   </div>
                                   <p className="text-sm text-gray-800 font-medium leading-snug">{log.descrizione}</p>
                                 </div>
-
                                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                   <span className="text-xs text-gray-400 font-medium">{formatTime(log.created_at)}</span>
                                   {hasDetails && (
@@ -359,7 +346,6 @@ export default function CronologiaPage() {
                                   )}
                                 </div>
                               </div>
-
                               {isExp && hasDetails && (
                                 <div className="px-4 pb-4 pt-0">
                                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1.5">
@@ -394,7 +380,6 @@ export default function CronologiaPage() {
               >
                 Prev
               </button>
-
               {paginationItems.map((it, idx) =>
                 it === '…' ? (
                   <span key={`e-${idx}`} className="px-2 text-gray-400 select-none">…</span>
@@ -410,7 +395,6 @@ export default function CronologiaPage() {
                   </button>
                 )
               )}
-
               <button
                 onClick={() => setParam({ page: String(Math.min(totalPages, page + 1)) })}
                 disabled={page >= totalPages}
@@ -425,5 +409,21 @@ export default function CronologiaPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+// ─── Export default: avvolge tutto in Suspense ────────────────────────────────
+export default function CronologiaPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-[#005CA9]" />
+          <p className="text-sm text-gray-400 font-medium">Caricamento...</p>
+        </div>
+      </div>
+    }>
+      <CronologiaInner />
+    </Suspense>
   );
 }
