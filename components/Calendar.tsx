@@ -49,7 +49,7 @@ const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD = 400;
-const POST_COMPENSATE_COOLDOWN = 400;
+const POST_COMPENSATE_COOLDOWN = 600;
 const SSE_RELOAD_DEBOUNCE = 800;
 
 type ViewMode = 'daily' | 'monthly';
@@ -251,13 +251,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         if (container && scrollSnapshotRef.current) {
           const { scrollTop: snapTop, scrollHeight: snapHeight } = scrollSnapshotRef.current;
           const diff = container.scrollHeight - snapHeight;
-          if (diff > 0) { isCompensatingRef.current = true; container.scrollTop = snapTop + diff; }
+          if (diff > 0) {
+            isCompensatingRef.current = true;
+            container.scrollTop = snapTop + diff;
+            // Aggiorna lastUserScrollTopRef subito dopo la compensazione
+            // per evitare che il prossimo evento scroll rilevi un salto verso il basso
+            lastUserScrollTopRef.current = snapTop + diff;
+          }
           scrollSnapshotRef.current = null;
         }
         isLoadingRef.current = false;
         backwardCooldownRef.current = true;
         if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-        cooldownTimerRef.current = setTimeout(() => { backwardCooldownRef.current = false; }, POST_COMPENSATE_COOLDOWN);
+        cooldownTimerRef.current = setTimeout(() => {
+          backwardCooldownRef.current = false;
+        }, POST_COMPENSATE_COOLDOWN);
       });
     });
   };
@@ -266,15 +274,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const container = scrollContainerRef.current;
     if (!container) return;
     const currentScrollTop = container.scrollTop;
-    if (isCompensatingRef.current) { isCompensatingRef.current = false; lastUserScrollTopRef.current = currentScrollTop; return; }
-    if (backwardCooldownRef.current) lastUserScrollTopRef.current = currentScrollTop;
+
+    // Durante la compensazione programmatica ignora l'evento e resetta il flag
+    if (isCompensatingRef.current) {
+      isCompensatingRef.current = false;
+      lastUserScrollTopRef.current = currentScrollTop;
+      return;
+    }
+
+    // Durante il cooldown post-backward aggiorna solo il riferimento e NON caricare
+    if (backwardCooldownRef.current) {
+      lastUserScrollTopRef.current = currentScrollTop;
+      return;  // <-- FIX: era assente, ora blocca qualsiasi loadMore durante il cooldown
+    }
+
     if (isLoadingRef.current) return;
+
     const direction: 'up' | 'down' = currentScrollTop < lastUserScrollTopRef.current ? 'up' : 'down';
     lastUserScrollTopRef.current   = currentScrollTop;
     userScrollDirectionRef.current = direction;
+
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingRef.current) return;
+      if (!container || isLoadingRef.current || backwardCooldownRef.current) return;
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
       const dir = userScrollDirectionRef.current;
@@ -299,6 +321,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           const containerRect = container.getBoundingClientRect();
           const elRect = el.getBoundingClientRect();
           container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
+          lastUserScrollTopRef.current = container.scrollTop;
         }
         attachScrollListener();
       }, 300);
