@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   List,
   Lock,
+  Unlock,
 } from 'lucide-react';
 import {
   format,
@@ -69,6 +70,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [draggedAppointment, setDraggedAppointment]   = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
+  // ─── Modalità lucchetto ──────────────────────────────────────────────────────
+  const [editMode, setEditMode] = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -90,17 +93,94 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const selectedSedeNome = selectedSede?.nome ?? '';
   const isBorgoSede      = selectedSedeNome.toLowerCase().includes('borgo');
 
-  // Slot per-giorno: usati nel render giornaliero (viene passato il day specifico)
+  // Slot per-giorno
   const getTimeSlotsForDay    = (day: Date) => getTimeSlotsForSede(selectedSedeNome, day);
   const getEndTimeSlotsForDay = (day: Date) => getEndTimeSlotsForSede(selectedSedeNome, day);
 
-  // Slot fallback (usati dove non si ha un giorno specifico, es. drag&drop su selectedDate)
   const currentTimeSlots    = getTimeSlotsForSede(selectedSedeNome, selectedDate);
   const currentEndTimeSlots = getEndTimeSlotsForSede(selectedSedeNome, selectedDate);
 
   const isDayClosedForSede = (day: Date): boolean => {
     if (isWeekend(day)) return true;
     return !isSedeWorkingDay(selectedSedeNome, day);
+  };
+
+  // ─── Helpers lucchetto ───────────────────────────────────────────────────────
+  /** Restituisce gli appuntamenti "UFF CHIUSO" su un preciso slot */
+  const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] => {
+    return appointments.filter(a =>
+      a.data === dateStr &&
+      a.sede_id === selectedSedeId &&
+      a.persona_id === personaId &&
+      a.ora_inizio.substring(0, 5) === slotLabel &&
+      (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO'
+    );
+  };
+
+  /** Lo slot è bloccato manualmente? */
+  const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
+    const s = appointments.filter(a =>
+      a.data === dateStr &&
+      a.sede_id === selectedSedeId &&
+      a.persona_id === personaId &&
+      a.ora_inizio.substring(0, 5) === slotLabel
+    );
+    return s.length > 0 && s.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
+  };
+
+  /** Click in editMode: blocca o sblocca lo slot */
+  const handleEditModeSlotClick = async (
+    dateStr: string,
+    slotLabel: string,
+    personaId: string,
+    day: Date,
+  ) => {
+    // Non bloccare slot con appuntamenti reali
+    const realApts = appointments.filter(a =>
+      a.data === dateStr &&
+      a.sede_id === selectedSedeId &&
+      a.persona_id === personaId &&
+      a.ora_inizio.substring(0, 5) === slotLabel &&
+      (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
+    );
+    if (realApts.length > 0) return;
+
+    const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
+    if (uffApts.length > 0) {
+      // Sblocca
+      for (const apt of uffApts) {
+        try {
+          const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+        } catch { alert('Errore durante lo sblocco'); return; }
+      }
+      await loadData();
+    } else {
+      // Blocca: determina ora_fine = slot successivo
+      const slots = getTimeSlotsForDay(day);
+      const endSlots = getEndTimeSlotsForDay(day);
+      const idx = slots.findIndex(s => s.label === slotLabel);
+      const oraFine = idx !== -1 && idx + 1 < endSlots.length
+        ? endSlots[idx + 1].label
+        : endSlots[endSlots.length - 1].label;
+      try {
+        const res = await fetch('/api/appuntamenti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona_id: personaId,
+            sede_id:    selectedSedeId,
+            data:       dateStr,
+            ora_inizio: slotLabel,
+            ora_fine:   oraFine,
+            cliente:    'UFF CHIUSO',
+            note:       '',
+          }),
+        });
+        if (!res.ok) throw new Error();
+        await loadData();
+      } catch { alert('Errore durante il blocco'); }
+    }
   };
 
   const scrollToDate = (date: Date) => {
@@ -619,7 +699,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             const dateStr      = formatDate(day);
             const isToday      = formatDate(new Date()) === dateStr;
             const isClosed     = isDayClosedForSede(day);
-            // slot specifici per questo giorno
             const dayTimeSlots = getTimeSlotsForDay(day);
             return (
               <React.Fragment key={dateStr}>
@@ -660,6 +739,25 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         const dayApts  = appointments.filter(apt =>
                           apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id
                         );
+                        const isUffC = isUffChiusoSlot(dateStr, slot.label, persona.id);
+
+                        // ── Slot bloccato manualmente ──
+                        if (isUffC) return (
+                          <td key={`${persona.id}-${slot.label}`}
+                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
+                              editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                            }`}
+                            style={{ height: '45px' }}
+                            title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                            onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
+                            <div className="w-full h-full flex items-center justify-center gap-1">
+                              <Lock size={9} className="text-gray-400" />
+                              <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                              {editMode && <Unlock size={9} className="text-gray-400 ml-1" />}
+                            </div>
+                          </td>
+                        );
+
                         return (
                           <td
                             key={`${persona.id}-${slot.label}`}
@@ -668,15 +766,25 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             }`}
                             style={{ height: '45px' }}
                           >
-                            <TimeSlot
-                              time={slot.label}
-                              appointments={slotApts}
-                              allDayAppointments={dayApts}
-                              onClick={apt => handleSlotClick(dateStr, slot.label, persona.id, apt)}
-                              onDragStart={handleDragStart}
-                              onDrop={t => handleDrop(dateStr, t, persona.id, day)}
-                              onDragOver={handleDragOver}
-                            />
+                            {editMode && slotApts.length === 0 ? (
+                              // ── Slot vuoto in editMode: clicca per bloccare ──
+                              <div
+                                onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
+                                className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 group transition-colors"
+                                title="Clicca per bloccare questo slot">
+                                <Lock size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            ) : (
+                              <TimeSlot
+                                time={slot.label}
+                                appointments={slotApts}
+                                allDayAppointments={dayApts}
+                                onClick={apt => !editMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
+                                onDragStart={handleDragStart}
+                                onDrop={t => handleDrop(dateStr, t, persona.id, day)}
+                                onDragOver={handleDragOver}
+                              />
+                            )}
                           </td>
                         );
                       })}
@@ -695,7 +803,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     personaSede.some(ps => ps.persona_id === p.id && ps.sede_id === selectedSedeId)
   );
 
-  // ─── label data e navigazione ───────────────────────────────────────────────
   const dateLabel = viewMode === 'daily'
     ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
     : format(selectedDate, 'MMMM yyyy', { locale: it });
@@ -755,6 +862,24 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   >
                     <LayoutGrid className="w-4 h-4 inline mr-1" />Mensile
                   </button>
+                </div>
+
+                {/* bottone lucchetto */}
+                <div className="relative group">
+                  <button
+                    onClick={() => setEditMode(e => !e)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
+                      editMode
+                        ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
+                        : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
+                    }`}
+                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}
+                  >
+                    {editMode ? <Unlock size={16} /> : <Lock size={16} />}
+                  </button>
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
+                    {editMode ? 'Esci dalla modifica' : 'Modifica slot'}
+                  </div>
                 </div>
 
                 {/* freccia sinistra */}
