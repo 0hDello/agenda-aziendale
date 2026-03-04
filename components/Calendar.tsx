@@ -47,7 +47,6 @@ const DAYS_FUTURE      = 10;
 const MAX_VISIBLE_DAYS = 14;
 const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
-const SCROLL_THRESHOLD = 400;
 const SSE_RELOAD_DEBOUNCE = 800;
 
 type ViewMode = 'daily' | 'monthly';
@@ -69,23 +68,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [draggedAppointment, setDraggedAppointment]   = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [realtimeFlash, setRealtimeFlash] = useState(false);
+  const [editMode, setEditMode]             = useState(false);
+  const [realtimeFlash, setRealtimeFlash]   = useState(false);
+  // Stesso pattern della VersioneCompleta: stato React con cooldown setTimeout
+  const [isLoadingMore, setIsLoadingMore]   = useState(false);
 
-  const scrollContainerRef        = useRef<HTMLDivElement>(null);
-  const scrollListenerAttachedRef = useRef(false);
-  const loadTimeoutRef            = useRef<NodeJS.Timeout | null>(null);
-  const visibleDaysRef            = useRef<Date[]>([]);
-  const handleScrollRef           = useRef<() => void>(() => {});
-  const sseReloadTimerRef         = useRef<NodeJS.Timeout | null>(null);
-
-  // isLoadingDaysRef: usato SOLO dentro loadMoreDays* per evitare doppi caricamenti.
-  // NON blocca handleScroll: la direzione deve sempre essere aggiornata.
-  const isLoadingDaysRef  = useRef(false);
-  const lastScrollTopRef  = useRef(0);
-  const lastDirectionRef  = useRef<'up' | 'down'>('down');
-
-  useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
 
   const selectedSede     = sedi.find(s => s.id === selectedSedeId) ?? null;
   const selectedSedeNome = selectedSede?.nome ?? '';
@@ -98,6 +87,66 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (isWeekend(day)) return true;
     return !isSedeWorkingDay(selectedSedeNome, day);
   };
+
+  // ─── Scroll infinito ─────────────────────────────────────────────────────────
+  // Stesso approccio della VersioneCompleta: il listener viene ricreato ad ogni
+  // cambio di visibleDays/isLoadingMore, nessun ref complesso.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || viewMode !== 'daily') return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+      // ── Scroll in avanti (>90%) ──────────────────────────────────────────────
+      if (scrollPercentage > 0.9 && !isLoadingMore) {
+        setIsLoadingMore(true);
+        setVisibleDays(prev => {
+          const lastDay = prev[prev.length - 1];
+          const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
+          let updated = [...prev, ...newDays];
+          if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
+          return updated;
+        });
+        setTimeout(() => setIsLoadingMore(false), 500);
+      }
+
+      // ── Scroll indietro (<10%) ───────────────────────────────────────────────
+      if (scrollPercentage < 0.1 && !isLoadingMore) {
+        const firstDay = visibleDays[0];
+        if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
+        const newDays: Date[] = [];
+        for (let i = DAYS_TO_LOAD; i > 0; i--) {
+          const d = subDays(firstDay, i);
+          if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
+        }
+        if (!newDays.length) return;
+
+        setIsLoadingMore(true);
+        const scrollHeightBefore = scrollHeight;
+        const scrollTopBefore    = scrollTop;
+
+        setVisibleDays(prev => {
+          let updated = [...newDays, ...prev];
+          if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
+          return updated;
+        });
+
+        // Compensazione posizione: eseguita dopo che React ha aggiornato il DOM
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const addedHeight = container.scrollHeight - scrollHeightBefore;
+            if (addedHeight > 0) container.scrollTop = scrollTopBefore + addedHeight;
+            setTimeout(() => setIsLoadingMore(false), 500);
+          });
+        });
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [visibleDays, isLoadingMore, viewMode]);
 
   // ─── Helpers lucchetto ───────────────────────────────────────────────────────
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
@@ -156,7 +205,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const containerRect = container.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
       container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
-      lastScrollTopRef.current = container.scrollTop;
     }
   };
 
@@ -181,138 +229,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [visibleDays]);
 
-  const loadMoreDaysForward = () => {
-    if (isLoadingDaysRef.current) return;
-    isLoadingDaysRef.current = true;
-    setVisibleDays(prev => {
-      const lastDay = prev[prev.length - 1];
-      const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
-      let updated = [...prev, ...newDays];
-      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
-      return updated;
-    });
-    requestAnimationFrame(() => { isLoadingDaysRef.current = false; });
-  };
-
-  const loadMoreDaysBackward = () => {
-    if (isLoadingDaysRef.current) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const firstDay = visibleDaysRef.current[0];
-    if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
-    const newDays: Date[] = [];
-    for (let i = DAYS_TO_LOAD; i > 0; i--) {
-      const d = subDays(firstDay, i);
-      if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
-    }
-    if (!newDays.length) return;
-
-    isLoadingDaysRef.current = true;
-    const scrollHeightBefore = container.scrollHeight;
-    const scrollTopBefore    = container.scrollTop;
-
-    setVisibleDays(prev => {
-      let updated = [...newDays, ...prev];
-      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
-      return updated;
-    });
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!container) { isLoadingDaysRef.current = false; return; }
-        const addedHeight = container.scrollHeight - scrollHeightBefore;
-        if (addedHeight > 0) {
-          container.scrollTop = scrollTopBefore + addedHeight;
-          // Sincronizza lastScrollTopRef con la nuova posizione compensata
-          // così il prossimo evento scroll user non vede un falso salto
-          lastScrollTopRef.current = container.scrollTop;
-        }
-        isLoadingDaysRef.current = false;
-      });
-    });
-  };
-
-  const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const currentScrollTop = container.scrollTop;
-
-    // Aggiorna SEMPRE direzione e lastScrollTop, anche durante il caricamento.
-    // Così non si perde mai il contesto di dove l'utente sta andando.
-    if (currentScrollTop !== lastScrollTopRef.current) {
-      lastDirectionRef.current = currentScrollTop < lastScrollTopRef.current ? 'up' : 'down';
-      lastScrollTopRef.current = currentScrollTop;
-    }
-
-    if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-    loadTimeoutRef.current = setTimeout(() => {
-      if (!container || isLoadingDaysRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-      const dir = lastDirectionRef.current;
-      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
-      else if (dir === 'up' && scrollTop < SCROLL_THRESHOLD)       loadMoreDaysBackward();
-    }, 80);
-  }, []);
-
-  useEffect(() => { handleScrollRef.current = handleScroll; }, [handleScroll]);
-
+  // Inizializzazione
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      setTimeout(() => {
-        const container = scrollContainerRef.current;
-        const dateStr = formatDate(selectedDate);
-        const el = container?.querySelector<HTMLElement>(`[data-date="${dateStr}"]`);
-        if (container && el) {
-          const thead = container.querySelector<HTMLElement>('thead');
-          const theadHeight = thead?.offsetHeight ?? 0;
-          const containerRect = container.getBoundingClientRect();
-          const elRect = el.getBoundingClientRect();
-          container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
-          lastScrollTopRef.current = container.scrollTop;
-        }
-        attachScrollListener();
-      }, 300);
+      setTimeout(() => scrollToDate(selectedDate), 300);
     }
   }, []);
-
-  const attachScrollListener = () => {
-    const container = scrollContainerRef.current;
-    if (!container || scrollListenerAttachedRef.current) return;
-    const stableHandler = () => handleScrollRef.current();
-    container.addEventListener('scroll', stableHandler, { passive: true });
-    scrollListenerAttachedRef.current = true;
-    (container as any).__scrollHandler = stableHandler;
-  };
-
-  const detachScrollListener = () => {
-    const container = scrollContainerRef.current;
-    if (!container || !scrollListenerAttachedRef.current) return;
-    const handler = (container as any).__scrollHandler;
-    if (handler) container.removeEventListener('scroll', handler);
-    scrollListenerAttachedRef.current = false;
-    delete (container as any).__scrollHandler;
-  };
-
-  useEffect(() => {
-    if (scrollContainerRef.current && !scrollListenerAttachedRef.current && isInitialized) attachScrollListener();
-    return () => {
-      detachScrollListener();
-      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-    };
-  }, [isInitialized]);
-
-  useEffect(() => {
-    if (viewMode === 'monthly') {
-      detachScrollListener();
-      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-    }
-    if (viewMode === 'daily' && !scrollListenerAttachedRef.current && isInitialized)
-      setTimeout(() => attachScrollListener(), 100);
-  }, [viewMode]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -663,6 +587,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               </React.Fragment>
             );
           })}
+          {isLoadingMore && (
+            <tr>
+              <td colSpan={sedePersone.length + 1} className="p-3 text-center text-xs text-gray-400">
+                Caricamento...
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
