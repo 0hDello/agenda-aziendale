@@ -74,15 +74,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
 
-  // ─── Lock scroll: puro useRef, mai nelle deps di useEffect ───────────────────
-  // Non causa re-render, non distrugge/ricrea mai il listener.
-  const isLoadingRef       = useRef(false);
-  // Ref che punta sempre alla versione aggiornata di visibleDays
-  // (necessario perché il listener è registrato una sola volta con deps [])
-  const visibleDaysRef     = useRef<Date[]>([]);
-  const viewModeRef        = useRef<ViewMode>('daily');
+  // Lock puro: mai nelle deps di useEffect, non causa re-render
+  const isLoadingRef   = useRef(false);
+  // Ref sempre aggiornati ai valori correnti di stato
+  const visibleDaysRef = useRef<Date[]>([]);
+  const viewModeRef    = useRef<ViewMode>('daily');
 
-  // Mantieni i ref sincronizzati con lo stato
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
 
@@ -99,78 +96,78 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── Scroll infinito ─────────────────────────────────────────────────────────
-  // Il listener viene registrato UNA SOLA VOLTA (deps: []).
-  // Il lock è un ref puro: nessun re-render, nessun cleanup accidentale.
+  // Dipende da [isInitialized]: scatta una volta sola dopo il primo render
+  // che monta il div scrollabile. Da quel momento il listener non viene mai
+  // più rimosso/ricreato (niente stati React nelle deps).
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!isInitialized) return;
 
-    const handleScroll = () => {
-      // Ignora se non siamo in vista giornaliera o se è già in corso un caricamento
-      if (viewModeRef.current !== 'daily' || isLoadingRef.current) return;
+    // Piccolo delay per lasciare al DOM il tempo di montare il div
+    const timer = setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
 
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const pct = (scrollTop + clientHeight) / scrollHeight;
+      const handleScroll = () => {
+        if (viewModeRef.current !== 'daily' || isLoadingRef.current) return;
 
-      // ── Forward: oltre il 90% ────────────────────────────────────────────────
-      if (pct > 0.9) {
-        isLoadingRef.current = true;
-        setVisibleDays(prev => {
-          const lastDay = prev[prev.length - 1];
-          const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
-          let updated = [...prev, ...newDays];
-          if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
-          return updated;
-        });
-        // Sblocca dopo un breve cooldown (il DOM si è già aggiornato)
-        setTimeout(() => { isLoadingRef.current = false; }, 400);
-        return;
-      }
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const pct = (scrollTop + clientHeight) / scrollHeight;
 
-      // ── Backward: meno del 10% ───────────────────────────────────────────────
-      if (pct < 0.1) {
-        const firstDay = visibleDaysRef.current[0];
-        if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
-
-        const newDays: Date[] = [];
-        for (let i = DAYS_TO_LOAD; i > 0; i--) {
-          const d = subDays(firstDay, i);
-          if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
-        }
-        if (!newDays.length) return;
-
-        isLoadingRef.current = true;
-        // Salva altezza e scrollTop PRIMA dell'aggiornamento React
-        const scrollHeightBefore = scrollHeight;
-        const scrollTopBefore    = scrollTop;
-
-        setVisibleDays(prev => {
-          let updated = [...newDays, ...prev];
-          if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
-          return updated;
-        });
-
-        // Compensazione: aspetta 2 frame affinché React abbia aggiornato il DOM
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const added = container.scrollHeight - scrollHeightBefore;
-            if (added > 0) {
-              // Imposta scrollTop senza che l'evento scroll venga riletto:
-              // isLoadingRef è ancora true in questo momento, quindi il listener
-              // lo ignora anche se scatta durante la modifica del scrollTop.
-              container.scrollTop = scrollTopBefore + added;
-            }
-            // Sblocca solo DOPO la compensazione
-            setTimeout(() => { isLoadingRef.current = false; }, 400);
+        // ── Forward >90% ────────────────────────────────────────────────────
+        if (pct > 0.9) {
+          isLoadingRef.current = true;
+          setVisibleDays(prev => {
+            const lastDay = prev[prev.length - 1];
+            const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
+            let updated = [...prev, ...newDays];
+            if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
+            return updated;
           });
-        });
-      }
-    };
+          setTimeout(() => { isLoadingRef.current = false; }, 400);
+          return;
+        }
 
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ← deps vuote: il listener non viene MAI ricreato
+        // ── Backward <10% ───────────────────────────────────────────────────
+        if (pct < 0.1) {
+          const firstDay = visibleDaysRef.current[0];
+          if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
+
+          const newDays: Date[] = [];
+          for (let i = DAYS_TO_LOAD; i > 0; i--) {
+            const d = subDays(firstDay, i);
+            if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
+          }
+          if (!newDays.length) return;
+
+          isLoadingRef.current = true;
+          const scrollHeightBefore = scrollHeight;
+          const scrollTopBefore    = scrollTop;
+
+          setVisibleDays(prev => {
+            let updated = [...newDays, ...prev];
+            if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
+            return updated;
+          });
+
+          // Compensazione: 2 frame dopo che React ha aggiornato il DOM
+          // isLoadingRef è ancora true quindi eventuali scroll events vengono ignorati
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              const added = container.scrollHeight - scrollHeightBefore;
+              if (added > 0) container.scrollTop = scrollTopBefore + added;
+              setTimeout(() => { isLoadingRef.current = false; }, 400);
+            });
+          });
+        }
+      };
+
+      container.addEventListener('scroll', handleScroll, { passive: true });
+      // Cleanup solo all'unmount del componente
+      return () => container.removeEventListener('scroll', handleScroll);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isInitialized]); // ← scatta una volta sola quando isInitialized diventa true
 
   // ─── Helpers lucchetto ───────────────────────────────────────────────────────
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
@@ -253,14 +250,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, []);
 
-  // Inizializzazione
+  // Inizializzazione: setta visibleDays e poi isInitialized (che trigghera il listener)
   useEffect(() => {
-    if (!isInitialized) {
-      const initial = buildWindowAround(selectedDate);
-      setVisibleDays(initial);
-      setIsInitialized(true);
-      setTimeout(() => scrollToDate(selectedDate), 300);
-    }
+    const initial = buildWindowAround(selectedDate);
+    setVisibleDays(initial);
+    setIsInitialized(true);
+    setTimeout(() => scrollToDate(selectedDate), 350);
   }, []);
 
   useEffect(() => { loadData(); }, []);
