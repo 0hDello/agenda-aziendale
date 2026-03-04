@@ -70,11 +70,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
-  // Stesso pattern della VersioneCompleta: stato React con cooldown setTimeout
-  const [isLoadingMore, setIsLoadingMore]   = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
+
+  // ─── Lock scroll: puro useRef, mai nelle deps di useEffect ───────────────────
+  // Non causa re-render, non distrugge/ricrea mai il listener.
+  const isLoadingRef       = useRef(false);
+  // Ref che punta sempre alla versione aggiornata di visibleDays
+  // (necessario perché il listener è registrato una sola volta con deps [])
+  const visibleDaysRef     = useRef<Date[]>([]);
+  const viewModeRef        = useRef<ViewMode>('daily');
+
+  // Mantieni i ref sincronizzati con lo stato
+  useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
+  useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
 
   const selectedSede     = sedi.find(s => s.id === selectedSedeId) ?? null;
   const selectedSedeNome = selectedSede?.nome ?? '';
@@ -89,19 +99,22 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── Scroll infinito ─────────────────────────────────────────────────────────
-  // Stesso approccio della VersioneCompleta: il listener viene ricreato ad ogni
-  // cambio di visibleDays/isLoadingMore, nessun ref complesso.
+  // Il listener viene registrato UNA SOLA VOLTA (deps: []).
+  // Il lock è un ref puro: nessun re-render, nessun cleanup accidentale.
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container || viewMode !== 'daily') return;
+    if (!container) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+      // Ignora se non siamo in vista giornaliera o se è già in corso un caricamento
+      if (viewModeRef.current !== 'daily' || isLoadingRef.current) return;
 
-      // ── Scroll in avanti (>90%) ──────────────────────────────────────────────
-      if (scrollPercentage > 0.9 && !isLoadingMore) {
-        setIsLoadingMore(true);
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const pct = (scrollTop + clientHeight) / scrollHeight;
+
+      // ── Forward: oltre il 90% ────────────────────────────────────────────────
+      if (pct > 0.9) {
+        isLoadingRef.current = true;
         setVisibleDays(prev => {
           const lastDay = prev[prev.length - 1];
           const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
@@ -109,13 +122,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
           return updated;
         });
-        setTimeout(() => setIsLoadingMore(false), 500);
+        // Sblocca dopo un breve cooldown (il DOM si è già aggiornato)
+        setTimeout(() => { isLoadingRef.current = false; }, 400);
+        return;
       }
 
-      // ── Scroll indietro (<10%) ───────────────────────────────────────────────
-      if (scrollPercentage < 0.1 && !isLoadingMore) {
-        const firstDay = visibleDays[0];
+      // ── Backward: meno del 10% ───────────────────────────────────────────────
+      if (pct < 0.1) {
+        const firstDay = visibleDaysRef.current[0];
         if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
+
         const newDays: Date[] = [];
         for (let i = DAYS_TO_LOAD; i > 0; i--) {
           const d = subDays(firstDay, i);
@@ -123,7 +139,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }
         if (!newDays.length) return;
 
-        setIsLoadingMore(true);
+        isLoadingRef.current = true;
+        // Salva altezza e scrollTop PRIMA dell'aggiornamento React
         const scrollHeightBefore = scrollHeight;
         const scrollTopBefore    = scrollTop;
 
@@ -133,12 +150,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           return updated;
         });
 
-        // Compensazione posizione: eseguita dopo che React ha aggiornato il DOM
+        // Compensazione: aspetta 2 frame affinché React abbia aggiornato il DOM
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            const addedHeight = container.scrollHeight - scrollHeightBefore;
-            if (addedHeight > 0) container.scrollTop = scrollTopBefore + addedHeight;
-            setTimeout(() => setIsLoadingMore(false), 500);
+            const added = container.scrollHeight - scrollHeightBefore;
+            if (added > 0) {
+              // Imposta scrollTop senza che l'evento scroll venga riletto:
+              // isLoadingRef è ancora true in questo momento, quindi il listener
+              // lo ignora anche se scatta durante la modifica del scrollTop.
+              container.scrollTop = scrollTopBefore + added;
+            }
+            // Sblocca solo DOPO la compensazione
+            setTimeout(() => { isLoadingRef.current = false; }, 400);
           });
         });
       }
@@ -146,7 +169,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [visibleDays, isLoadingMore, viewMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← deps vuote: il listener non viene MAI ricreato
 
   // ─── Helpers lucchetto ───────────────────────────────────────────────────────
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
@@ -221,18 +245,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const navigateToDate = useCallback((date: Date) => {
     setSelectedDate(date);
-    if (visibleDays.some(d => isSameDay(d, date))) {
+    if (visibleDaysRef.current.some(d => isSameDay(d, date))) {
       setTimeout(() => scrollToDate(date), 50);
     } else {
       setVisibleDays(buildWindowAround(date));
       setTimeout(() => scrollToDate(date), 200);
     }
-  }, [visibleDays]);
+  }, []);
 
   // Inizializzazione
   useEffect(() => {
     if (!isInitialized) {
-      setVisibleDays(buildWindowAround(selectedDate));
+      const initial = buildWindowAround(selectedDate);
+      setVisibleDays(initial);
       setIsInitialized(true);
       setTimeout(() => scrollToDate(selectedDate), 300);
     }
@@ -587,13 +612,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               </React.Fragment>
             );
           })}
-          {isLoadingMore && (
-            <tr>
-              <td colSpan={sedePersone.length + 1} className="p-3 text-center text-xs text-gray-400">
-                Caricamento...
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
     </div>
