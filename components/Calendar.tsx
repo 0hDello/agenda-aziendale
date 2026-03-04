@@ -114,7 +114,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         const pct = (scrollTop + clientHeight) / scrollHeight;
 
         // ── Forward >90% ────────────────────────────────────────────────────
-        if (pct > 0.9) {
+        if (pct > 0.85) {
           isLoadingRef.current = true;
           setVisibleDays(prev => {
             const lastDay = prev[prev.length - 1];
@@ -128,7 +128,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }
 
         // ── Backward <10% ───────────────────────────────────────────────────
-        if (pct < 0.1) {
+        if (scrollTop < 200) {
           const firstDay = visibleDaysRef.current[0];
           if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
