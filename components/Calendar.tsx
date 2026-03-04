@@ -50,6 +50,7 @@ const DAYS_TO_LOAD     = 3;
 const MIN_DATE         = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD = 400;
 const POST_COMPENSATE_COOLDOWN = 400;
+const SSE_RELOAD_DEBOUNCE = 800;
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
@@ -72,6 +73,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
   // ─── Modalità lucchetto ──────────────────────────────────────────────────────
   const [editMode, setEditMode] = useState(false);
+  // ─── Live / SSE ──────────────────────────────────────────────────────────────
+  const [realtimeFlash, setRealtimeFlash] = useState(false);
 
   const scrollContainerRef        = useRef<HTMLDivElement>(null);
   const isLoadingRef              = useRef(false);
@@ -85,6 +88,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const backwardCooldownRef       = useRef(false);
   const cooldownTimerRef          = useRef<NodeJS.Timeout | null>(null);
   const handleScrollRef           = useRef<() => void>(() => {});
+  const sseReloadTimerRef         = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -106,7 +110,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── Helpers lucchetto ───────────────────────────────────────────────────────
-  /** Restituisce gli appuntamenti "UFF CHIUSO" su un preciso slot */
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] => {
     return appointments.filter(a =>
       a.data === dateStr &&
@@ -117,7 +120,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  /** Lo slot è bloccato manualmente? */
   const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
     const s = appointments.filter(a =>
       a.data === dateStr &&
@@ -128,14 +130,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return s.length > 0 && s.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
   };
 
-  /** Click in editMode: blocca o sblocca lo slot */
   const handleEditModeSlotClick = async (
     dateStr: string,
     slotLabel: string,
     personaId: string,
     day: Date,
   ) => {
-    // Non bloccare slot con appuntamenti reali
     const realApts = appointments.filter(a =>
       a.data === dateStr &&
       a.sede_id === selectedSedeId &&
@@ -147,7 +147,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
     if (uffApts.length > 0) {
-      // Sblocca
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -156,7 +155,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       }
       await loadData();
     } else {
-      // Blocca: determina ora_fine = slot successivo
       const slots = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
       const idx = slots.findIndex(s => s.label === slotLabel);
@@ -345,8 +343,28 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => {
     loadData();
-    const id = setInterval(() => loadData(), 30000);
-    return () => clearInterval(id);
+  }, []);
+
+  // ─── SSE: aggiornamento in tempo reale ───────────────────────────────────────
+  useEffect(() => {
+    const es = new EventSource('/api/appuntamenti/events');
+    es.addEventListener('update', () => {
+      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
+      sseReloadTimerRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/appuntamenti');
+          const data = await res.json();
+          if (data) setAppointments(data);
+          setRealtimeFlash(true);
+          setTimeout(() => setRealtimeFlash(false), 1500);
+        } catch { /* silenzioso */ }
+      }, SSE_RELOAD_DEBOUNCE);
+    });
+    es.onerror = () => {};
+    return () => {
+      es.close();
+      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -410,7 +428,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      setTimeout(async () => { await loadData(); }, 300);
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
 
@@ -422,7 +439,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      setTimeout(async () => { await loadData(); }, 300);
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
 
@@ -431,7 +447,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       const res = await fetch(`/api/appuntamenti/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-      setTimeout(async () => { await loadData(); }, 300);
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
 
@@ -498,7 +513,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         }),
       });
       if (!res.ok) throw new Error();
-      await loadData();
     } catch { alert('Errore imprevisto'); }
     setDraggedAppointment(null);
   };
@@ -741,7 +755,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         );
                         const isUffC = isUffChiusoSlot(dateStr, slot.label, persona.id);
 
-                        // ── Slot bloccato manualmente ──
                         if (isUffC) return (
                           <td key={`${persona.id}-${slot.label}`}
                             className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
@@ -767,7 +780,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             style={{ height: '45px' }}
                           >
                             {editMode && slotApts.length === 0 ? (
-                              // ── Slot vuoto in editMode: clicca per bloccare ──
                               <div
                                 onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
                                 className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 group transition-colors"
@@ -836,8 +848,20 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   <CalendarIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-[#005CA9]">Agenda 730</h1>
-                  {/*<p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>*/}
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-[#005CA9]">Agenda 730</h1>
+                    {/* Badge live */}
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                      realtimeFlash
+                        ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                        : 'bg-gray-50 text-gray-400 border border-gray-200'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                      }`} />
+                      {realtimeFlash ? 'Aggiornato' : 'Live'}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -909,8 +933,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 >
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
-
-                
 
                 {/* selezione sede */}
                 <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
