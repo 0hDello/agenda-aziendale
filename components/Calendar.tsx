@@ -99,21 +99,26 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   // Dipende da [isInitialized]: scatta una volta sola dopo il primo render
   // che monta il div scrollabile. Da quel momento il listener non viene mai
   // più rimosso/ricreato (niente stati React nelle deps).
-  useEffect(() => {
-    if (!isInitialized) return;
+useEffect(() => {
+  if (!isInitialized) return;
 
-    // Piccolo delay per lasciare al DOM il tempo di montare il div
-    const timer = setTimeout(() => {
-      const container = scrollContainerRef.current;
-      if (!container) return;
+  const timer = setTimeout(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-      const handleScroll = () => {
-        if (viewModeRef.current !== 'daily' || isLoadingRef.current) return;
+    let debounceTimer: NodeJS.Timeout | null = null;
+
+    const handleScroll = () => {
+      if (viewModeRef.current !== 'daily') return;
+      if (isLoadingRef.current) return;
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (isLoadingRef.current) return;
 
         const { scrollTop, scrollHeight, clientHeight } = container;
         const pct = (scrollTop + clientHeight) / scrollHeight;
 
-        // ── Forward >90% ────────────────────────────────────────────────────
         if (pct > 0.85) {
           isLoadingRef.current = true;
           setVisibleDays(prev => {
@@ -123,11 +128,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
             return updated;
           });
-          setTimeout(() => { isLoadingRef.current = false; }, 400);
+          setTimeout(() => { isLoadingRef.current = false; }, 500);
           return;
         }
 
-        // ── Backward <10% ───────────────────────────────────────────────────
         if (scrollTop < 200) {
           const firstDay = visibleDaysRef.current[0];
           if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
@@ -149,25 +153,26 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             return updated;
           });
 
-          // Compensazione: 2 frame dopo che React ha aggiornato il DOM
-          // isLoadingRef è ancora true quindi eventuali scroll events vengono ignorati
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               const added = container.scrollHeight - scrollHeightBefore;
               if (added > 0) container.scrollTop = scrollTopBefore + added;
-              setTimeout(() => { isLoadingRef.current = false; }, 400);
+              setTimeout(() => { isLoadingRef.current = false; }, 500);
             });
           });
         }
-      };
+      }, 150); // aspetta 150ms di silenzio prima di agire
+    };
 
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      // Cleanup solo all'unmount del componente
-      return () => container.removeEventListener('scroll', handleScroll);
-    }, 100);
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, 100);
 
-    return () => clearTimeout(timer);
-  }, [isInitialized]); // ← scatta una volta sola quando isInitialized diventa true
+  return () => clearTimeout(timer);
+}, [isInitialized]);
 
   // ─── Helpers lucchetto ───────────────────────────────────────────────────────
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
