@@ -25,7 +25,7 @@ const TIME_SLOTS_IMOLA_LMM = [
   { hour: 11, minute: 0,  label: '11:00' },
   { hour: 11, minute: 30, label: '11:30' },
   { hour: 12, minute: 0,  label: '12:00' },
-  { hour: 12, minute: 30, label: '12:30' },
+
   { hour: 14, minute: 0,  label: '14:00' },
   { hour: 14, minute: 30, label: '14:30' },
   { hour: 15, minute: 0,  label: '15:00' },
