@@ -79,13 +79,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleScrollRef           = useRef<() => void>(() => {});
   const sseReloadTimerRef         = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Stato scroll semplificato ---
-  // Unico flag: stiamo caricando giorni? (previene caricamenti doppi)
-  const isLoadingDaysRef      = useRef(false);
-  // Quanti px aggiungere allo scrollTop dopo il prossimo paint (compensazione backward)
-  const pendingScrollDeltaRef = useRef(0);
-  // Ultimo scrollTop visto dall'utente (per rilevare direzione)
-  const lastScrollTopRef      = useRef(0);
+  // isLoadingDaysRef: usato SOLO dentro loadMoreDays* per evitare doppi caricamenti.
+  // NON blocca handleScroll: la direzione deve sempre essere aggiornata.
+  const isLoadingDaysRef  = useRef(false);
+  const lastScrollTopRef  = useRef(0);
+  const lastDirectionRef  = useRef<'up' | 'down'>('down');
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
 
@@ -219,16 +217,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       return updated;
     });
 
-    // Dopo che React ha aggiornato il DOM, compensiamo lo scrollTop
-    // in modo che la posizione visiva rimanga invariata.
-    // Non usiamo nessun cooldown: l'utente può scrollare liberamente subito dopo.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (!container) { isLoadingDaysRef.current = false; return; }
         const addedHeight = container.scrollHeight - scrollHeightBefore;
         if (addedHeight > 0) {
-          // Sposta silenziosamente senza emettere eventi scroll
           container.scrollTop = scrollTopBefore + addedHeight;
+          // Sincronizza lastScrollTopRef con la nuova posizione compensata
+          // così il prossimo evento scroll user non vede un falso salto
           lastScrollTopRef.current = container.scrollTop;
         }
         isLoadingDaysRef.current = false;
@@ -241,21 +237,22 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!container) return;
 
     const currentScrollTop = container.scrollTop;
-    const direction: 'up' | 'down' = currentScrollTop < lastScrollTopRef.current ? 'up' : 'down';
-    lastScrollTopRef.current = currentScrollTop;
 
-    // Ignora eventi scroll generati dalla compensazione programmatica:
-    // dopo container.scrollTop = X il browser emette un evento scroll,
-    // ma in quel caso isLoadingDaysRef è ancora true → usciamo.
-    if (isLoadingDaysRef.current) return;
+    // Aggiorna SEMPRE direzione e lastScrollTop, anche durante il caricamento.
+    // Così non si perde mai il contesto di dove l'utente sta andando.
+    if (currentScrollTop !== lastScrollTopRef.current) {
+      lastDirectionRef.current = currentScrollTop < lastScrollTopRef.current ? 'up' : 'down';
+      lastScrollTopRef.current = currentScrollTop;
+    }
 
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
     loadTimeoutRef.current = setTimeout(() => {
       if (!container || isLoadingDaysRef.current) return;
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-      if (direction === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
-      else if (direction === 'up' && scrollTop < SCROLL_THRESHOLD)      loadMoreDaysBackward();
+      const dir = lastDirectionRef.current;
+      if (dir === 'down' && distanceFromBottom < SCROLL_THRESHOLD) loadMoreDaysForward();
+      else if (dir === 'up' && scrollTop < SCROLL_THRESHOLD)       loadMoreDaysBackward();
     }, 80);
   }, []);
 
@@ -416,7 +413,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleDrop = async (date: string, newTime: string, personaId: string, day: Date) => {
     if (!draggedAppointment) return;
     const { appointment, originalTime } = draggedAppointment;
-    const slots   = getTimeSlotsForDay(day);
+    const slots    = getTimeSlotsForDay(day);
     const endSlots = getEndTimeSlotsForDay(day);
     const origIdx  = slots.findIndex(s => s.label === originalTime);
     const newIdx   = slots.findIndex(s => s.label === newTime);
@@ -535,7 +532,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           {weeks.map((week, wIdx) => (
             <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
               {week.map((day, dIdx) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
+                const dateStr    = format(day, 'yyyy-MM-dd');
                 const isThisMonth = getMonth(day) === getMonth(selectedDate);
                 if (!isThisMonth) return (<div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${ dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50' }`} />);
                 const isToday  = format(new Date(), 'yyyy-MM-dd') === dateStr;
