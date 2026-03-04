@@ -42,12 +42,16 @@ interface CalendarProps {
   agendaId?: string;
 }
 
-const DAYS_PAST        = 3;
-const DAYS_FUTURE      = 10;
-const MAX_VISIBLE_DAYS = 14;
-const DAYS_TO_LOAD     = 3;
-const MIN_DATE         = new Date(2020, 0, 1);
-const SSE_RELOAD_DEBOUNCE = 800;
+// ─── Costanti scroll (identiche a EpasaCalendar) ────────────────────────────
+const DAYS_PAST             = 3;
+const DAYS_FUTURE           = 10;
+const MAX_VISIBLE_DAYS      = 30;
+const DAYS_TO_LOAD          = 5;
+const MIN_DATE              = new Date(2020, 0, 1);
+const SCROLL_THRESHOLD_FW   = 400;
+const SCROLL_THRESHOLD_BK   = 200;
+const STICKY_HEADER_HEIGHT  = 41;
+const SSE_RELOAD_DEBOUNCE   = 800;
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
@@ -71,14 +75,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
-
-  // Lock puro: mai nelle deps di useEffect, non causa re-render
-  const isLoadingRef   = useRef(false);
-  // Ref sempre aggiornati ai valori correnti di stato
-  const visibleDaysRef = useRef<Date[]>([]);
-  const viewModeRef    = useRef<ViewMode>('daily');
+  // ─── Refs (identici a EpasaCalendar) ────────────────────────────────────────
+  const scrollContainerRef  = useRef<HTMLDivElement>(null);
+  const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
+  const visibleDaysRef      = useRef<Date[]>([]);
+  const viewModeRef         = useRef<ViewMode>('daily');
+  const loadingDirRef       = useRef<'idle' | 'fw' | 'bk'>('idle');
+  const anchorDateStrRef    = useRef<string | null>(null);
+  const anchorScrollTopRef  = useRef<number | null>(null);
+  const anchorOffsetTopRef  = useRef<number | null>(null);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
@@ -95,143 +100,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return !isSedeWorkingDay(selectedSedeNome, day);
   };
 
-  // ─── Scroll infinito ─────────────────────────────────────────────────────────
-  // Dipende da [isInitialized]: scatta una volta sola dopo il primo render
-  // che monta il div scrollabile. Da quel momento il listener non viene mai
-  // più rimosso/ricreato (niente stati React nelle deps).
-useEffect(() => {
-  if (!isInitialized) return;
-
-  const timer = setTimeout(() => {
+  // ─── Scroll helpers (identici a EpasaCalendar) ──────────────────────────────
+  const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const container = scrollContainerRef.current;
-    if (!container) return;
-
-    let debounceTimer: NodeJS.Timeout | null = null;
-
-    const handleScroll = () => {
-      if (viewModeRef.current !== 'daily') return;
-      if (isLoadingRef.current) return;
-
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        if (isLoadingRef.current) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        const pct = (scrollTop + clientHeight) / scrollHeight;
-
-        if (pct > 0.85) {
-          isLoadingRef.current = true;
-          setVisibleDays(prev => {
-            const lastDay = prev[prev.length - 1];
-            const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(lastDay, i + 1));
-            let updated = [...prev, ...newDays];
-            if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
-            return updated;
-          });
-          setTimeout(() => { isLoadingRef.current = false; }, 500);
-          return;
-        }
-
-        if (scrollTop < 200) {
-          const firstDay = visibleDaysRef.current[0];
-          if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
-
-          const newDays: Date[] = [];
-          for (let i = DAYS_TO_LOAD; i > 0; i--) {
-            const d = subDays(firstDay, i);
-            if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
-          }
-          if (!newDays.length) return;
-
-          isLoadingRef.current = true;
-          const scrollHeightBefore = scrollHeight;
-          const scrollTopBefore    = scrollTop;
-
-          setVisibleDays(prev => {
-            let updated = [...newDays, ...prev];
-            if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
-            return updated;
-          });
-
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              const added = container.scrollHeight - scrollHeightBefore;
-              if (added > 0) container.scrollTop = scrollTopBefore + added;
-              setTimeout(() => { isLoadingRef.current = false; }, 500);
-            });
-          });
-        }
-      }, 150); // aspetta 150ms di silenzio prima di agire
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      if (debounceTimer) clearTimeout(debounceTimer);
-    };
-  }, 100);
-
-  return () => clearTimeout(timer);
-}, [isInitialized]);
-
-  // ─── Helpers lucchetto ───────────────────────────────────────────────────────
-  const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
-    appointments.filter(a =>
-      a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
-      a.ora_inizio.substring(0, 5) === slotLabel &&
-      (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO'
-    );
-
-  const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
-    const s = appointments.filter(a =>
-      a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
-      a.ora_inizio.substring(0, 5) === slotLabel
-    );
-    return s.length > 0 && s.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
-  };
-
-  const handleEditModeSlotClick = async (dateStr: string, slotLabel: string, personaId: string, day: Date) => {
-    const realApts = appointments.filter(a =>
-      a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
-      a.ora_inizio.substring(0, 5) === slotLabel &&
-      (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
-    );
-    if (realApts.length > 0) return;
-    const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
-    if (uffApts.length > 0) {
-      for (const apt of uffApts) {
-        try {
-          const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error();
-        } catch { alert('Errore durante lo sblocco'); return; }
-      }
-      await loadData();
-    } else {
-      const slots = getTimeSlotsForDay(day);
-      const endSlots = getEndTimeSlotsForDay(day);
-      const idx = slots.findIndex(s => s.label === slotLabel);
-      const oraFine = idx !== -1 && idx + 1 < endSlots.length ? endSlots[idx + 1].label : endSlots[endSlots.length - 1].label;
-      try {
-        const res = await fetch('/api/appuntamenti', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' }),
-        });
-        if (!res.ok) throw new Error();
-        await loadData();
-      } catch { alert('Errore durante il blocco'); }
-    }
-  };
-
-  const scrollToDate = (date: Date) => {
-    const container = scrollContainerRef.current;
-    const el = container?.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
-    if (container && el) {
-      const thead = container.querySelector<HTMLElement>('thead');
-      const theadHeight = thead?.offsetHeight ?? 0;
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      container.scrollTop += (elRect.top - containerRect.top) - theadHeight;
-    }
+    const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
+    if (!el || !container) return;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const scrollOffset = elRect.top - containerRect.top + container.scrollTop - STICKY_HEADER_HEIGHT;
+    container.scrollTo({ top: scrollOffset, behavior });
   };
 
   const buildWindowAround = (center: Date): Date[] => {
@@ -248,24 +125,138 @@ useEffect(() => {
   const navigateToDate = useCallback((date: Date) => {
     setSelectedDate(date);
     if (visibleDaysRef.current.some(d => isSameDay(d, date))) {
-      setTimeout(() => scrollToDate(date), 50);
+      setTimeout(() => scrollToDate(date, 'smooth'), 50);
     } else {
       setVisibleDays(buildWindowAround(date));
-      setTimeout(() => scrollToDate(date), 200);
+      setTimeout(() => scrollToDate(date, 'instant'), 200);
     }
   }, []);
 
-  // Inizializzazione: setta visibleDays e poi isInitialized (che trigghera il listener)
+  const loadMoreDaysForward = useCallback(() => {
+    if (loadingDirRef.current !== 'idle') return;
+    loadingDirRef.current = 'fw';
+    setVisibleDays(prev => {
+      const last = prev[prev.length - 1];
+      const newDays = Array.from({ length: DAYS_TO_LOAD }, (_, i) => addDays(last, i + 1));
+      let updated = [...prev, ...newDays];
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(updated.length - MAX_VISIBLE_DAYS);
+      return updated;
+    });
+  }, []);
+
+  const loadMoreDaysBackward = useCallback(() => {
+    if (loadingDirRef.current !== 'idle') return;
+    const days = visibleDaysRef.current;
+    const firstDay = days[0];
+    if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
+
+    const container = scrollContainerRef.current;
+
+    // Trova l'anchor visibile e salva offsetTop assoluto nel contenitore
+    let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
+    let anchorOffsetTop = 0;
+    if (container) {
+      const containerTop = container.getBoundingClientRect().top;
+      const rows = container.querySelectorAll<HTMLElement>('[data-date]');
+      for (const row of Array.from(rows)) {
+        if (row.getBoundingClientRect().top >= containerTop - 5) {
+          const ds = row.getAttribute('data-date');
+          if (ds) {
+            anchorDateStr   = ds;
+            anchorOffsetTop = row.offsetTop;
+            break;
+          }
+        }
+      }
+    }
+
+    anchorDateStrRef.current   = anchorDateStr;
+    anchorOffsetTopRef.current = anchorOffsetTop;
+    anchorScrollTopRef.current = container ? container.scrollTop : 0;
+    loadingDirRef.current = 'bk';
+
+    const newDays: Date[] = [];
+    for (let i = DAYS_TO_LOAD; i > 0; i--) {
+      const d = subDays(firstDay, i);
+      if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
+    }
+    if (newDays.length === 0) { loadingDirRef.current = 'idle'; return; }
+
+    setVisibleDays(prev => {
+      let updated = [...newDays, ...prev];
+      if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
+      return updated;
+    });
+  }, []);
+
+  // Ripristina la posizione di scroll dopo ogni render dei nuovi giorni
+  const ldEff = useCallback(() => {
+    const dir = loadingDirRef.current;
+    if (dir === 'idle') return;
+    if (dir === 'bk') {
+      const anchorDate    = anchorDateStrRef.current;
+      const prevScrollTop = anchorScrollTopRef.current ?? 0;
+      const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
+      const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (anchorDate) {
+          const container = scrollContainerRef.current;
+          const el = document.querySelector<HTMLElement>(`[data-date="${anchorDate}"]`);
+          if (el && container) {
+            const newOffsetTop = el.offsetTop;
+            container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
+          }
+        }
+        anchorDateStrRef.current   = null;
+        anchorOffsetTopRef.current = null;
+        anchorScrollTopRef.current = null;
+        loadingDirRef.current = 'idle';
+      }));
+    } else {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        loadingDirRef.current = 'idle';
+      }));
+    }
+  }, []);
+  useEffect(ldEff, [visibleDays]);
+
+  const onScroll = useCallback(() => {
+    if (viewModeRef.current !== 'daily') return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_FW) {
+      loadMoreDaysForward();
+    }
+    if (scrollTop < SCROLL_THRESHOLD_BK) {
+      loadMoreDaysBackward();
+    }
+  }, [loadMoreDaysForward, loadMoreDaysBackward]);
+
+  // Callback ref: attacca/stacca il listener direttamente sul DOM
+  const setScrollRef = useCallback((el: HTMLDivElement | null) => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.removeEventListener('scroll', onScroll);
+    }
+    (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    if (el) {
+      el.addEventListener('scroll', onScroll, { passive: true });
+    }
+  }, [onScroll]);
+
+  // Inizializzazione
   useEffect(() => {
-    const initial = buildWindowAround(selectedDate);
-    setVisibleDays(initial);
-    setIsInitialized(true);
-    setTimeout(() => scrollToDate(selectedDate), 350);
+    if (!isInitialized) {
+      setVisibleDays(buildWindowAround(selectedDate));
+      setIsInitialized(true);
+      setTimeout(() => scrollToDate(selectedDate, 'instant'), 200);
+    }
   }, []);
 
   useEffect(() => { loadData(); }, []);
 
-  // ─── SSE ─────────────────────────────────────────────────────────────────────
+  // ─── SSE ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/appuntamenti/events');
     es.addEventListener('update', () => {
@@ -344,6 +335,54 @@ useEffect(() => {
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
 
+  // ─── Helpers lucchetto ───────────────────────────────────────────────────────
+  const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
+    appointments.filter(a =>
+      a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
+      a.ora_inizio.substring(0, 5) === slotLabel &&
+      (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO'
+    );
+
+  const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
+    const s = appointments.filter(a =>
+      a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
+      a.ora_inizio.substring(0, 5) === slotLabel
+    );
+    return s.length > 0 && s.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
+  };
+
+  const handleEditModeSlotClick = async (dateStr: string, slotLabel: string, personaId: string, day: Date) => {
+    const realApts = appointments.filter(a =>
+      a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
+      a.ora_inizio.substring(0, 5) === slotLabel &&
+      (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
+    );
+    if (realApts.length > 0) return;
+    const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
+    if (uffApts.length > 0) {
+      for (const apt of uffApts) {
+        try {
+          const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+        } catch { alert('Errore durante lo sblocco'); return; }
+      }
+      await loadData();
+    } else {
+      const slots = getTimeSlotsForDay(day);
+      const endSlots = getEndTimeSlotsForDay(day);
+      const idx = slots.findIndex(s => s.label === slotLabel);
+      const oraFine = idx !== -1 && idx + 1 < endSlots.length ? endSlots[idx + 1].label : endSlots[endSlots.length - 1].label;
+      try {
+        const res = await fetch('/api/appuntamenti', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' }),
+        });
+        if (!res.ok) throw new Error();
+        await loadData();
+      } catch { alert('Errore durante il blocco'); }
+    }
+  };
+
   const handleSlotClick = (date: string, time: string, personaId: string, existingAppointment?: Appuntamento) => {
     if (existingAppointment) { setSelectedAppointment(existingAppointment); }
     else { setSelectedAppointment(null); setSelectedSlot({ date, time, personaId }); }
@@ -392,7 +431,7 @@ useEffect(() => {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ─── helpers mensile ─────────────────────────────────────────────────────────
+  // ─── helpers mensile ────────────────────────────────────────────────────────
   const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
     if (isDayClosedForSede(day)) return 'closed';
     const slots = getTimeSlotsForDay(day);
@@ -520,100 +559,106 @@ useEffect(() => {
 
   // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
   const renderDailyView = () => (
-    <div ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
-      <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-        <thead className="sticky top-0 z-20">
-          <tr className="border-b-2 border-[#005CA9]/20">
-            <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-              <span className="text-[#005CA9]">Orario</span>
-            </th>
-            {sedePersone.map(persona => (
-              <th key={persona.id} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]">
-                <div className="flex items-center justify-center gap-1.5">
-                  <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
-                  <span className="text-[#005CA9]">{persona.nome}</span>
-                </div>
+    <div>
+      <div
+        ref={setScrollRef}
+        className="overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - 107px)' }}
+      >
+        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b-2 border-[#005CA9]/20">
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                <span className="text-[#005CA9]">Orario</span>
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {visibleDays.map(day => {
-            const dateStr      = formatDate(day);
-            const isToday      = formatDate(new Date()) === dateStr;
-            const isClosed     = isDayClosedForSede(day);
-            const dayTimeSlots = getTimeSlotsForDay(day);
-            return (
-              <React.Fragment key={dateStr}>
-                <tr data-date={dateStr}>
-                  <td colSpan={sedePersone.length + 1}
-                    className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
-                    {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                    {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
-                  </td>
-                </tr>
-                {isClosed ? (
-                  <tr>
-                    <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
-                      <div className="flex items-center justify-center gap-2 text-gray-400">
-                        <Lock size={14} />
-                        <span className="text-xs font-medium">{isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}</span>
-                      </div>
+              {sedePersone.map(persona => (
+                <th key={persona.id} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
+                    <span className="text-[#005CA9]">{persona.nome}</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleDays.map(day => {
+              const dateStr      = formatDate(day);
+              const isToday      = formatDate(new Date()) === dateStr;
+              const isClosed     = isDayClosedForSede(day);
+              const dayTimeSlots = getTimeSlotsForDay(day);
+              return (
+                <React.Fragment key={dateStr}>
+                  <tr data-date={dateStr}>
+                    <td colSpan={sedePersone.length + 1}
+                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
+                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                      {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
                     </td>
                   </tr>
-                ) : (
-                  dayTimeSlots.map(slot => (
-                    <tr key={`${dateStr}-${slot.label}`}>
-                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                        <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
+                  {isClosed ? (
+                    <tr>
+                      <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
+                        <div className="flex items-center justify-center gap-2 text-gray-400">
+                          <Lock size={14} />
+                          <span className="text-xs font-medium">{isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}</span>
+                        </div>
                       </td>
-                      {sedePersone.map(persona => {
-                        const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
-                        const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
-                        const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
-                        if (isUffC) return (
-                          <td key={`${persona.id}-${slot.label}`}
-                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none' }`}
-                            style={{ height: '45px' }}
-                            title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                            onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
-                            <div className="w-full h-full flex items-center justify-center gap-1">
-                              <Lock size={9} className="text-gray-400" />
-                              <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                              {editMode && <Unlock size={9} className="text-gray-400 ml-1" />}
-                            </div>
-                          </td>
-                        );
-                        return (
-                          <td key={`${persona.id}-${slot.label}`}
-                            className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
-                            style={{ height: '45px' }}>
-                            {editMode && slotApts.length === 0 ? (
-                              <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
-                                className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 group transition-colors"
-                                title="Clicca per bloccare questo slot">
-                                <Lock size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            ) : (
-                              <TimeSlot
-                                time={slot.label} appointments={slotApts} allDayAppointments={dayApts}
-                                onClick={apt => !editMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
-                                onDragStart={handleDragStart}
-                                onDrop={t => handleDrop(dateStr, t, persona.id, day)}
-                                onDragOver={handleDragOver}
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
                     </tr>
-                  ))
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                  ) : (
+                    dayTimeSlots.map(slot => (
+                      <tr key={`${dateStr}-${slot.label}`}>
+                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                          <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
+                        </td>
+                        {sedePersone.map(persona => {
+                          const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
+                          const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
+                          const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
+                          if (isUffC) return (
+                            <td key={`${persona.id}-${slot.label}`}
+                              className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none' }`}
+                              style={{ height: '45px' }}
+                              title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                              onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
+                              <div className="w-full h-full flex items-center justify-center gap-1">
+                                <Lock size={9} className="text-gray-400" />
+                                <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
+                                {editMode && <Unlock size={9} className="text-gray-400 ml-1" />}
+                              </div>
+                            </td>
+                          );
+                          return (
+                            <td key={`${persona.id}-${slot.label}`}
+                              className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
+                              style={{ height: '45px' }}>
+                              {editMode && slotApts.length === 0 ? (
+                                <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
+                                  className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 group transition-colors"
+                                  title="Clicca per bloccare questo slot">
+                                  <Lock size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              ) : (
+                                <TimeSlot
+                                  time={slot.label} appointments={slotApts} allDayAppointments={dayApts}
+                                  onClick={apt => !editMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
+                                  onDragStart={handleDragStart}
+                                  onDrop={t => handleDrop(dateStr, t, persona.id, day)}
+                                  onDragOver={handleDragOver}
+                                />
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 
