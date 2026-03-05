@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,161 +10,154 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #E6F2FF 0%, #F5F8FA 100%);
-  min-height: 100vh;
+html, body {
+  height: 100%;
 }
 
-/* Layout pagina agenda integrato */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #f4f6f8;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ── Animazioni ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-slide-in { animation: fadeUp 0.28s cubic-bezier(.4,0,.2,1) both; }
+.animate-fade-in  { animation: fadeIn 0.2s ease both; }
+
+/* ── Layout pagina ── */
 .agenda-page-wrapper {
   min-height: 100vh;
-  background: linear-gradient(135deg, #E6F2FF 0%, #F5F8FA 100%);
+  background-color: #f4f6f8;
+  padding: 16px;
   display: flex;
   flex-direction: column;
 }
 
-/* Scrollbar personalizzata CNA */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ── Card principale ── */
+.agenda-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.05);
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
+/* ── Topbar ── */
+.agenda-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 20px;
+  flex-shrink: 0;
 }
 
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #005CA9 0%, #004080 100%);
-  border-radius: 4px;
+/* ── Intestazione colonne ── */
+.agenda-col-header th {
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #004080;
+/* ── Separatore giorno ── */
+.agenda-day-row td {
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-/* Animazioni */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.agenda-day-row-today td {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-left: 3px solid #2563eb;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.agenda-day-row-closed td {
+  background: #f9fafb;
+  color: #9ca3af;
 }
 
-.animate-slide-in {
-  animation: slideIn 0.35s ease-out;
+/* ── Colonna orario ── */
+.time-col {
+  background: #fafafa;
+  border-right: 1px solid #e5e7eb;
+  width: 64px;
+  padding: 0 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #9ca3af;
+  text-align: right;
+  white-space: nowrap;
+  user-select: none;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.25s ease-out;
-}
-
-.appointment-hover {
-  background-color: #D1E7FF !important;
-}
-
-/* Fix per i bordi delle celle con appuntamenti */
+/* ── Celle slot ── */
 table tbody td {
   position: relative;
   vertical-align: top;
 }
 
-/* Card agenda integrata nella pagina */
-.agenda-card {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow:
-    0 1px 3px rgba(0,92,169,0.06),
-    0 4px 16px rgba(0,92,169,0.10),
-    0 0 0 1px rgba(0,92,169,0.08);
-  border-top: 4px solid #005CA9;
-  overflow: hidden;
-  transition: box-shadow 0.2s ease;
+/* hover riga */
+tbody tr:hover .slot-cell {
+  background-color: #f9fafb;
 }
 
-/* Header dell'agenda con sfondo sfumato */
-.agenda-header {
-  background: linear-gradient(to right, #ffffff, #f0f7ff);
-  border-bottom: 1px solid rgba(0,92,169,0.12);
-  padding: 14px 20px;
+/* ── Slot uff. chiuso ── */
+.slot-uff-chiuso {
+  background: repeating-linear-gradient(
+    45deg,
+    #f9fafb,
+    #f9fafb 4px,
+    #f3f4f6 4px,
+    #f3f4f6 8px
+  ) !important;
 }
 
-/* Riga intestazione colonne */
-.agenda-col-header {
-  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
-  border-bottom: 2px solid rgba(0,92,169,0.15);
+/* ── Hover appuntamento ── */
+.appointment-hover {
+  background-color: #eff6ff !important;
+  transition: background-color 0.12s ease;
 }
 
-/* Riga data (separatore giorni) */
-.agenda-day-row {
-  background: linear-gradient(to right, #005CA9, #0070cc);
-  color: white;
-  font-weight: 700;
-  font-size: 0.8rem;
-  letter-spacing: 0.03em;
-  text-transform: capitalize;
-}
-
-.agenda-day-row-closed {
-  background: #e5e7eb;
-  color: #6b7280;
-}
-
-.agenda-day-row-today {
-  background: linear-gradient(to right, #003d70, #005CA9);
-}
-
-/* Ombra per il resize preview (estensione) */
-.resize-preview {
-  position: relative;
-}
-
+/* ── Resize preview ── */
+.resize-preview { position: relative; }
 .resize-preview::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-color: rgba(0, 92, 169, 0.18);
-  border-left: 3px solid rgba(0, 92, 169, 0.5);
+  background-color: rgba(37,99,235,0.08);
+  border-left: 2px solid #2563eb;
   pointer-events: none;
   z-index: 5;
 }
 
-/* Ombra per il resize shrink (riduzione) */
-.resize-shrink {
-  position: relative;
-  opacity: 0.4 !important;
-}
-
+/* ── Resize shrink ── */
+.resize-shrink { position: relative; opacity: 0.35 !important; }
 .resize-shrink::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-color: rgba(239, 68, 68, 0.25);
+  background-color: rgba(239,68,68,0.15);
   pointer-events: none;
   z-index: 5;
-}
-
-/* Stile righe orario zebra leggero */
-tbody tr:nth-child(even) td:not([colspan]) {
-  background-color: rgba(245, 248, 250, 0.6);
-}
-
-/* Hover su celle vuote */
-tbody tr:hover td:not([colspan]):not(.bg-gray-100) {
-  background-color: rgba(230, 242, 255, 0.5);
-  transition: background-color 0.15s ease;
 }
