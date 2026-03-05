@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, User } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Appuntamento } from '@/lib/types';
@@ -35,7 +35,6 @@ function AppointmentCell({
   onDrop,
   onDragOver,
   onClick,
-  textSize = 'text-xs',
 }: {
   apt: Appuntamento;
   style: React.CSSProperties;
@@ -44,7 +43,6 @@ function AppointmentCell({
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onClick: (e: React.MouseEvent) => void;
-  textSize?: string;
 }) {
   const hl = HIGHLIGHT_MAP[apt.highlight ?? ''] ?? HIGHLIGHT_MAP[''];
   const cellRef = useRef<HTMLDivElement>(null);
@@ -90,11 +88,22 @@ function AppointmentCell({
       }}
       className={`appointment-cell px-2 cursor-move transition-colors flex items-center ${className}`}
     >
-      <p className={`${textSize} font-bold truncate pointer-events-none`} style={{ color: hl.text }}>
-        {apt.cliente || 'Appuntamento'}
-      </p>
+      <div className="w-full overflow-hidden">
+        <div className="flex items-center gap-1 w-full">
+          <User size={10} className="flex-shrink-0" style={{ color: hl.text }} />
+          <span
+            className="text-[10px] font-semibold truncate flex-1 min-w-0 pointer-events-none"
+            style={{ color: hl.text }}
+          >
+            {apt.cliente || 'Appuntamento'}
+          </span>
+          {apt.note && (
+            <MessageSquare size={9} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
+          )}
+        </div>
+      </div>
 
-      {/* Tooltip nota via portal — esce dall'overflow container */}
+      {/* Tooltip nota via portal */}
       {apt.note && tooltipStyle && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div style={tooltipStyle} className="pointer-events-none">
           {!above && (
@@ -204,7 +213,6 @@ export default function TimeSlot({
           apt={apt}
           style={{ height: `${h}px`, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 }}
           className=""
-          textSize="text-xs"
           onDragStart={e => handleDragStartInner(e, apt)}
           onClick={() => onClick(apt)}
           onDrop={handleDrop}
@@ -233,7 +241,6 @@ export default function TimeSlot({
                 zIndex: 5,
               }}
               className=""
-              textSize="text-[10px]"
               onDragStart={e => handleDragStartInner(e, apt)}
               onClick={e => { e.stopPropagation(); onClick(apt); }}
               onDrop={handleDrop}
