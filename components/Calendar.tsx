@@ -151,9 +151,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
     const container = scrollContainerRef.current;
-
-    // Trova l'elemento anchor visibile e salva la sua posizione assoluta
-    // nel contenitore scorrevole (offsetTop), non la posizione viewport.
     let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
     let anchorOffsetTop = 0;
     if (container) {
@@ -190,7 +187,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     });
   }, []);
 
-  // Ripristina la posizione di scroll dopo ogni render dei nuovi giorni
   const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
@@ -198,7 +194,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const anchorDate    = anchorDateStrRef.current;
       const prevScrollTop = anchorScrollTopRef.current ?? 0;
       const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
-      // Distanza che l'anchor aveva dal top visibile del container prima del render
       const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -236,7 +231,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [loadMoreDaysForward, loadMoreDaysBackward]);
 
-  // Callback ref: attacca/stacca il listener direttamente sul DOM
   const setScrollRef = useCallback((el: HTMLDivElement | null) => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.removeEventListener('scroll', onScroll);
@@ -247,7 +241,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [onScroll]);
 
-  // Inizializzazione
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
@@ -473,7 +466,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
     const personaNome = sedePersone.find(p => p.id === activePersona)?.nome ?? '';
     return (
-      <div className="p-3 md:p-4">
+      <div className="p-4 md:p-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           {sedePersone.length > 1 ? (
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
@@ -565,19 +558,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       <div
         ref={setScrollRef}
         className="overflow-y-auto"
-        style={{ maxHeight: 'calc(100vh - 107px)' }}
+        style={{ maxHeight: 'calc(100vh - 115px)' }}
       >
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky top-0 z-20">
-            <tr className="border-b-2 border-[#005CA9]/20">
-              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                <span className="text-[#005CA9]">Orario</span>
+            <tr className="agenda-col-header">
+              <th className="p-2 text-left text-xs font-semibold sticky left-0 z-10 w-[68px] border-r border-[#005CA9]/15" style={{ background: 'linear-gradient(to bottom, #f0f7ff, #e8f2fc)' }}>
+                <span className="text-[#005CA9] font-bold">Orario</span>
               </th>
               {sedePersone.map(persona => (
-                <th key={persona.id} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
-                    <span className="text-[#005CA9]">{persona.nome}</span>
+                <th key={persona.id} className="p-3 text-center text-xs font-semibold min-w-[160px]" style={{ background: 'linear-gradient(to bottom, #f0f7ff, #e8f2fc)', borderRight: '1px solid rgba(0,92,169,0.1)' }}>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-7 h-7 bg-[#005CA9] rounded-full flex items-center justify-center shadow-sm">
+                      <User size={14} className="text-white" />
+                    </div>
+                    <span className="text-[#005CA9] font-semibold">{persona.nome}</span>
                   </div>
                 </th>
               ))}
@@ -593,25 +588,35 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 <React.Fragment key={dateStr}>
                   <tr data-date={dateStr}>
                     <td colSpan={sedePersone.length + 1}
-                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
-                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                      {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
+                      className={`p-2.5 text-center font-bold text-xs tracking-wide sticky left-0 z-10 ${
+                        isToday
+                          ? 'agenda-day-row-today text-white'
+                          : isClosed
+                          ? 'agenda-day-row-closed'
+                          : 'agenda-day-row text-white'
+                      }`}
+                      style={isToday ? { background: 'linear-gradient(to right, #003d70, #005CA9)' } : isClosed ? {} : { background: 'linear-gradient(to right, #005CA9, #0077cc)' }}
+                    >
+                      <span className="uppercase tracking-widest">
+                        {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
+                      </span>
+                      {isClosed && <span className="ml-2 text-xs font-normal opacity-75">(CHIUSO)</span>}
                     </td>
                   </tr>
                   {isClosed ? (
                     <tr>
-                      <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
+                      <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50/80 border-b border-gray-100" style={{ height: '52px' }}>
                         <div className="flex items-center justify-center gap-2 text-gray-400">
-                          <Lock size={14} />
+                          <Lock size={13} />
                           <span className="text-xs font-medium">{isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}</span>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     dayTimeSlots.map(slot => (
-                      <tr key={`${dateStr}-${slot.label}`}>
-                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                          <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
+                      <tr key={`${dateStr}-${slot.label}`} className="group/row hover:bg-blue-50/30 transition-colors">
+                        <td className="p-0 sticky left-0 z-10 border-r border-[#005CA9]/10 border-b border-gray-100 w-[68px]" style={{ background: 'linear-gradient(to right, #f0f7ff, #f5f9fc)' }}>
+                          <div className="px-2 py-2 text-xs font-semibold text-[#005CA9]/80 text-right">{slot.label}</div>
                         </td>
                         {sedePersone.map(persona => {
                           const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
@@ -619,8 +624,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                           const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
                           if (isUffC) return (
                             <td key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none' }`}
-                              style={{ height: '45px' }}
+                              className={`relative p-0 border-b border-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200/80' : 'select-none' }`}
+                              style={{ height: '44px', borderRight: '1px solid rgba(0,92,169,0.07)', backgroundColor: 'rgba(243,244,246,0.7)' }}
                               title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
                               onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
                               <div className="w-full h-full flex items-center justify-center gap-1">
@@ -632,13 +637,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                           );
                           return (
                             <td key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
-                              style={{ height: '45px' }}>
+                              className={`relative p-0 border-b border-gray-100 ${ !slotApts.length ? '' : '' }`}
+                              style={{ height: '44px', borderRight: '1px solid rgba(0,92,169,0.07)' }}>
                               {editMode && slotApts.length === 0 ? (
                                 <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
-                                  className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 group transition-colors"
+                                  className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-amber-50 group transition-colors"
                                   title="Clicca per bloccare questo slot">
-                                  <Lock size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  <Lock size={12} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
                               ) : (
                                 <TimeSlot
@@ -671,86 +676,140 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleNext = () => { if (viewMode === 'daily') navigateToDate(addDays(selectedDate, 1)); else setSelectedDate(addMonths(selectedDate, 1)); };
 
   return (
-    <div className="min-h-screen p-1 md:p-2 animate-fade-in">
-      <div className="max-w-[1800px] mx-auto">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
-          <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
+    // Wrapper che copre tutta la pagina e integra l'agenda nel background
+    <div className="agenda-page-wrapper p-3 md:p-5 animate-fade-in">
+      <div className="w-full h-full">
+        {/* Card agenda integrata — occupa tutto lo spazio disponibile */}
+        <div className="agenda-card animate-slide-in">
+
+          {/* ─── Topbar header ─── */}
+          <div className="agenda-header">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg"><CalendarIcon className="w-6 h-6 text-white" /></div>
+                <div className="bg-[#005CA9] p-2.5 rounded-xl shadow-md">
+                  <CalendarIcon className="w-5 h-5 text-white" />
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-[#005CA9]">Agenda 730</h1>
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${ realtimeFlash ? 'bg-green-100 text-green-700 border border-green-300 scale-105' : 'bg-gray-50 text-gray-400 border border-gray-200' }`}>
+                    <h1 className="text-xl font-bold text-[#005CA9] tracking-tight">Agenda 730</h1>
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                      realtimeFlash
+                        ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                        : 'bg-gray-50 text-gray-400 border border-gray-200'
+                    }`}>
                       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300' }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Controlli */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
-                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${ viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200' }`}>
+                {/* Switch vista */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+                  <button
+                    onClick={() => setViewMode('daily')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${ viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200' }`}
+                  >
                     <List className="w-4 h-4 inline mr-1" />Giornaliera
                   </button>
-                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${ viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200' }`}>
+                  <button
+                    onClick={() => setViewMode('monthly')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${ viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200' }`}
+                  >
                     <LayoutGrid className="w-4 h-4 inline mr-1" />Mensile
                   </button>
                 </div>
+
+                {/* Pulsante lucchetto */}
                 <div className="relative group">
-                  <button onClick={() => setEditMode(e => !e)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${ editMode ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110' : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500' }`}
-                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}>
-                    {editMode ? <Unlock size={16} /> : <Lock size={16} />}
+                  <button
+                    onClick={() => setEditMode(e => !e)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
+                      editMode
+                        ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-amber-400 hover:text-amber-500'
+                    }`}
+                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}
+                  >
+                    {editMode ? <Unlock size={15} /> : <Lock size={15} />}
                   </button>
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
                     {editMode ? 'Esci dalla modifica' : 'Modifica slot'}
                   </div>
                 </div>
-                <button onClick={handlePrev} disabled={selectedDate <= MIN_DATE} className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-50">
-                  <ChevronLeft className="w-4 h-4 text-gray-600" />
+
+                {/* Navigazione data */}
+                <button
+                  onClick={handlePrev}
+                  disabled={selectedDate <= MIN_DATE}
+                  className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-40 hover:border-[#005CA9]/30"
+                >
+                  <ChevronLeft className="w-4 h-4 text-[#005CA9]" />
                 </button>
-                <button onClick={() => setShowDatePicker(!showDatePicker)}
+                <button
+                  onClick={() => setShowDatePicker(!showDatePicker)}
                   className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer"
-                  style={{ minWidth: '240px', textAlign: 'center' }}>
-                  <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">{dateLabel}</span>
+                  style={{ minWidth: '220px', textAlign: 'center' }}
+                >
+                  <span className="text-sm font-semibold text-[#005CA9] capitalize whitespace-nowrap">{dateLabel}</span>
                 </button>
-                <button onClick={handleNext} className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200">
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                <button
+                  onClick={handleNext}
+                  className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 hover:border-[#005CA9]/30"
+                >
+                  <ChevronRight className="w-4 h-4 text-[#005CA9]" />
                 </button>
-                <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
-                  <Building2 className="w-5 h-5 text-[#005CA9]" />
+
+                {/* Selettore sede */}
+                <div className="flex items-center gap-2 ml-1 border-l border-gray-200 pl-3">
+                  <Building2 className="w-4 h-4 text-[#005CA9]" />
                   <div className="relative">
-                    <select value={selectedSedeId} onChange={e => setSelectedSedeId(e.target.value)}
-                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none">
+                    <select
+                      value={selectedSedeId}
+                      onChange={e => setSelectedSedeId(e.target.value)}
+                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
+                    >
                       {sedi.map(sede => (<option key={sede.id} value={sede.id} className="text-gray-800 bg-white">{sede.nome}</option>))}
                     </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#005CA9] pointer-events-none" />
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* ─── Corpo vista ─── */}
           {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
         </div>
       </div>
 
+      {/* ─── Date picker modale ─── */}
       {showDatePicker && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Data</h3>
-              <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"><X size={20} /></button>
+              <h3 className="text-lg font-bold text-[#005CA9]">Seleziona Data</h3>
+              <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
             </div>
             <div className="flex items-center justify-between mb-4">
-              <button type="button" onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={20} className="text-[#005CA9]" /></button>
-              <h4 className="text-lg font-bold text-gray-800 capitalize">{format(selectedDate, 'MMMM yyyy', { locale: it })}</h4>
-              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} className="text-[#005CA9]" /></button>
+              <button type="button" onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+                <ChevronLeft size={18} className="text-[#005CA9]" />
+              </button>
+              <h4 className="text-base font-bold text-gray-800 capitalize">{format(selectedDate, 'MMMM yyyy', { locale: it })}</h4>
+              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+                <ChevronRight size={18} className="text-[#005CA9]" />
+              </button>
             </div>
-            <div className="grid grid-cols-7 gap-2 mb-2">
-              {['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(d => (<div key={d} className="text-center text-xs font-semibold text-gray-600 py-2">{d}</div>))}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(d => (
+                <div key={d} className="text-center text-[11px] font-semibold text-gray-500 py-1">{d}</div>
+              ))}
             </div>
-            <div className="grid grid-cols-7 gap-2 mb-6">
+            <div className="grid grid-cols-7 gap-1 mb-5">
               {(() => {
                 const ms   = startOfMonth(selectedDate);
                 const me   = endOfMonth(selectedDate);
@@ -761,16 +820,28 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   const isTod    = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                   const isClosed = isDayClosedForSede(day);
                   return (
-                    <button key={i} type="button" onClick={() => { navigateToDate(day); setShowDatePicker(false); }}
-                      className={`aspect-square rounded-lg text-sm font-medium transition-all cursor-pointer ${ isSel ? 'bg-[#005CA9] text-white shadow-md scale-105' : isTod ? 'bg-[#E6F2FF] text-[#005CA9] font-bold' : isClosed && isCurr ? 'bg-gray-200 text-gray-400' : isCurr ? 'bg-gray-100 text-gray-800 hover:bg-[#E6F2FF] hover:scale-105' : 'bg-transparent text-gray-300' }`}>
+                    <button key={i} type="button"
+                      onClick={() => { navigateToDate(day); setShowDatePicker(false); }}
+                      className={`aspect-square rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                        isSel   ? 'bg-[#005CA9] text-white shadow-md'
+                        : isTod ? 'bg-[#E6F2FF] text-[#005CA9] font-bold ring-1 ring-[#005CA9]/30'
+                        : isClosed && isCurr ? 'bg-gray-100 text-gray-400'
+                        : isCurr ? 'hover:bg-[#E6F2FF] text-gray-700 hover:scale-105'
+                        : 'text-gray-300'
+                      }`}>
                       {format(day, 'd')}
                     </button>
                   );
                 });
               })()}
             </div>
-            <button type="button" onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
-              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold">Vai a Oggi</button>
+            <button
+              type="button"
+              onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
+              className="w-full px-4 py-2.5 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold text-sm"
+            >
+              Vai a Oggi
+            </button>
           </div>
         </div>
       )}

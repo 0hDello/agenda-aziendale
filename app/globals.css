@@ -16,20 +16,28 @@ body {
   min-height: 100vh;
 }
 
+/* Layout pagina agenda integrato */
+.agenda-page-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #E6F2FF 0%, #F5F8FA 100%);
+  display: flex;
+  flex-direction: column;
+}
+
 /* Scrollbar personalizzata CNA */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #005CA9 0%, #004080 100%);
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -40,7 +48,7 @@ body {
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -54,16 +62,15 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .animate-slide-in {
-  animation: slideIn 0.4s ease-out;
+  animation: slideIn 0.35s ease-out;
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.25s ease-out;
 }
 
 .appointment-hover {
@@ -76,6 +83,51 @@ table tbody td {
   vertical-align: top;
 }
 
+/* Card agenda integrata nella pagina */
+.agenda-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow:
+    0 1px 3px rgba(0,92,169,0.06),
+    0 4px 16px rgba(0,92,169,0.10),
+    0 0 0 1px rgba(0,92,169,0.08);
+  border-top: 4px solid #005CA9;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+/* Header dell'agenda con sfondo sfumato */
+.agenda-header {
+  background: linear-gradient(to right, #ffffff, #f0f7ff);
+  border-bottom: 1px solid rgba(0,92,169,0.12);
+  padding: 14px 20px;
+}
+
+/* Riga intestazione colonne */
+.agenda-col-header {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  border-bottom: 2px solid rgba(0,92,169,0.15);
+}
+
+/* Riga data (separatore giorni) */
+.agenda-day-row {
+  background: linear-gradient(to right, #005CA9, #0070cc);
+  color: white;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+}
+
+.agenda-day-row-closed {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.agenda-day-row-today {
+  background: linear-gradient(to right, #003d70, #005CA9);
+}
+
 /* Ombra per il resize preview (estensione) */
 .resize-preview {
   position: relative;
@@ -85,8 +137,8 @@ table tbody td {
   content: '';
   position: absolute;
   inset: 0;
-  background-color: rgba(0, 92, 169, 0.2);
-  border-left: 4px solid rgba(0, 92, 169, 0.4);
+  background-color: rgba(0, 92, 169, 0.18);
+  border-left: 3px solid rgba(0, 92, 169, 0.5);
   pointer-events: none;
   z-index: 5;
 }
@@ -101,7 +153,18 @@ table tbody td {
   content: '';
   position: absolute;
   inset: 0;
-  background-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.25);
   pointer-events: none;
   z-index: 5;
+}
+
+/* Stile righe orario zebra leggero */
+tbody tr:nth-child(even) td:not([colspan]) {
+  background-color: rgba(245, 248, 250, 0.6);
+}
+
+/* Hover su celle vuote */
+tbody tr:hover td:not([colspan]):not(.bg-gray-100) {
+  background-color: rgba(230, 242, 255, 0.5);
+  transition: background-color 0.15s ease;
 }
