@@ -7,46 +7,51 @@ import { format, addDays, isWeekend } from 'date-fns';
  * GET /api/admin/blocca-maggio-dicembre
  *
  * Script one-shot: inserisce "UFF CHIUSO" su slot specifici per sede e persona
- * dal 1° maggio 2026 al 31 dicembre 2026.
+ * dal 1° maggio 2026 all'ultimo giorno lavorativo di dicembre 2026.
  *
  * Regole:
- * - IMOLA  | COLLEGA 2 → martedì (2), mercoledì (3), giovedì (4)
- * - IMOLA  | COLLEGA 1 → mercoledì (3)
- * - CSPT   | COLLEGA 2 → lunedì (1), venerdì (5)
- * - BORGO  | COLLEGA 1 → tutti tranne mercoledì (3)
+ * - IMOLA  | Collega2 → blocca martedì (2), mercoledì (3), giovedì (4)
+ * - IMOLA  | Collega1 → blocca mercoledì (3)
+ * - CSPT   | Collega2 → blocca lunedì (1) e venerdì (5)
+ * - BORGO  | Collega1 → blocca tutti i giorni tranne mercoledì (3)
  *
  * - Salta i weekend e i giorni non lavorativi per la sede.
  * - Idempotente: salta slot già occupati o già bloccati.
  */
 
+/**
+ * Restituisce true se questo (sede, persona, dayOfWeek) deve essere bloccato.
+ * dow: 0=dom, 1=lun, 2=mar, 3=mer, 4=gio, 5=ven, 6=sab
+ */
 function deveEssereBloccato(
   sedeNome: string,
   personaNome: string,
   dow: number
 ): boolean {
   const sede    = sedeNome.toUpperCase().trim();
-  const persona = personaNome.toUpperCase().trim();
+  const persona = personaNome.trim();
 
-  // IMOLA | COLLEGA 2 → mar(2), mer(3), gio(4)
-  if (sede === 'IMOLA' && persona === 'COLLEGA 2') {
+  // IMOLA | Collega2 → mar(2), mer(3), gio(4)
+  if (sede === 'IMOLA' && persona === 'Collega2') {
     return [2, 3, 4].includes(dow);
   }
 
-  // IMOLA | COLLEGA 1 → mer(3)
-  if (sede === 'IMOLA' && persona === 'COLLEGA 1') {
+  // IMOLA | Collega1 → mer(3)
+  if (sede === 'IMOLA' && persona === 'Collega1') {
     return dow === 3;
   }
 
-  // CSPT | COLLEGA 2 → lun(1), ven(5)
-  if (sede === 'CSPT' && persona === 'COLLEGA 2') {
+  // CSPT | Collega2 → lun(1), ven(5)
+  if (sede === 'CSPT' && persona === 'Collega2') {
     return [1, 5].includes(dow);
   }
 
-  // BORGO | COLLEGA 1 → tutti tranne mer(3)
-  if (sede === 'BORGO' && persona === 'COLLEGA 1') {
+  // BORGO | Collega1 → tutti tranne mer(3)
+  if (sede === 'BORGO' && persona === 'Collega1') {
     return dow !== 3;
   }
 
+  // Nessuna regola: non bloccare
   return false;
 }
 
@@ -55,6 +60,7 @@ export async function GET() {
     const startDay = new Date(2026, 4, 1);   // 1° maggio 2026
     const endDay   = new Date(2026, 11, 31); // 31 dicembre 2026
 
+    // Carica sedi, persone e associazioni
     const [sediRes, personeRes, psRes] = await Promise.all([
       query('SELECT * FROM sedi ORDER BY nome'),
       query('SELECT * FROM persone ORDER BY nome'),
@@ -74,10 +80,12 @@ export async function GET() {
         const dow     = current.getDay();
 
         for (const sede of sedi) {
+          // Salta giorni non lavorativi per questa sede
           if (!isSedeWorkingDay(sede.nome, current)) {
             continue;
           }
 
+          // Persone associate a questa sede
           const sedePersone = persone.filter(p =>
             ps.some(r => r.persona_id === p.id && r.sede_id === sede.id)
           );
@@ -86,6 +94,7 @@ export async function GET() {
           const endSlots = getEndTimeSlotsForSede(sede.nome, current);
 
           for (const persona of sedePersone) {
+            // Applica le regole: se non va bloccato, salta
             if (!deveEssereBloccato(sede.nome, persona.nome, dow)) {
               continue;
             }
@@ -94,6 +103,7 @@ export async function GET() {
               const oraInizio = slots[i].label;
               const oraFine   = endSlots[i + 1]?.label ?? endSlots[endSlots.length - 1].label;
 
+              // Controlla se esiste già qualcosa su questo slot
               const existing = await query(
                 `SELECT id FROM appuntamenti
                  WHERE persona_id = $1
@@ -108,6 +118,7 @@ export async function GET() {
                 continue;
               }
 
+              // Inserisce UFF CHIUSO
               await query(
                 `INSERT INTO appuntamenti
                    (persona_id, sede_id, data, ora_inizio, ora_fine, cliente, note, highlight, created_at, updated_at)
