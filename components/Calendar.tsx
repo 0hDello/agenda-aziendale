@@ -75,17 +75,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
-  // ─── Refs ────────────────────────────────────────────────────────────────────
+  // ─── Refs ───────────────────────────────────────────────────────────────────
   const scrollContainerRef  = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef      = useRef<Date[]>([]);
   const viewModeRef         = useRef<ViewMode>('daily');
   const loadingDirRef       = useRef<'idle' | 'fw' | 'bk'>('idle');
-  // Salva scrollHeight PRIMA del render dei nuovi giorni
-  const prevScrollHeightRef = useRef<number | null>(null);
-  const prevScrollTopRef    = useRef<number | null>(null);
-  // Blocca onScroll mentre stiamo compensando la posizione dopo il render
-  const compensatingRef     = useRef(false);
+  const anchorDateStrRef    = useRef<string | null>(null);
+  const anchorScrollTopRef  = useRef<number | null>(null);
+  const anchorOffsetTopRef  = useRef<number | null>(null);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
@@ -153,13 +151,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
     const container = scrollContainerRef.current;
-    if (!container) return;
 
-    // ── Strategia: salva scrollHeight e scrollTop PRIMA del render ──
-    // Dopo il render, la nuova scrollHeight sarà più grande.
-    // Basta fare: container.scrollTop += (newScrollHeight - prevScrollHeight)
-    prevScrollHeightRef.current = container.scrollHeight;
-    prevScrollTopRef.current    = container.scrollTop;
+    // Trova l'elemento anchor visibile e salva la sua posizione assoluta
+    // nel contenitore scorrevole (offsetTop), non la posizione viewport.
+    let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
+    let anchorOffsetTop = 0;
+    if (container) {
+      const containerTop = container.getBoundingClientRect().top;
+      const rows = container.querySelectorAll<HTMLElement>('[data-date]');
+      for (const row of Array.from(rows)) {
+        if (row.getBoundingClientRect().top >= containerTop - 5) {
+          const ds = row.getAttribute('data-date');
+          if (ds) {
+            anchorDateStr   = ds;
+            anchorOffsetTop = row.offsetTop;
+            break;
+          }
+        }
+      }
+    }
+
+    anchorDateStrRef.current   = anchorDateStr;
+    anchorOffsetTopRef.current = anchorOffsetTop;
+    anchorScrollTopRef.current = container ? container.scrollTop : 0;
     loadingDirRef.current = 'bk';
 
     const newDays: Date[] = [];
@@ -176,24 +190,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     });
   }, []);
 
-  // Ripristina posizione scroll dopo render
+  // Ripristina la posizione di scroll dopo ogni render dei nuovi giorni
   const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
     if (dir === 'bk') {
-      const prevScrollHeight = prevScrollHeightRef.current;
-      const prevScrollTop    = prevScrollTopRef.current;
+      const anchorDate    = anchorDateStrRef.current;
+      const prevScrollTop = anchorScrollTopRef.current ?? 0;
+      const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
+      // Distanza che l'anchor aveva dal top visibile del container prima del render
+      const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        const container = scrollContainerRef.current;
-        if (container && prevScrollHeight !== null && prevScrollTop !== null) {
-          const delta = container.scrollHeight - prevScrollHeight;
-          compensatingRef.current = true;
-          container.scrollTop = prevScrollTop + delta;
-          requestAnimationFrame(() => { compensatingRef.current = false; });
+        if (anchorDate) {
+          const container = scrollContainerRef.current;
+          const el = document.querySelector<HTMLElement>(`[data-date="${anchorDate}"]`);
+          if (el && container) {
+            const newOffsetTop = el.offsetTop;
+            container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
+          }
         }
-        prevScrollHeightRef.current = null;
-        prevScrollTopRef.current    = null;
+        anchorDateStrRef.current   = null;
+        anchorOffsetTopRef.current = null;
+        anchorScrollTopRef.current = null;
         loadingDirRef.current = 'idle';
       }));
     } else {
@@ -206,7 +225,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
-    if (compensatingRef.current) return;
     const container = scrollContainerRef.current;
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
