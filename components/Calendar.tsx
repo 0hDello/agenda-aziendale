@@ -33,7 +33,7 @@ import {
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
-import { formatDate, getTimeSlotsForSede, getEndTimeSlotsForSede, isSedeWorkingDay, TIME_SLOTS } from '@/utils/dateUtils';
+import { formatDate, getTimeSlotsForSede, getEndTimeSlotsForSede, isSedeWorkingDay, TIME_SLOTS, SABATI_730_ECCEZIONE } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
 import AppointmentModal from './AppointmentModal';
 import React from 'react';
@@ -75,7 +75,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
-  // ─── Refs ───────────────────────────────────────────────────────────────────
+  // ─── Refs ─────────────────────────────────────────────────────────────────────────
   const scrollContainerRef  = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef      = useRef<Date[]>([]);
@@ -92,12 +92,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const selectedSedeNome = selectedSede?.nome ?? '';
   const isBorgoSede      = selectedSedeNome.toLowerCase().includes('borgo');
 
-  const getTimeSlotsForDay    = (day: Date) => getTimeSlotsForSede(selectedSedeNome, day);
-  const getEndTimeSlotsForDay = (day: Date) => getEndTimeSlotsForSede(selectedSedeNome, day);
+  // Passa agendaId alle funzioni slot per gestire le eccezioni sabato 730
+  const getTimeSlotsForDay    = (day: Date) => getTimeSlotsForSede(selectedSedeNome, day, agendaId);
+  const getEndTimeSlotsForDay = (day: Date) => getEndTimeSlotsForSede(selectedSedeNome, day, agendaId);
 
   const isDayClosedForSede = (day: Date): boolean => {
+    // Eccezione: sabati lavorativi Agenda 730
+    if (agendaId === '730' && isWeekend(day) && day.getDay() === 6) {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      if (SABATI_730_ECCEZIONE.includes(dateStr)) return false;
+    }
     if (isWeekend(day)) return true;
     return !isSedeWorkingDay(selectedSedeNome, day);
+  };
+
+  // Nei sabati eccezionali 730 mostra solo Monica Capecchi
+  const getSedePersoneForDay = (day: Date, basePersone: Persona[]): Persona[] => {
+    if (agendaId === '730' && day.getDay() === 6) {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      if (SABATI_730_ECCEZIONE.includes(dateStr)) {
+        return basePersone.filter(p => p.nome.toLowerCase().includes('monica'));
+      }
+    }
+    return basePersone;
   };
 
   // ─── Scroll helpers ──────────────────────────────────────────────────────────
@@ -152,8 +169,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
     const container = scrollContainerRef.current;
 
-    // Trova l'elemento anchor visibile e salva la sua posizione assoluta
-    // nel contenitore scorrevole (offsetTop), non la posizione viewport.
     let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
     let anchorOffsetTop = 0;
     if (container) {
@@ -190,7 +205,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     });
   }, []);
 
-  // Ripristina la posizione di scroll dopo ogni render dei nuovi giorni
   const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
@@ -198,7 +212,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const anchorDate    = anchorDateStrRef.current;
       const prevScrollTop = anchorScrollTopRef.current ?? 0;
       const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
-      // Distanza che l'anchor aveva dal top visibile del container prima del render
       const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -236,7 +249,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [loadMoreDaysForward, loadMoreDaysBackward]);
 
-  // Callback ref: attacca/stacca il listener direttamente sul DOM
   const setScrollRef = useCallback((el: HTMLDivElement | null) => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.removeEventListener('scroll', onScroll);
@@ -247,7 +259,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   }, [onScroll]);
 
-  // Inizializzazione
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
@@ -258,7 +269,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => { loadData(); }, []);
 
-  // ─── SSE ────────────────────────────────────────────────────────────────────
+  // ─── SSE ────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/appuntamenti/events');
     es.addEventListener('update', () => {
@@ -337,7 +348,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     } catch (err) { alert('Errore imprevisto: ' + String(err)); }
   };
 
-  // ─── Helpers lucchetto ───────────────────────────────────────────────────────
+  // ─── Helpers lucchetto ───────────────────────────────────────────────────────────
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
     appointments.filter(a =>
       a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
@@ -433,7 +444,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ─── helpers mensile ────────────────────────────────────────────────────────
+  // ─── helpers mensile ────────────────────────────────────────────────────────────
   const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
     if (isDayClosedForSede(day)) return 'closed';
     const slots = getTimeSlotsForDay(day);
@@ -460,7 +471,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ────────────────────────────────────────────────────────────────
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona)) ? selectedMonthlyPersona : sedePersone[0]?.id ?? null;
     if (!activePersona) return null;
@@ -559,7 +570,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────────────────
   const renderDailyView = () => (
     <div>
       <div
@@ -589,10 +600,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               const isToday      = formatDate(new Date()) === dateStr;
               const isClosed     = isDayClosedForSede(day);
               const dayTimeSlots = getTimeSlotsForDay(day);
+              // Nei sabati eccezionali 730 mostra solo Monica Capecchi
+              const dayPersone   = getSedePersoneForDay(day, sedePersone);
               return (
                 <React.Fragment key={dateStr}>
                   <tr data-date={dateStr}>
-                    <td colSpan={sedePersone.length + 1}
+                    <td colSpan={dayPersone.length + 1}
                       className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
                       {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
                       {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
@@ -600,7 +613,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </tr>
                   {isClosed ? (
                     <tr>
-                      <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
+                      <td colSpan={dayPersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
                         <div className="flex items-center justify-center gap-2 text-gray-400">
                           <Lock size={14} />
                           <span className="text-xs font-medium">{isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}</span>
@@ -613,7 +626,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                         </td>
-                        {sedePersone.map(persona => {
+                        {dayPersone.map(persona => {
                           const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
                           const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
                           const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
