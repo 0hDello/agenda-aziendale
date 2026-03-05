@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar as CalendarIcon, Settings, Database, FileText, History } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Database, FileText, History, User } from 'lucide-react';
+import OperatorePannello from '@/components/OperatorePannello';
 
 interface Agenda {
   id: string;
@@ -19,6 +20,7 @@ export default function HomePage() {
   const router = useRouter();
   const [agende, setAgende] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showOperatore, setShowOperatore] = useState(false);
 
   useEffect(() => {
     loadAgende();
@@ -28,7 +30,6 @@ export default function HomePage() {
     try {
       const response = await fetch('/api/agende');
       if (!response.ok) throw new Error('Errore caricamento agende');
-      
       const data = await response.json();
       setAgende(data);
     } catch (error) {
@@ -58,14 +59,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header con pulsanti Admin */}
+        {/* Header */}
         <div className="mb-12">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 flex items-center justify-center">
-                <img 
-                  src="/logo-cna.png" 
-                  alt="Logo CNA" 
+                <img
+                  src="/logo-cna.png"
+                  alt="Logo CNA"
                   className="w-full h-full object-contain"
                   style={{ margin: 0, padding: 0 }}
                 />
@@ -120,26 +121,26 @@ export default function HomePage() {
                   key={agenda.id}
                   onClick={() => handleAgendaClick(agenda)}
                   className={`rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-transparent ${
-                    agenda.active   
+                    agenda.active
                       ? 'bg-white hover:shadow-2xl cursor-pointer hover:border-[#005CA9] group'
                       : 'bg-gray-100 cursor-not-allowed opacity-75'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div 
+                    <div
                       className={`p-4 rounded-xl transition-all ${
                         agenda.active ? 'group-hover:scale-110' : ''
                       }`}
                       style={{ backgroundColor: `${agenda.colore || '#005CA9'}20` }}
                     >
-                      <CalendarIcon 
-                        className="w-8 h-8 transition-all" 
+                      <CalendarIcon
+                        className="w-8 h-8 transition-all"
                         style={{ color: agenda.active ? (agenda.colore || '#005CA9') : '#9CA3AF' }}
                       />
                     </div>
                     <div className={`text-xs font-bold px-3 py-1 rounded-full ${
-                      agenda.active   
-                        ? 'bg-green-100 text-green-700' 
+                      agenda.active
+                        ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-700'
                     }`}>
                       {agenda.active ? 'Attiva' : 'Disattivata'}
@@ -158,30 +159,46 @@ export default function HomePage() {
                   </p>
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    {agenda.id === '730' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          router.push('/impostazioni');
-                        }}
-                        className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
-                        title="Impostazioni agenda"
-                      >
-                        <Settings size={18} className="text-[#005CA9]" />
-                      </button>
-                    )}
-                    {agenda.id !== '730' && <div></div>}
+                    <div className="flex items-center gap-2">
+                      {/* Tasto Impostazioni */}
+                      {agenda.id === '730' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            router.push('/impostazioni');
+                          }}
+                          className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
+                          title="Impostazioni agenda"
+                        >
+                          <Settings size={18} className="text-[#005CA9]" />
+                        </button>
+                      )}
 
-                    {agenda.active && (
-                      <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">
-                        →
-                      </div>
-                    )}
-                    {!agenda.active && (
-                      <div className="text-gray-400 text-xl">
-                        →
-                      </div>
+                      {/* Tasto Persona */}
+                      {agenda.id === '730' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setShowOperatore(true);
+                          }}
+                          className="bg-[#005CA9]/10 hover:bg-[#005CA9]/20 rounded-full p-2.5 transition-all hover:scale-110 relative group/persona"
+                          title="Pannello operatore"
+                        >
+                          <User size={18} className="text-[#005CA9]" />
+                          {/* Tooltip */}
+                          <span className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover/persona:opacity-100 pointer-events-none transition-opacity z-10">
+                            Area operatore
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    {agenda.active ? (
+                      <div className="text-[#005CA9] group-hover:translate-x-2 transition-transform text-xl">→</div>
+                    ) : (
+                      <div className="text-gray-400 text-xl">→</div>
                     )}
                   </div>
                 </div>
@@ -190,6 +207,11 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {/* Pannello Operatore */}
+      {showOperatore && (
+        <OperatorePannello onClose={() => setShowOperatore(false)} />
+      )}
     </div>
   );
 }
