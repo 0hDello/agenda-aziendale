@@ -10,22 +10,14 @@ import { format, addDays, isWeekend } from 'date-fns';
  * dal 1° maggio 2026 all'ultimo giorno lavorativo di dicembre 2026.
  *
  * Regole:
- * - Imola  | Collega 2 → blocca martedì (2), mercoledì (3), giovedì (4)
- * - Imola  | Collega 1 → blocca mercoledì (3)
- * - CSPT   | Collega 2 → blocca lunedì (1) e venerdì (5)
- * - Borgo  | Collega 1 → blocca tutti i giorni tranne mercoledì (3)
+ * - IMOLA  | Collega2 → blocca martedì (2), mercoledì (3), giovedì (4)
+ * - IMOLA  | Collega1 → blocca mercoledì (3)
+ * - CSPT   | Collega2 → blocca lunedì (1) e venerdì (5)
+ * - BORGO  | Collega1 → blocca tutti i giorni tranne mercoledì (3)
  *
  * - Salta i weekend e i giorni non lavorativi per la sede.
  * - Idempotente: salta slot già occupati o già bloccati.
  */
-
-// Nomi reali da adattare al valore nel DB (case-insensitive match nella query)
-const NOME_COLLEGA_1 = 'collega 1'; // ← sostituisci col nome reale nel DB
-const NOME_COLLEGA_2 = 'collega 2'; // ← sostituisci col nome reale nel DB
-
-const NOME_SEDE_IMOLA = 'imola';
-const NOME_SEDE_CSPT  = 'cspt';
-const NOME_SEDE_BORGO = 'borgo';
 
 /**
  * Restituisce true se questo (sede, persona, dayOfWeek) deve essere bloccato.
@@ -36,26 +28,26 @@ function deveEssereBloccato(
   personaNome: string,
   dow: number
 ): boolean {
-  const sede    = sedeNome.toLowerCase();
-  const persona = personaNome.toLowerCase();
+  const sede    = sedeNome.toUpperCase().trim();
+  const persona = personaNome.trim();
 
-  // Imola | Collega 2 → mar(2), mer(3), gio(4)
-  if (sede.includes(NOME_SEDE_IMOLA) && persona.includes(NOME_COLLEGA_2)) {
+  // IMOLA | Collega2 → mar(2), mer(3), gio(4)
+  if (sede === 'IMOLA' && persona === 'Collega2') {
     return [2, 3, 4].includes(dow);
   }
 
-  // Imola | Collega 1 → mer(3)
-  if (sede.includes(NOME_SEDE_IMOLA) && persona.includes(NOME_COLLEGA_1)) {
+  // IMOLA | Collega1 → mer(3)
+  if (sede === 'IMOLA' && persona === 'Collega1') {
     return dow === 3;
   }
 
-  // CSPT | Collega 2 → lun(1), ven(5)
-  if (sede.includes(NOME_SEDE_CSPT) && persona.includes(NOME_COLLEGA_2)) {
+  // CSPT | Collega2 → lun(1), ven(5)
+  if (sede === 'CSPT' && persona === 'Collega2') {
     return [1, 5].includes(dow);
   }
 
-  // Borgo | Collega 1 → tutti tranne mer(3)
-  if (sede.includes(NOME_SEDE_BORGO) && persona.includes(NOME_COLLEGA_1)) {
+  // BORGO | Collega1 → tutti tranne mer(3)
+  if (sede === 'BORGO' && persona === 'Collega1') {
     return dow !== 3;
   }
 
@@ -65,7 +57,7 @@ function deveEssereBloccato(
 
 export async function GET() {
   try {
-    const startDay = new Date(2026, 4, 1);  // 1° maggio 2026
+    const startDay = new Date(2026, 4, 1);   // 1° maggio 2026
     const endDay   = new Date(2026, 11, 31); // 31 dicembre 2026
 
     // Carica sedi, persone e associazioni
