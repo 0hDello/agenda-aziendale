@@ -38,6 +38,9 @@ export const HIGHLIGHT_STYLE: Record<string, { cell: string; border: string; tex
   pink:    { cell: 'bg-pink-200',   border: 'border-pink-500',   text: 'text-pink-900'   },
 };
 
+// Slot di fine di default (ultimo di END_TIME_SLOTS, es. '18:00')
+const LAST_END_SLOT = END_TIME_SLOTS[END_TIME_SLOTS.length - 1].label;
+
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -119,9 +122,10 @@ export default function AppointmentModal({
         const validDateString = format(validDate, 'yyyy-MM-dd');
         const timeToUse       = selectedTime || '09:00';
         const currentIndex    = TIME_SLOTS.findIndex(s => s.label === timeToUse);
+        // FIX: se è l'ultimo slot usa l'ultimo di END_TIME_SLOTS (es. '18:00'), non '17:30'
         const nextSlotTime    = currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1
           ? TIME_SLOTS[currentIndex + 1].label
-          : '17:30';
+          : LAST_END_SLOT;
         setFormData({
           persona_id: defaultPersonaId || '',
           sede_id:    selectedSedeId   || '',
@@ -214,9 +218,10 @@ export default function AppointmentModal({
       const next = { ...prev, ora_inizio: v };
       if (prev.ora_fine <= v) {
         const idx = TIME_SLOTS.findIndex(s => s.label === v);
+        // FIX: se è l'ultimo slot usa l'ultimo di END_TIME_SLOTS (es. '18:00'), non '17:30'
         next.ora_fine = idx >= 0 && idx < TIME_SLOTS.length - 1
           ? TIME_SLOTS[idx + 1].label
-          : '17:30';
+          : LAST_END_SLOT;
       }
       return next;
     });
