@@ -49,7 +49,7 @@ const DAYS_TO_LOAD          = 5;
 const MIN_DATE              = new Date(2020, 0, 1);
 const SCROLL_THRESHOLD_FW   = 400;
 const SCROLL_THRESHOLD_BK   = 200;
-const STICKY_HEADER_HEIGHT  = 0;
+const STICKY_HEADER_HEIGHT  = 41;
 const SSE_RELOAD_DEBOUNCE   = 800;
 
 type ViewMode = 'daily' | 'monthly';
@@ -102,15 +102,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return !isSedeWorkingDay(selectedSedeNome, day);
   };
 
-  // Nei sabati eccezionali 730 mostra solo Monica Capecchi
-  const getSedePersoneForDay = (day: Date, basePersone: Persona[]): Persona[] => {
+  // Ritorna true se questa persona NON deve lavorare in questo giorno
+  // (es: nei sabati 730 eccezionali, solo Monica lavora)
+  const isPersonaDisabledForDay = (day: Date, persona: Persona): boolean => {
     if (agendaId === '730' && day.getDay() === 6) {
       const dateStr = format(day, 'yyyy-MM-dd');
       if (SABATI_730_ECCEZIONE.includes(dateStr)) {
-        return basePersone.filter(p => p.nome.toLowerCase().includes('monica'));
+        return !persona.nome.toLowerCase().includes('monica');
       }
     }
-    return basePersone;
+    return false;
   };
 
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
@@ -442,7 +443,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ───────────────────────────────────────────────────────
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona)) ? selectedMonthlyPersona : sedePersone[0]?.id ?? null;
     if (!activePersona) return null;
@@ -541,9 +542,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ───────────────────────────────────────────────────────
-  // L'header NON è più fisso globale: ogni giorno renderizza la propria riga
-  // di intestazione con le persone corrette per quel giorno.
+  // ─── VISTA GIORNALIERA ─────────────────────────────────────────────────────
+  // Header sticky UNICO globale con tutte le persone della sede.
+  // Nei sabati 730 eccezionali, le colonne delle persone non-Monica
+  // mostrano una cella grigia "non disponibile" al posto degli slot.
   const renderDailyView = () => (
     <div>
       <div
@@ -551,45 +553,42 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         className="overflow-y-auto"
         style={{ maxHeight: 'calc(100vh - 107px)' }}
       >
-        {visibleDays.map(day => {
-          const dateStr      = formatDate(day);
-          const isToday      = formatDate(new Date()) === dateStr;
-          const isClosed     = isDayClosedForSede(day);
-          const dayTimeSlots = getTimeSlotsForDay(day);
-          // Per i sabati eccezionali 730 mostra solo Monica; negli altri giorni tutti
-          const dayPersone   = getSedePersoneForDay(day, sedePersone);
-
-          return (
-            <div key={dateStr} className="mb-0">
-              <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                {/* Header per-giorno con le persone corrette */}
-                <thead>
-                  <tr className="border-b-2 border-[#005CA9]/20">
-                    <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] w-[60px] border-r border-gray-200">
-                      <span className="text-[#005CA9]">Orario</span>
-                    </th>
-                    {dayPersone.map(persona => (
-                      <th key={persona.id} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
-                          <span className="text-[#005CA9]">{persona.nome}</span>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Riga intestazione giorno */}
+        <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          {/* THEAD FISSO UNICO - sempre tutte le persone della sede */}
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b-2 border-[#005CA9]/20">
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                <span className="text-[#005CA9]">Orario</span>
+              </th>
+              {sedePersone.map(persona => (
+                <th key={persona.id} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[150px]">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <div className="w-6 h-6 bg-[#005CA9] rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
+                    <span className="text-[#005CA9]">{persona.nome}</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleDays.map(day => {
+              const dateStr      = formatDate(day);
+              const isToday      = formatDate(new Date()) === dateStr;
+              const isClosed     = isDayClosedForSede(day);
+              const dayTimeSlots = getTimeSlotsForDay(day);
+              return (
+                <React.Fragment key={dateStr}>
+                  {/* Riga titolo giorno */}
                   <tr data-date={dateStr}>
-                    <td colSpan={dayPersone.length + 1}
-                      className={`p-2 text-center font-bold text-sm ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
+                    <td colSpan={sedePersone.length + 1}
+                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
                       {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
                       {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
                     </td>
                   </tr>
                   {isClosed ? (
                     <tr>
-                      <td colSpan={dayPersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
+                      <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
                         <div className="flex items-center justify-center gap-2 text-gray-400">
                           <Lock size={14} />
                           <span className="text-xs font-medium">{isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}</span>
@@ -599,10 +598,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   ) : (
                     dayTimeSlots.map(slot => (
                       <tr key={`${dateStr}-${slot.label}`}>
-                        <td className="p-0 bg-[#F5F8FA] border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                         </td>
-                        {dayPersone.map(persona => {
+                        {sedePersone.map(persona => {
+                          // Nei sabati 730 eccezionali: persone non-Monica mostrano cella grigia
+                          if (isPersonaDisabledForDay(day, persona)) {
+                            return (
+                              <td key={`${persona.id}-${slot.label}`}
+                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-50 select-none"
+                                style={{ height: '45px' }}
+                              />
+                            );
+                          }
                           const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
                           const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
                           const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
@@ -644,11 +652,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       </tr>
                     ))
                   )}
-                </tbody>
-              </table>
-            </div>
-          );
-        })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
