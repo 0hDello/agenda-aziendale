@@ -199,13 +199,18 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const anchorDate    = anchorDateStrRef.current;
       const prevScrollTop = anchorScrollTopRef.current ?? 0;
       const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
-      const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
+
+      // Misura l'altezza reale dell'header sticky invece di usare la costante fissa
+      const container = scrollContainerRef.current;
+      const thead = container?.querySelector('thead');
+      const realHeaderHeight = thead ? thead.getBoundingClientRect().height : STICKY_HEADER_HEIGHT;
+
+      const distanceFromTop = prevScrollTop - prevOffsetTop + realHeaderHeight;
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (anchorDate) {
-          const container = scrollContainerRef.current;
+        if (anchorDate && container) {
           const el = document.querySelector<HTMLElement>(`[data-date="${anchorDate}"]`);
-          if (el && container) {
+          if (el) {
             const newOffsetTop = el.offsetTop;
             compensatingRef.current = true;
             container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
