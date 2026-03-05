@@ -84,6 +84,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const anchorDateStrRef    = useRef<string | null>(null);
   const anchorScrollTopRef  = useRef<number | null>(null);
   const anchorOffsetTopRef  = useRef<number | null>(null);
+  // Blocca onScroll mentre stiamo compensando la posizione dopo il render
+  const compensatingRef     = useRef(false);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
@@ -205,7 +207,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           const el = document.querySelector<HTMLElement>(`[data-date="${anchorDate}"]`);
           if (el && container) {
             const newOffsetTop = el.offsetTop;
+            compensatingRef.current = true;
             container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
+            // Resetta il flag dopo che l'evento scroll generato da scrollTo è stato processato
+            requestAnimationFrame(() => {
+              compensatingRef.current = false;
+            });
           }
         }
         anchorDateStrRef.current   = null;
@@ -223,6 +230,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
+    if (compensatingRef.current) return; // blocca scroll generato dalla compensazione
     const container = scrollContainerRef.current;
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
