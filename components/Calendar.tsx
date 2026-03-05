@@ -42,7 +42,7 @@ interface CalendarProps {
   agendaId?: string;
 }
 
-// ─── Costanti scroll (identiche a EpasaCalendar) ────────────────────────────
+// ─── Costanti scroll ─────────────────────────────────────────────────────────
 const DAYS_PAST             = 3;
 const DAYS_FUTURE           = 10;
 const MAX_VISIBLE_DAYS      = 30;
@@ -75,15 +75,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
-  // ─── Refs (identici a EpasaCalendar) ────────────────────────────────────────
+  // ─── Refs ────────────────────────────────────────────────────────────────────
   const scrollContainerRef  = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef      = useRef<Date[]>([]);
   const viewModeRef         = useRef<ViewMode>('daily');
   const loadingDirRef       = useRef<'idle' | 'fw' | 'bk'>('idle');
-  const anchorDateStrRef    = useRef<string | null>(null);
-  const anchorScrollTopRef  = useRef<number | null>(null);
-  const anchorOffsetTopRef  = useRef<number | null>(null);
+  // Salva scrollHeight PRIMA del render dei nuovi giorni
+  const prevScrollHeightRef = useRef<number | null>(null);
+  const prevScrollTopRef    = useRef<number | null>(null);
   // Blocca onScroll mentre stiamo compensando la posizione dopo il render
   const compensatingRef     = useRef(false);
 
@@ -102,7 +102,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return !isSedeWorkingDay(selectedSedeNome, day);
   };
 
-  // ─── Scroll helpers (identici a EpasaCalendar) ──────────────────────────────
+  // ─── Scroll helpers ──────────────────────────────────────────────────────────
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const container = scrollContainerRef.current;
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
@@ -153,28 +153,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
 
     const container = scrollContainerRef.current;
+    if (!container) return;
 
-    // Trova l'anchor visibile e salva offsetTop assoluto nel contenitore
-    let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
-    let anchorOffsetTop = 0;
-    if (container) {
-      const containerTop = container.getBoundingClientRect().top;
-      const rows = container.querySelectorAll<HTMLElement>('[data-date]');
-      for (const row of Array.from(rows)) {
-        if (row.getBoundingClientRect().top >= containerTop - 5) {
-          const ds = row.getAttribute('data-date');
-          if (ds) {
-            anchorDateStr   = ds;
-            anchorOffsetTop = row.offsetTop;
-            break;
-          }
-        }
-      }
-    }
-
-    anchorDateStrRef.current   = anchorDateStr;
-    anchorOffsetTopRef.current = anchorOffsetTop;
-    anchorScrollTopRef.current = container ? container.scrollTop : 0;
+    // ── Strategia: salva scrollHeight e scrollTop PRIMA del render ──
+    // Dopo il render, la nuova scrollHeight sarà più grande.
+    // Basta fare: container.scrollTop += (newScrollHeight - prevScrollHeight)
+    prevScrollHeightRef.current = container.scrollHeight;
+    prevScrollTopRef.current    = container.scrollTop;
     loadingDirRef.current = 'bk';
 
     const newDays: Date[] = [];
@@ -191,38 +176,24 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     });
   }, []);
 
-  // Ripristina la posizione di scroll dopo ogni render dei nuovi giorni
+  // Ripristina posizione scroll dopo render
   const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
     if (dir === 'bk') {
-      const anchorDate    = anchorDateStrRef.current;
-      const prevScrollTop = anchorScrollTopRef.current ?? 0;
-      const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
-
-      // Misura l'altezza reale dell'header sticky invece di usare la costante fissa
-      const container = scrollContainerRef.current;
-      const thead = container?.querySelector('thead');
-      const realHeaderHeight = thead ? thead.getBoundingClientRect().height : STICKY_HEADER_HEIGHT;
-
-      const distanceFromTop = prevScrollTop - prevOffsetTop + realHeaderHeight;
+      const prevScrollHeight = prevScrollHeightRef.current;
+      const prevScrollTop    = prevScrollTopRef.current;
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (anchorDate && container) {
-          const el = document.querySelector<HTMLElement>(`[data-date="${anchorDate}"]`);
-          if (el) {
-            const newOffsetTop = el.offsetTop;
-            compensatingRef.current = true;
-            container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
-            // Resetta il flag dopo che l'evento scroll generato da scrollTo è stato processato
-            requestAnimationFrame(() => {
-              compensatingRef.current = false;
-            });
-          }
+        const container = scrollContainerRef.current;
+        if (container && prevScrollHeight !== null && prevScrollTop !== null) {
+          const delta = container.scrollHeight - prevScrollHeight;
+          compensatingRef.current = true;
+          container.scrollTop = prevScrollTop + delta;
+          requestAnimationFrame(() => { compensatingRef.current = false; });
         }
-        anchorDateStrRef.current   = null;
-        anchorOffsetTopRef.current = null;
-        anchorScrollTopRef.current = null;
+        prevScrollHeightRef.current = null;
+        prevScrollTopRef.current    = null;
         loadingDirRef.current = 'idle';
       }));
     } else {
@@ -235,7 +206,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
-    if (compensatingRef.current) return; // blocca scroll generato dalla compensazione
+    if (compensatingRef.current) return;
     const container = scrollContainerRef.current;
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
