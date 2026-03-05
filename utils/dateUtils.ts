@@ -14,6 +14,27 @@ export const formatDateDisplay = (date: Date) => {
   return format(date, 'EEEE dd/MM', { locale: it });
 };
 
+// ─── Eccezioni sabato Agenda 730 ──────────────────────────────────────────────
+// 3 sabati lavorativi solo per MONICA CAPECCHI: 08:30–12:00 (ultimo slot 12:00–12:30)
+export const SABATI_730_ECCEZIONE = ['2026-05-23', '2026-06-06', '2026-06-13'];
+
+// Slot sabato 730 eccezionale: 08:30–12:00
+export const TIME_SLOTS_730_SABATO = [
+  { hour: 8,  minute: 30, label: '08:30' },
+  { hour: 9,  minute: 0,  label: '09:00' },
+  { hour: 9,  minute: 30, label: '09:30' },
+  { hour: 10, minute: 0,  label: '10:00' },
+  { hour: 10, minute: 30, label: '10:30' },
+  { hour: 11, minute: 0,  label: '11:00' },
+  { hour: 11, minute: 30, label: '11:30' },
+  { hour: 12, minute: 0,  label: '12:00' },
+];
+
+export const END_TIME_SLOTS_730_SABATO = [
+  ...TIME_SLOTS_730_SABATO,
+  { hour: 12, minute: 30, label: '12:30' },
+];
+
 // ─── Slot condivisi (riutilizzati da più sedi) ───────────────────────────────────
 
 // Lun/Mar/Mer (+ Gio per CSPT/Borgo): 09:00–12:30 + 14:00–17:30  (fine: 18:00)
@@ -128,8 +149,15 @@ const getStdEndSlotsForDay = (dow: number) =>
  * Restituisce gli slot di inizio per la sede e il giorno specifico.
  * @param nomeSedeOrId  nome della sede
  * @param date          data del giorno (opzionale)
+ * @param agendaId      id dell'agenda (opzionale, per gestire eccezioni)
  */
-export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date) => {
+export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
+  // Eccezione sabati lavorativi Agenda 730
+  if (agendaId === '730' && date) {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    if (SABATI_730_ECCEZIONE.includes(dateStr)) return TIME_SLOTS_730_SABATO;
+  }
+
   const n   = nomeSedeOrId.toLowerCase();
   const dow = date?.getDay() ?? 1; // default lun
 
@@ -151,8 +179,17 @@ export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date) => {
 
 /**
  * Restituisce gli slot di fine per la sede e il giorno specifico.
+ * @param nomeSedeOrId  nome della sede
+ * @param date          data del giorno (opzionale)
+ * @param agendaId      id dell'agenda (opzionale, per gestire eccezioni)
  */
-export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date) => {
+export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
+  // Eccezione sabati lavorativi Agenda 730
+  if (agendaId === '730' && date) {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    if (SABATI_730_ECCEZIONE.includes(dateStr)) return END_TIME_SLOTS_730_SABATO;
+  }
+
   const n   = nomeSedeOrId.toLowerCase();
   const dow = date?.getDay() ?? 1;
 
@@ -171,9 +208,16 @@ export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date) => {
 };
 
 // Verifica se un giorno è lavorativo per la sede
-export const isSedeWorkingDay = (nomeSedeOrId: string, date: Date): boolean => {
+// @param agendaId  id dell'agenda (opzionale, per gestire eccezioni sabato 730)
+export const isSedeWorkingDay = (nomeSedeOrId: string, date: Date, agendaId?: string): boolean => {
   const n   = nomeSedeOrId.toLowerCase();
   const dow = date.getDay(); // 0=dom, 1=lun, ..., 6=sab
+
+  // Eccezione sabati lavorativi Agenda 730
+  if (agendaId === '730' && dow === 6) {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    if (SABATI_730_ECCEZIONE.includes(dateStr)) return true;
+  }
 
   // BORGO e CSPT: Lun(1)–Ven(5)
   if (n.includes('borgo') || n.includes('cspt')) return dow >= 1 && dow <= 5;
