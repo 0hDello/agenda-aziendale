@@ -53,12 +53,14 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/operatore">
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-[#005CA9] hover:bg-[#004080] text-white rounded-xl shadow-md hover:shadow-lg transition-all">
-                <User className="w-4 h-4" />
-                <span className="text-sm font-semibold">Area Operatore</span>
-              </button>
-            </Link>
+            {/* TODO: riabilitare quando pronto */}
+            <button
+              disabled
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-200 text-gray-400 rounded-xl shadow-sm cursor-not-allowed opacity-60"
+              title="Prossimamente">
+              <User className="w-4 h-4" />
+              <span className="text-sm font-semibold">Area Operatore</span>
+            </button>
             <Link href="/cronologia">
               <button className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200">
                 <History className="w-4 h-4" />
@@ -115,10 +117,14 @@ export default function HomePage() {
                           <Settings size={18} className="text-[#005CA9]" />
                         </button>
                       )}
+                      {/* TODO: riabilitare quando pronto */}
                       {agenda.id === '730' && (
-                        <button onClick={e => { e.stopPropagation(); router.push('/operatore'); }}
-                          className="bg-[#005CA9]/10 hover:bg-[#005CA9]/20 rounded-full p-2.5 transition-all hover:scale-110" title="Area operatore">
-                          <User size={18} className="text-[#005CA9]" />
+                        <button
+                          disabled
+                          onClick={e => e.stopPropagation()}
+                          className="bg-gray-100 rounded-full p-2.5 cursor-not-allowed opacity-40"
+                          title="Prossimamente">
+                          <User size={18} className="text-gray-400" />
                         </button>
                       )}
                     </div>
