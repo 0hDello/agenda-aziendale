@@ -25,6 +25,8 @@ interface TimeSlotProps {
   onDragStart?: (appointment: Appuntamento, time: string) => void;
   onDrop?: (time: string) => void;
   onDragOver?: (e: React.DragEvent) => void;
+  /** Slot del giorno corrente (per calcolo altezza corretto) */
+  daySlots?: { label: string }[];
 }
 
 function AppointmentCell({
@@ -142,7 +144,11 @@ export default function TimeSlot({
   onDragStart,
   onDrop,
   onDragOver,
+  daySlots,
 }: TimeSlotProps) {
+
+  // Usa gli slot del giorno se forniti, altrimenti fallback al globale
+  const slots = daySlots && daySlots.length > 0 ? daySlots : TIME_SLOTS;
 
   const handleDragStartInner = (e: React.DragEvent, appointment: Appuntamento) => {
     if (onDragStart) {
@@ -164,10 +170,12 @@ export default function TimeSlot({
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onDragOver?.(e); };
 
   const calculateHeight = (apt: Appuntamento): number => {
-    const si = TIME_SLOTS.findIndex(s => s.label === apt.ora_inizio.substring(0, 5));
-    let   ei = TIME_SLOTS.findIndex(s => s.label === apt.ora_fine.substring(0, 5));
-    if (ei === -1) ei = TIME_SLOTS.length;
-    return (ei - si) * 45;
+    const si = slots.findIndex(s => s.label === apt.ora_inizio.substring(0, 5));
+    let   ei = slots.findIndex(s => s.label === apt.ora_fine.substring(0, 5));
+    if (ei === -1) ei = slots.length;
+    const diff = ei - si;
+    if (diff <= 0) return 45; // fallback minimo
+    return diff * 45;
   };
 
   const assignColumns = (all: Appuntamento[]): Map<string, number> => {
@@ -191,7 +199,7 @@ export default function TimeSlot({
   const getMaxColumns = (all: Appuntamento[]): number => {
     if (!all.length) return 1;
     let max = 1;
-    TIME_SLOTS.forEach(slot => {
+    slots.forEach(slot => {
       const ov = all.filter(a => slot.label >= a.ora_inizio.substring(0,5) && slot.label < a.ora_fine.substring(0,5));
       max = Math.max(max, ov.length);
     });
