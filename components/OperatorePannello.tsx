@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   User,
   X,
@@ -9,14 +9,12 @@ import {
   Clock,
   TrendingUp,
   CheckCircle,
-  AlertCircle,
   MapPin,
   Star,
-  BarChart2,
   Loader2,
   ChevronLeft,
 } from 'lucide-react';
-import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Persona, Appuntamento, Sede, PersonaSede } from '@/lib/types';
 
@@ -81,37 +79,46 @@ export default function OperatorePannello({ onClose }: OperatorePannelloProps) {
     const myApts = getAppuntamentiPersona(selectedPersona.id);
     const mySedi = getSediForPersona(selectedPersona.id);
     const today = format(new Date(), 'yyyy-MM-dd');
-    const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
-    const todayApts = myApts.filter(a => a.data === today && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
-    const tomorrowApts = myApts.filter(a => a.data === tomorrow && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+    const todayApts = myApts
+      .filter(a => a.data === today && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO')
+      .sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+    const tomorrowApts = myApts
+      .filter(a => a.data === format(addDays(new Date(), 1), 'yyyy-MM-dd') && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO');
     const weekApts = myApts.filter(a => {
-      const d = a.data;
       const end = format(addDays(new Date(), 7), 'yyyy-MM-dd');
-      return d >= today && d <= end && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO';
+      return a.data >= today && a.data <= end && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO';
     });
-
-    const colorIdx = persone.findIndex(p => p.id === selectedPersona.id) % COLORS.length;
-    const color = COLORS[colorIdx];
-
-    // Prossimi appuntamenti (prossimi 7 gg, escluso oggi)
     const nextDays = myApts
       .filter(a => a.data > today && a.data <= format(addDays(new Date(), 7), 'yyyy-MM-dd') && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO')
       .sort((a, b) => a.data.localeCompare(b.data) || a.ora_inizio.localeCompare(b.ora_inizio))
       .slice(0, 8);
 
+    // Performance mensile per sede
+    const thisMonth = format(new Date(), 'yyyy-MM');
+    const monthApts = myApts.filter(a => a.data.startsWith(thisMonth) && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO');
+    const totalMonth = monthApts.length;
+    const sediPerf = mySedi.map(s => ({
+      sede: s,
+      count: monthApts.filter(a => a.sede_id === s.id).length,
+      pct: totalMonth > 0 ? Math.round((monthApts.filter(a => a.sede_id === s.id).length / totalMonth) * 100) : 0,
+    }));
+
+    // Storico totale
+    const totalStorico = myApts.filter(a => (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').length;
+
     return (
-      <div className="flex flex-col h-full">
-        {/* Header operatore */}
-        <div className="relative overflow-hidden rounded-2xl mb-5 p-5" style={{ background: `linear-gradient(135deg, ${color}ee, ${color}99)` }}>
-          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      <div className="flex flex-col h-full gap-5">
+        {/* Header banner operatore */}
+        <header className="w-full bg-gradient-to-r from-[#176356] to-[#38b2ac] rounded-xl p-5 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
           <div className="relative flex items-center gap-4">
             <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center border-2 border-white/40">
-              <User size={28} className="text-white" />
+              <User size={26} className="text-white" />
             </div>
             <div>
-              <p className="text-white/70 text-xs font-semibold uppercase tracking-widest">Operatore</p>
-              <h2 className="text-white text-xl font-bold leading-tight">{selectedPersona.nome}</h2>
-              <div className="flex items-center gap-1.5 mt-1">
+              <p className="text-white/70 text-[10px] font-semibold uppercase tracking-widest">Operatore</p>
+              <h2 className="text-white text-lg font-bold leading-tight">{selectedPersona.nome}</h2>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
                 {mySedi.map(s => (
                   <span key={s.id} className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
                     <MapPin size={8} />{s.nome}
@@ -120,61 +127,103 @@ export default function OperatorePannello({ onClose }: OperatorePannelloProps) {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* KPI strip */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {[
-            { icon: <Calendar size={16} />, label: 'Oggi', value: todayApts.length, color: 'bg-blue-50 text-blue-600 border-blue-100' },
-            { icon: <Clock size={16} />, label: 'Domani', value: tomorrowApts.length, color: 'bg-purple-50 text-purple-600 border-purple-100' },
-            { icon: <TrendingUp size={16} />, label: '7 giorni', value: weekApts.length, color: 'bg-green-50 text-green-600 border-green-100' },
-          ].map(k => (
-            <div key={k.label} className={`rounded-xl p-3 border ${k.color} flex flex-col items-center gap-1`}>
-              {k.icon}
-              <span className="text-2xl font-black">{k.value}</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{k.label}</span>
+          {/* Mini stats */}
+          <div className="flex justify-around mt-4 pt-4 border-t border-white/20 text-[11px] font-semibold tracking-wide uppercase">
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-white/70">Oggi</span>
+              <span className="text-white font-bold text-base">{todayApts.length}</span>
             </div>
-          ))}
-        </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-white/70">Domani</span>
+              <span className="text-white font-bold text-base">{tomorrowApts.length}</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-white/70">7 giorni</span>
+              <span className="text-white font-bold text-base">{weekApts.length}</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Performance Mensile */}
+        <section className="bg-[#2D3748] rounded-xl p-5 border border-gray-700/30">
+          <h3 className="text-sm font-semibold text-white mb-4">Performance Mensile</h3>
+          {sediPerf.length === 0 ? (
+            <p className="text-xs text-slate-500 text-center">Nessuna sede associata</p>
+          ) : (
+            <div className="space-y-4">
+              {sediPerf.map(({ sede, count, pct }) => (
+                <div key={sede.id}>
+                  <div className="flex justify-between mb-1.5">
+                    <span className="text-white text-xs font-medium">
+                      {sede.nome}{' '}
+                      <span className="text-slate-400 font-normal">({pct}%)</span>
+                    </span>
+                    <span className="text-slate-400 text-xs">{count} apt</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5">
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: '#38b2ac' }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Totale Storico */}
+        <section className="bg-[#2D3748] rounded-xl p-5 border border-gray-700/30">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <p className="text-white text-sm font-medium mb-1">Totale Storico</p>
+              <p className="text-5xl font-bold text-white">{totalStorico}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-slate-400 text-xs mb-1">Questo Mese</p>
+              <p className="text-5xl font-semibold text-white">{totalMonth}</p>
+            </div>
+          </div>
+        </section>
 
         {/* Appuntamenti oggi */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle size={14} className="text-blue-500" />
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Oggi</span>
-            <span className="ml-auto text-[10px] text-gray-400">{format(new Date(), 'EEEE dd MMM', { locale: it })}</span>
+        <section className="bg-[#2D3748] rounded-xl p-5 border border-gray-700/30">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle size={14} className="text-[#38b2ac]" />
+            <span className="text-xs font-bold text-white uppercase tracking-wide">Oggi</span>
+            <span className="ml-auto text-[10px] text-slate-500">{format(new Date(), 'EEEE dd MMM', { locale: it })}</span>
           </div>
           {todayApts.length === 0 ? (
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-center">
-              <p className="text-xs text-gray-400">Nessun appuntamento oggi 🎉</p>
+            <div className="rounded-xl bg-[#1A202C] border border-gray-700/30 p-3 text-center">
+              <p className="text-xs text-slate-500">Nessun appuntamento oggi 🎉</p>
             </div>
           ) : (
-            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
               {todayApts.map(apt => (
-                <AptRow key={apt.id} apt={apt} sedi={sedi} color={color} />
+                <AptRow key={apt.id} apt={apt} sedi={sedi} />
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Prossimi appuntamenti */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Star size={14} className="text-amber-500" />
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Prossimi 7 giorni</span>
+        {/* Prossimi 7 giorni */}
+        <section className="bg-[#2D3748] rounded-xl p-5 border border-gray-700/30">
+          <div className="flex items-center gap-2 mb-3">
+            <Star size={14} className="text-amber-400" />
+            <span className="text-xs font-bold text-white uppercase tracking-wide">Prossimi 7 giorni</span>
           </div>
           {nextDays.length === 0 ? (
-            <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-center">
-              <p className="text-xs text-gray-400">Nessun appuntamento nei prossimi 7 giorni</p>
+            <div className="rounded-xl bg-[#1A202C] border border-gray-700/30 p-3 text-center">
+              <p className="text-xs text-slate-500">Nessun appuntamento in arrivo</p>
             </div>
           ) : (
-            <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {nextDays.map(apt => (
-                <AptRow key={apt.id} apt={apt} sedi={sedi} color={color} showDate />
+                <AptRow key={apt.id} apt={apt} sedi={sedi} showDate />
               ))}
             </div>
           )}
-        </div>
+        </section>
       </div>
     );
   };
@@ -182,33 +231,39 @@ export default function OperatorePannello({ onClose }: OperatorePannelloProps) {
   // ─── SCELTA OPERATORE ─────────────────────────────────────────────────────
   const renderChoose = () => (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-gray-500 text-center mb-2">Seleziona il tuo nome per vedere la tua agenda personale</p>
+      <p className="text-xs text-slate-500 text-center mb-2">Seleziona il tuo nome per vedere la tua agenda personale</p>
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#005CA9]" /></div>
+        <div className="flex justify-center py-8">
+          <Loader2 size={24} className="animate-spin text-[#38b2ac]" />
+        </div>
       ) : persone.length === 0 ? (
-        <p className="text-center text-sm text-gray-400">Nessun operatore disponibile</p>
+        <p className="text-center text-sm text-slate-500">Nessun operatore disponibile</p>
       ) : (
         persone.map((p, idx) => {
           const mySedi = getSediForPersona(p.id);
           const color = COLORS[idx % COLORS.length];
-          const todayCnt = appointments.filter(a => a.persona_id === p.id && a.data === format(new Date(), 'yyyy-MM-dd') && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').length;
+          const todayCnt = appointments.filter(
+            a => a.persona_id === p.id &&
+              a.data === format(new Date(), 'yyyy-MM-dd') &&
+              (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
+          ).length;
           return (
             <button
               key={p.id}
               onClick={() => handleSelectPersona(p)}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-transparent bg-gray-50 hover:border-[#005CA9] hover:bg-blue-50 transition-all group"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-700/40 bg-[#2D3748] hover:border-[#38b2ac] hover:bg-[#38b2ac]/10 transition-all group"
             >
-              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}20` }}>
-                <User size={22} style={{ color }} />
+              <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}25` }}>
+                <User size={20} style={{ color }} />
               </div>
               <div className="text-left flex-1">
-                <p className="font-bold text-gray-800 text-sm">{p.nome}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{mySedi.map(s => s.nome).join(' · ') || 'Nessuna sede'}</p>
+                <p className="font-bold text-white text-sm">{p.nome}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{mySedi.map(s => s.nome).join(' · ') || 'Nessuna sede'}</p>
               </div>
               {todayCnt > 0 && (
-                <span className="text-[11px] font-bold bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">{todayCnt} oggi</span>
+                <span className="text-[11px] font-bold bg-[#38b2ac]/20 text-[#38b2ac] rounded-full px-2 py-0.5">{todayCnt} oggi</span>
               )}
-              <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] transition-colors" />
+              <ChevronRight size={16} className="text-slate-600 group-hover:text-[#38b2ac] transition-colors" />
             </button>
           );
         })
@@ -220,37 +275,37 @@ export default function OperatorePannello({ onClose }: OperatorePannelloProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
         onClick={onClose}
       />
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-sm bg-white z-50 shadow-2xl flex flex-col animate-slide-in-right">
+      {/* Drawer dark */}
+      <div className="fixed right-0 top-0 h-full w-full max-w-sm bg-[#1A202C] z-50 shadow-2xl flex flex-col animate-slide-in-right border-l border-gray-800/50">
         {/* Header drawer */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-800/50">
           <div className="flex items-center gap-2">
             {step === 'dashboard' && (
               <button
                 onClick={() => setStep('choose')}
-                className="mr-1 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                className="mr-1 p-1.5 rounded-lg hover:bg-[#2D3748] transition-colors"
               >
-                <ChevronLeft size={16} className="text-gray-500" />
+                <ChevronLeft size={16} className="text-slate-400" />
               </button>
             )}
-            <div className="w-8 h-8 rounded-lg bg-[#005CA9] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[#38b2ac] flex items-center justify-center">
               <User size={16} className="text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900 text-sm leading-tight">
+              <h2 className="font-bold text-white text-sm leading-tight">
                 {step === 'choose' ? 'Chi sei?' : 'La tua agenda'}
               </h2>
-              {step === 'choose' && <p className="text-[10px] text-gray-400">Seleziona operatore</p>}
+              {step === 'choose' && <p className="text-[10px] text-slate-500">Seleziona operatore</p>}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-xl hover:bg-[#2D3748] transition-colors"
           >
-            <X size={18} className="text-gray-500" />
+            <X size={18} className="text-slate-400" />
           </button>
         </div>
 
@@ -260,8 +315,8 @@ export default function OperatorePannello({ onClose }: OperatorePannelloProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100">
-          <p className="text-[10px] text-gray-400 text-center">
+        <div className="px-6 py-4 border-t border-gray-800/50">
+          <p className="text-[10px] text-slate-600 text-center">
             Vista personale sola lettura · dati aggiornati in tempo reale
           </p>
         </div>
@@ -271,19 +326,19 @@ export default function OperatorePannello({ onClose }: OperatorePannelloProps) {
 }
 
 // ─── Componente riga appuntamento ─────────────────────────────────────────────
-function AptRow({ apt, sedi, color, showDate }: { apt: Appuntamento; sedi: Sede[]; color: string; showDate?: boolean }) {
+function AptRow({ apt, sedi, showDate }: { apt: Appuntamento; sedi: Sede[]; showDate?: boolean }) {
   const sede = sedi.find(s => s.id === apt.sede_id);
   const label = apt.ora_inizio.substring(0, 5) + ' - ' + apt.ora_fine.substring(0, 5);
   const dateLabel = showDate ? format(parseISO(apt.data), 'EEE dd/MM', { locale: it }) : null;
   return (
-    <div className="flex items-center gap-3 rounded-xl px-3 py-2 bg-white border border-gray-100 hover:border-gray-200 transition-all">
-      <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+    <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-[#1A202C] border border-gray-700/40 hover:border-[#38b2ac]/40 transition-all">
+      <div className="w-1 h-8 rounded-full flex-shrink-0 bg-[#38b2ac]" />
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-gray-800 truncate">{apt.cliente || '—'}</p>
-        <p className="text-[10px] text-gray-400">{label}{sede ? ` · ${sede.nome}` : ''}</p>
+        <p className="text-xs font-bold text-white truncate">{apt.cliente || '—'}</p>
+        <p className="text-[10px] text-slate-500">{label}{sede ? ` · ${sede.nome}` : ''}</p>
       </div>
       {dateLabel && (
-        <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5 flex-shrink-0">{dateLabel}</span>
+        <span className="text-[10px] font-semibold text-slate-400 bg-[#2D3748] rounded-full px-2 py-0.5 flex-shrink-0">{dateLabel}</span>
       )}
     </div>
   );
