@@ -84,6 +84,7 @@ const TIME_SLOTS_IMOLA_LMM     = TIME_SLOTS_STD_LMM;
 const END_TIME_SLOTS_IMOLA_LMM = END_TIME_SLOTS_STD_LMM;
 
 // Gio Imola: 09:00–12:30 + 16:00–19:30  (fine: 20:00)
+// Slot pomeridiani: 16:00 16:30 17:00 17:30 | 18:00 18:30 | 19:00 19:30
 const TIME_SLOTS_IMOLA_GIO = [
   { hour: 9,  minute: 0,  label: '09:00' },
   { hour: 9,  minute: 30, label: '09:30' },
@@ -98,7 +99,7 @@ const TIME_SLOTS_IMOLA_GIO = [
   { hour: 17, minute: 0,  label: '17:00' },
   { hour: 17, minute: 30, label: '17:30' },
   { hour: 18, minute: 0,  label: '18:00' },
-
+  { hour: 18, minute: 30, label: '18:30' },
   { hour: 19, minute: 0,  label: '19:00' },
   { hour: 19, minute: 30, label: '19:30' },
 ];
@@ -147,9 +148,6 @@ const getStdEndSlotsForDay = (dow: number) =>
 
 /**
  * Restituisce gli slot di inizio per la sede e il giorno specifico.
- * @param nomeSedeOrId  nome della sede
- * @param date          data del giorno (opzionale)
- * @param agendaId      id dell'agenda (opzionale, per gestire eccezioni)
  */
 export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
   // Eccezione sabati lavorativi Agenda 730
@@ -179,9 +177,6 @@ export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?
 
 /**
  * Restituisce gli slot di fine per la sede e il giorno specifico.
- * @param nomeSedeOrId  nome della sede
- * @param date          data del giorno (opzionale)
- * @param agendaId      id dell'agenda (opzionale, per gestire eccezioni)
  */
 export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
   // Eccezione sabati lavorativi Agenda 730
@@ -208,7 +203,6 @@ export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agenda
 };
 
 // Verifica se un giorno è lavorativo per la sede
-// @param agendaId  id dell'agenda (opzionale, per gestire eccezioni sabato 730)
 export const isSedeWorkingDay = (nomeSedeOrId: string, date: Date, agendaId?: string): boolean => {
   const n   = nomeSedeOrId.toLowerCase();
   const dow = date.getDay(); // 0=dom, 1=lun, ..., 6=sab
