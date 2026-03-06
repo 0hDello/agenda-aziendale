@@ -15,7 +15,7 @@ import { it } from 'date-fns/locale';
 import { Persona, Sede, PersonaSede, Appuntamento } from '@/lib/types';
 import { TIME_SLOTS, END_TIME_SLOTS } from '@/utils/dateUtils';
 
-// ── Palette colori (stessa di EpasaAppointmentModal) ───────────────────────
+// ── Palette colori ──────────────────────────────────────────────────────
 const HIGHLIGHT_COLORS = [
   { id: '',       label: 'Nessuna', preview: '#ffffff', border: 'border-gray-300' },
   { id: 'yellow', label: 'Giallo',  preview: '#fde047', border: 'border-yellow-400' },
@@ -38,8 +38,7 @@ export const HIGHLIGHT_STYLE: Record<string, { cell: string; border: string; tex
   pink:    { cell: 'bg-pink-200',   border: 'border-pink-500',   text: 'text-pink-900'   },
 };
 
-// Slot di fine di default (ultimo di END_TIME_SLOTS, es. '18:00')
-const LAST_END_SLOT = END_TIME_SLOTS[END_TIME_SLOTS.length - 1].label;
+interface SlotItem { label: string; hour?: number; minute?: number; }
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -55,6 +54,10 @@ interface AppointmentModalProps {
   selectedTime: string;
   selectedSedeId?: string;
   defaultPersonaId?: string | null;
+  /** Slot di inizio del giorno corrente (es. giovedi Imola include 18:00, 19:00...) */
+  daySlots?: SlotItem[];
+  /** Slot di fine del giorno corrente */
+  dayEndSlots?: SlotItem[];
 }
 
 export default function AppointmentModal({
@@ -71,7 +74,14 @@ export default function AppointmentModal({
   selectedTime,
   selectedSedeId,
   defaultPersonaId,
+  daySlots,
+  dayEndSlots,
 }: AppointmentModalProps) {
+  // Usa gli slot del giorno se forniti, altrimenti fallback ai globali
+  const slots    = (daySlots    && daySlots.length    > 0) ? daySlots    : TIME_SLOTS;
+  const endSlots = (dayEndSlots && dayEndSlots.length > 0) ? dayEndSlots : END_TIME_SLOTS;
+  const LAST_END_SLOT = endSlots[endSlots.length - 1].label;
+
   const getValidDate = (dateStr: string): Date => {
     if (!dateStr) return new Date();
     const parsed = parseISO(dateStr);
@@ -121,10 +131,9 @@ export default function AppointmentModal({
         const validDate       = getValidDate(selectedDate);
         const validDateString = format(validDate, 'yyyy-MM-dd');
         const timeToUse       = selectedTime || '09:00';
-        const currentIndex    = TIME_SLOTS.findIndex(s => s.label === timeToUse);
-        // FIX: se è l'ultimo slot usa l'ultimo di END_TIME_SLOTS (es. '18:00'), non '17:30'
-        const nextSlotTime    = currentIndex >= 0 && currentIndex < TIME_SLOTS.length - 1
-          ? TIME_SLOTS[currentIndex + 1].label
+        const currentIndex    = slots.findIndex(s => s.label === timeToUse);
+        const nextSlotTime    = currentIndex >= 0 && currentIndex < slots.length - 1
+          ? slots[currentIndex + 1].label
           : LAST_END_SLOT;
         setFormData({
           persona_id: defaultPersonaId || '',
@@ -209,18 +218,17 @@ export default function AppointmentModal({
 
   const getAvailableSlots = (isStart: boolean) => {
     if (isStart)
-      return TIME_SLOTS.filter(s => s.label >= minTime);
-    return END_TIME_SLOTS.filter(s => s.label > formData.ora_inizio);
+      return slots.filter(s => s.label >= minTime);
+    return endSlots.filter(s => s.label > formData.ora_inizio);
   };
 
   const handleOraInizioChange = (v: string) => {
     setFormData(prev => {
       const next = { ...prev, ora_inizio: v };
       if (prev.ora_fine <= v) {
-        const idx = TIME_SLOTS.findIndex(s => s.label === v);
-        // FIX: se è l'ultimo slot usa l'ultimo di END_TIME_SLOTS (es. '18:00'), non '17:30'
-        next.ora_fine = idx >= 0 && idx < TIME_SLOTS.length - 1
-          ? TIME_SLOTS[idx + 1].label
+        const idx = slots.findIndex(s => s.label === v);
+        next.ora_fine = idx >= 0 && idx < slots.length - 1
+          ? slots[idx + 1].label
           : LAST_END_SLOT;
       }
       return next;
@@ -229,7 +237,6 @@ export default function AppointmentModal({
 
   if (!isOpen) return null;
 
-  // Testo contestuale header
   const sedeName    = sedi.find(s => s.id === formData.sede_id)?.nome ?? '';
   const displayDate = selectedDates[0]
     ? selectedDates[0].split('-').reverse().join('/')
@@ -238,7 +245,6 @@ export default function AppointmentModal({
 
   return (
     <>
-      {/* ── Modal principale ── */}
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
         <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
 
@@ -371,7 +377,7 @@ export default function AppointmentModal({
               </button>
               <button
                 type="submit"
-                className="flex-1 px-3 py-2 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-colors font-semibold text-sm"
+                className="flex-1 px-3 py-2 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold text-sm"
               >
                 {existingAppointment ? 'Salva' : selectedDates.length > 1 ? `Crea ${selectedDates.length}` : 'Crea'}
               </button>
