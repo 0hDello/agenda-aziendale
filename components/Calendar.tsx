@@ -102,8 +102,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return !isSedeWorkingDay(selectedSedeNome, day);
   };
 
-  // Ritorna true se questa persona NON deve lavorare in questo giorno
-  // (es: nei sabati 730 eccezionali, solo Monica lavora)
   const isPersonaDisabledForDay = (day: Date, persona: Persona): boolean => {
     if (agendaId === '730' && day.getDay() === 6) {
       const dateStr = format(day, 'yyyy-MM-dd');
@@ -543,9 +541,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── VISTA GIORNALIERA ─────────────────────────────────────────────────────
-  // Header sticky UNICO globale con tutte le persone della sede.
-  // Nei sabati 730 eccezionali, le colonne delle persone non-Monica
-  // mostrano una cella grigia "non disponibile" al posto degli slot.
   const renderDailyView = () => (
     <div>
       <div
@@ -554,7 +549,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         style={{ maxHeight: 'calc(100vh - 107px)' }}
       >
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-          {/* THEAD FISSO UNICO - sempre tutte le persone della sede */}
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
               <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
@@ -578,7 +572,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               const dayTimeSlots = getTimeSlotsForDay(day);
               return (
                 <React.Fragment key={dateStr}>
-                  {/* Riga titolo giorno */}
                   <tr data-date={dateStr}>
                     <td colSpan={sedePersone.length + 1}
                       className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
@@ -602,7 +595,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                         </td>
                         {sedePersone.map(persona => {
-                          // Nei sabati 730 eccezionali: persone non-Monica mostrano cella grigia
                           if (isPersonaDisabledForDay(day, persona)) {
                             return (
                               <td key={`${persona.id}-${slot.label}`}
@@ -639,7 +631,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                                 </div>
                               ) : (
                                 <TimeSlot
-                                  time={slot.label} appointments={slotApts} allDayAppointments={dayApts}
+                                  time={slot.label}
+                                  appointments={slotApts}
+                                  allDayAppointments={dayApts}
+                                  daySlots={dayTimeSlots}
                                   onClick={apt => !editMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
                                   onDragStart={handleDragStart}
                                   onDrop={t => handleDrop(dateStr, t, persona.id, day)}
