@@ -30,6 +30,7 @@ import {
   isSameDay,
   startOfDay,
   getMonth,
+  parseISO,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
@@ -441,6 +442,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
+  // Calcola gli slot per la data dello slot selezionato (usato dal modale)
+  const modalDate = selectedSlot.date
+    ? (() => { try { return parseISO(selectedSlot.date); } catch { return new Date(); } })()
+    : new Date();
+  const modalDaySlots    = getTimeSlotsForSede(selectedSedeNome, modalDate, agendaId);
+  const modalDayEndSlots = getEndTimeSlotsForSede(selectedSedeNome, modalDate, agendaId);
+
   // ─── VISTA MENSILE ───────────────────────────────────────────────────────
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona)) ? selectedMonthlyPersona : sedePersone[0]?.id ?? null;
@@ -777,6 +785,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         persone={persone} sedi={sedi} personaSede={personaSede}
         selectedDate={selectedSlot.date} selectedTime={selectedSlot.time}
         selectedSedeId={selectedSedeId} defaultPersonaId={selectedSlot.personaId}
+        daySlots={modalDaySlots}
+        dayEndSlots={modalDayEndSlots}
       />
     </div>
   );
