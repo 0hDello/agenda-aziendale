@@ -55,7 +55,7 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             {/* TODO: riabilitare quando pronto */}
             <button
-              
+              disabled
               onClick={() => router.push('/operatore')}
               className="flex items-center gap-2 px-4 py-2.5 bg-gray-200 text-gray-400 rounded-xl shadow-sm cursor-not-allowed opacity-60"
               title="Prossimamente">
