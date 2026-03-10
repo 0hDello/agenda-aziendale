@@ -336,7 +336,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return s.length > 0 && s.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
   };
 
+  // FIX: aggiunto guard su selectedSedeId per evitare blocchi su sede non ancora inizializzata
   const handleEditModeSlotClick = async (dateStr: string, slotLabel: string, personaId: string, day: Date) => {
+    if (!selectedSedeId) return;
     const realApts = appointments.filter(a =>
       a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
       a.ora_inizio.substring(0, 5) === slotLabel &&
@@ -356,11 +358,24 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const slots = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
       const idx = slots.findIndex(s => s.label === slotLabel);
-      const oraFine = idx !== -1 && idx + 1 < endSlots.length ? endSlots[idx + 1].label : endSlots[endSlots.length - 1].label;
+      // FIX: usa endSlots[idx + 1] solo se idx è valido e l'elemento esiste,
+      // altrimenti usa l'ultimo slot di fine — evita ora_fine undefined su slot di bordo
+      const oraFine =
+        idx !== -1 && idx + 1 < endSlots.length
+          ? endSlots[idx + 1].label
+          : endSlots[endSlots.length - 1].label;
       try {
         const res = await fetch('/api/appuntamenti', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' }),
+          body: JSON.stringify({
+            persona_id: personaId,
+            sede_id: selectedSedeId,
+            data: dateStr,
+            ora_inizio: slotLabel,
+            ora_fine: oraFine,
+            cliente: 'UFF CHIUSO',
+            note: '',
+          }),
         });
         if (!res.ok) throw new Error();
         await loadData();
@@ -631,11 +646,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             <td key={`${persona.id}-${slot.label}`}
                               className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
                               style={{ height: '45px' }}>
+                              {/* FIX: in edit mode lo slot vuoto mostra sempre il lucchetto (opacity-30)
+                                  invece di nasconderlo completamente (opacity-0), così è sempre cliccabile
+                                  e visivamente distinguibile anche senza hover */}
                               {editMode && slotApts.length === 0 ? (
-                                <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
-                                  className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 group transition-colors"
-                                  title="Clicca per bloccare questo slot">
-                                  <Lock size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div
+                                  onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
+                                  className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-amber-50 group transition-colors"
+                                  title="Clicca per bloccare questo slot"
+                                >
+                                  <Lock size={12} className="text-gray-300 opacity-30 group-hover:opacity-100 group-hover:text-amber-500 transition-all" />
                                 </div>
                               ) : (
                                 <TimeSlot
