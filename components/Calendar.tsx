@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -53,7 +53,6 @@ const SCROLL_THRESHOLD_FW   = 400;
 const SCROLL_THRESHOLD_BK   = 200;
 const STICKY_HEADER_HEIGHT  = 41;
 const SSE_RELOAD_DEBOUNCE   = 800;
-// Finestra (ms) in cui il SSE echo di una mutazione locale viene ignorato
 const LOCAL_MUTATION_WINDOW = 3000;
 
 type ViewMode = 'daily' | 'monthly';
@@ -79,9 +78,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
   // ─── Search state ─────────────────────────────────────────────────────────
-  const [showSearch, setShowSearch]         = useState(false);
-  const [searchQuery, setSearchQuery]       = useState('');
-  const [searchResults, setSearchResults]   = useState<Appuntamento[]>([]);
+  const [showSearch, setShowSearch]   = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  // useDeferredValue: React aggiorna il valore "deferred" in background,
+  // senza bloccare il rendering dell'input mentre l'utente digita.
+  const deferredQuery = useDeferredValue(searchQuery);
 
   const scrollContainerRef    = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef     = useRef<NodeJS.Timeout | null>(null);
@@ -93,8 +94,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const anchorOffsetTopRef    = useRef<number | null>(null);
   const searchInputRef        = useRef<HTMLInputElement>(null);
   const sediRef               = useRef<Sede[]>([]);
-  // Timestamp dell'ultima mutazione locale: il SSE echo viene ignorato finché
-  // non trascorre LOCAL_MUTATION_WINDOW ms dall'ultima operazione.
   const localMutationAtRef    = useRef<number>(0);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
@@ -261,8 +260,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   useEffect(() => {
     const es = new EventSource('/api/appuntamenti/events');
     es.addEventListener('update', () => {
-      // Se l'evento arriva entro LOCAL_MUTATION_WINDOW ms da una nostra mutazione,
-      // è quasi certamente il nostro echo: lo saltiamo.
       if (Date.now() - localMutationAtRef.current < LOCAL_MUTATION_WINDOW) return;
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
@@ -305,52 +302,57 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, []);
 
-  // ─── Shortcut Ctrl+K per aprire la ricerca ────────────────────────────────
+  // ─── Shortcut Ctrl+K ─────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearch(true);
-      }
-      if (e.key === 'Escape' && showSearch) {
-        closeSearch();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
+      if (e.key === 'Escape' && showSearch) closeSearch();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearch]);
 
-  // ─── Funzione ricerca ─────────────────────────────────────────────────────
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (!query.trim()) { setSearchResults([]); return; }
-    const q = query.toLowerCase().trim();
-    const results = appointments.filter(a =>
-      (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO' && (
+  // ─── Map persone precalcolata (evita .find() in ogni ciclo) ──────────────
+  const personeMap = useMemo(() => {
+    const m = new Map<string, Persona>();
+    for (const p of persone) m.set(p.id, p);
+    return m;
+  }, [persone]);
+
+  // ─── Ricerca ottimizzata: singola passata, useDeferredValue ──────────────
+  // searchResults si ricalcola solo quando deferredQuery cambia (dopo che
+  // React ha già reso fluido l'aggiornamento dell'input). La singola passata
+  // con Set elimina il doppio loop + merge che bloccava il thread.
+  const searchResults = useMemo(() => {
+    const q = deferredQuery.toLowerCase().trim();
+    if (!q) return [];
+    const seen = new Set<string>();
+    const out: Appuntamento[] = [];
+    for (const a of appointments) {
+      if ((a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO') continue;
+      const personaNome = personeMap.get(a.persona_id)?.nome.toLowerCase() ?? '';
+      const match =
         (a.cliente ?? '').toLowerCase().includes(q) ||
         (a.note?.toLowerCase().includes(q)) ||
         a.persona_id.toLowerCase().includes(q) ||
+        personaNome.includes(q) ||
         a.data.includes(q) ||
-        a.sede_id.toLowerCase().includes(q)
-      )
-    );
-    const resultsWithName = appointments.filter(a => {
-      if ((a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO') return false;
-      const persona = persone.find(p => p.id === a.persona_id);
-      return persona?.nome.toLowerCase().includes(q);
-    });
-    const merged = [...results];
-    for (const r of resultsWithName) {
-      if (!merged.some(x => x.id === r.id)) merged.push(r);
+        a.sede_id.toLowerCase().includes(q);
+      if (match && !seen.has(a.id)) {
+        seen.add(a.id);
+        out.push(a);
+      }
     }
-    merged.sort((a, b) => b.data.localeCompare(a.data));
-    setSearchResults(merged.slice(0, 50));
-  };
+    out.sort((a, b) => b.data.localeCompare(a.data));
+    return out.slice(0, 50);
+  }, [deferredQuery, appointments, personeMap]);
+
+  // Indica se la ricerca è ancora "in corso" (input più avanti del deferred)
+  const isSearchPending = searchQuery !== deferredQuery;
 
   const closeSearch = () => {
     setShowSearch(false);
     setSearchQuery('');
-    setSearchResults([]);
   };
 
   // ─── Navigazione da risultato di ricerca ─────────────────────────────────
@@ -360,7 +362,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       const [y, m, d] = apt.data.split('-').map(Number);
       setTimeout(() => navigateToDate(new Date(y, m - 1, d, 12, 0, 0)), 50);
-    } catch { /* ignora date malformate */ }
+    } catch { }
     setViewMode('daily');
     closeSearch();
   };
@@ -385,7 +387,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       alert('Compila tutti i campi obbligatori');
       return;
     }
-    // ID temporaneo per il rendering immediato
     const tempId = `__optimistic_${Date.now()}`;
     const optimisticApt: Appuntamento = { ...data, id: tempId };
     markLocalMutation();
@@ -397,11 +398,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      // Sostituisci il placeholder con i dati reali dal server
       const created: Appuntamento = await res.json();
       setAppointments(prev => prev.map(a => a.id === tempId ? created : a));
     } catch (err) {
-      // Rollback
       setAppointments(prev => prev.filter(a => a.id !== tempId));
       alert('Errore imprevisto: ' + String(err));
     }
@@ -418,11 +417,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      // Aggiorna con i dati canonici restituiti dal server (es. timestamp)
       const updated: Appuntamento = await res.json();
       setAppointments(prev => prev.map(a => a.id === id ? updated : a));
     } catch (err) {
-      // Rollback: ricarica dal server
       try { const res = await fetch('/api/appuntamenti'); const data = await res.json(); if (data) setAppointments(data); } catch { }
       alert('Errore imprevisto: ' + String(err));
     }
@@ -438,7 +435,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const res = await fetch(`/api/appuntamenti/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
     } catch (err) {
-      // Rollback
       if (snapshot) setAppointments(prev => [...prev, snapshot]);
       alert('Errore imprevisto: ' + String(err));
     }
@@ -470,7 +466,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (realApts.length > 0) return;
     const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
     if (uffApts.length > 0) {
-      // ── Sblocco ottimistico ──
       const removedIds = uffApts.map(a => a.id);
       markLocalMutation();
       setAppointments(prev => prev.filter(a => !removedIds.includes(a.id)));
@@ -479,14 +474,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
           if (!res.ok) throw new Error();
         } catch {
-          // Rollback parziale: ricarica tutto
           await loadData();
           alert('Errore durante lo sblocco');
           return;
         }
       }
     } else {
-      // ── Blocco ottimistico ──
       const slots    = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
       const idx      = slots.findIndex(s => s.label === slotLabel);
@@ -557,7 +550,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       return newStart < apt.ora_fine.substring(0, 5) && newEnd > apt.ora_inizio.substring(0, 5);
     });
     if (hasConflict) { alert('Impossibile spostare: fascia già occupata'); setDraggedAppointment(null); return; }
-    // Salva snapshot per eventuale rollback
     const snapshot = { ...appointment };
     const updatedData = { persona_id: personaId, sede_id: appointment.sede_id, ora_inizio: newStart, ora_fine: newEnd, cliente: appointment.cliente, note: appointment.note, highlight: appointment.highlight };
     markLocalMutation();
@@ -573,7 +565,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const updated: Appuntamento = await res.json();
       setAppointments(prev => prev.map(a => a.id === appointment.id ? updated : a));
     } catch {
-      // Rollback
       setAppointments(prev => prev.map(a => a.id === snapshot.id ? snapshot : a));
       alert('Errore imprevisto');
     }
@@ -851,7 +842,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300' }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
-                    {/* ── Bottone Cerca ── */}
                     <button
                       onClick={() => setShowSearch(true)}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
@@ -923,13 +913,17 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 autoFocus
                 type="text"
                 value={searchQuery}
-                onChange={e => handleSearch(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Cerca cliente, persona, data (es. 2026-03)..."
                 className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400"
               />
-              {searchQuery && (
+              {/* Spinner sottile quando il deferred è in ritardo */}
+              {isSearchPending && (
+                <div className="w-3.5 h-3.5 border-2 border-[#005CA9]/30 border-t-[#005CA9] rounded-full animate-spin flex-shrink-0" />
+              )}
+              {searchQuery && !isSearchPending && (
                 <button
-                  onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
+                  onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
                   className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X size={16} />
                 </button>
@@ -946,14 +940,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   <p className="text-xs text-gray-300 mt-1">Cerca per nome cliente, persona o data</p>
                 </div>
               )}
-              {searchQuery && searchResults.length === 0 && (
+              {searchQuery && !isSearchPending && searchResults.length === 0 && (
                 <div className="px-4 py-8 text-center">
                   <p className="text-sm text-gray-400">Nessun risultato per <strong>&quot;{searchQuery}&quot;</strong></p>
                 </div>
               )}
               {searchResults.map(apt => {
                 const sede    = sedi.find(s => s.id === apt.sede_id);
-                const persona = persone.find(p => p.id === apt.persona_id);
+                const persona = personeMap.get(apt.persona_id);
                 return (
                   <div
                     key={apt.id}
