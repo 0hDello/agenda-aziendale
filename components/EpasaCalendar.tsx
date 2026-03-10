@@ -154,6 +154,8 @@ const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
 const STICKY_HEADER_HEIGHT = 41;
+// Finestra (ms) in cui il SSE echo di una mutazione locale viene ignorato
+const LOCAL_MUTATION_WINDOW = 3000;
 
 // ─── Colore unico operatori ────────────────────────────────────────────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
@@ -187,14 +189,16 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
   const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
-  // Ora salviamo sia la dateStr sia i pixel dell'anchor PRIMA del render
   const anchorDateStrRef   = useRef<string | null>(null);
-  const anchorScrollTopRef = useRef<number | null>(null); // scrollTop del container al momento del capture
-  const anchorOffsetTopRef = useRef<number | null>(null); // offsetTop dell'elemento anchor nel documento scorrevole
+  const anchorScrollTopRef = useRef<number | null>(null);
+  const anchorOffsetTopRef = useRef<number | null>(null);
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
   const viewModeRef        = useRef<ViewMode>('daily');
   const searchInputRef     = useRef<HTMLInputElement>(null);
   const sediRef            = useRef<Sede[]>([]);
+  // Timestamp dell'ultima mutazione locale: il SSE echo viene ignorato finché
+  // non trascorre LOCAL_MUTATION_WINDOW ms dall'ultima operazione.
+  const localMutationAtRef = useRef<number>(0);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
@@ -203,6 +207,9 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const formatDate         = (d: Date) => format(d, 'yyyy-MM-dd');
   const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
   const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
+
+  // ─── Helper: marca mutazione locale ──────────────────────────────────────
+  const markLocalMutation = () => { localMutationAtRef.current = Date.now(); };
 
   // ─── Shortcut Ctrl+K per aprire la ricerca ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -360,9 +367,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
     const container = scrollContainerRef.current;
 
-    // Trova l'elemento anchor visibile e salva la sua posizione ASSOLUTA nel
-    // contenitore scorrevole (offsetTop relativo al scrollable content),
-    // non la posizione relativa alla viewport che cambia dopo il render.
     let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
     let anchorOffsetTop = 0;
     if (container) {
@@ -373,7 +377,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
           const ds = row.getAttribute('data-epasa-date');
           if (ds) {
             anchorDateStr = ds;
-            // offsetTop dell'elemento rispetto al contenitore scorrevole
             anchorOffsetTop = row.offsetTop;
             break;
           }
@@ -400,9 +403,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     });
   }, []);
 
-  // Dopo il render dei nuovi giorni, ripristina la posizione di scroll
-  // usando l'offsetTop aggiornato dell'elemento anchor e la distanza
-  // che aveva rispetto al top visibile del container prima del caricamento.
   const ldEff = useCallback(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
@@ -410,7 +410,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
       const anchorDate   = anchorDateStrRef.current;
       const prevScrollTop = anchorScrollTopRef.current ?? 0;
       const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
-      // Distanza che l'anchor aveva dal top visibile del container prima del render
       const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -418,9 +417,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
           const container = scrollContainerRef.current;
           const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchorDate}"]`);
           if (el && container) {
-            // Nuovo offsetTop dell'anchor dopo il render (i nuovi giorni sono stati prepend)
             const newOffsetTop = el.offsetTop;
-            // Vogliamo che l'anchor sia esattamente dove era: newOffsetTop - distanceFromTop
             container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
           }
         }
@@ -477,9 +474,13 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     }
   }, [sedi, selectedSede]);
 
+  // ─── SSE: ignora l'echo delle mutazioni locali ────────────────────────────
   const sseEffect = useCallback(() => {
     const es = new EventSource('/api/epasa/events');
     es.addEventListener('update', () => {
+      // Se l'evento arriva entro LOCAL_MUTATION_WINDOW ms da una nostra mutazione,
+      // è quasi certamente il nostro echo: lo saltiamo.
+      if (Date.now() - localMutationAtRef.current < LOCAL_MUTATION_WINDOW) return;
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
         try {
@@ -526,36 +527,66 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     }
   };
 
+  // ─── CREATE con optimistic update ────────────────────────────────────────
   const handleCreateAppointment = async (data: any) => {
+    const tempId = `__optimistic_${Date.now()}`;
+    const optimisticApt: Appointment = { ...data, id: tempId };
+    markLocalMutation();
+    setAllAppointments(prev => [...prev, optimisticApt]);
     try {
       const res = await fetch('/api/epasa/appuntamenti', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      const newApt = await res.json();
-      setAllAppointments(prev => [...prev, newApt]);
-    } catch { alert("Errore durante la creazione dell'appuntamento"); }
+      // Sostituisci il placeholder con i dati reali dal server
+      const newApt: Appointment = await res.json();
+      setAllAppointments(prev => prev.map(a => a.id === tempId ? newApt : a));
+    } catch {
+      // Rollback
+      setAllAppointments(prev => prev.filter(a => a.id !== tempId));
+      alert("Errore durante la creazione dell'appuntamento");
+    }
   };
 
+  // ─── UPDATE con optimistic update ────────────────────────────────────────
   const handleUpdateAppointment = async (id: string, data: any) => {
+    markLocalMutation();
+    setAllAppointments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
     try {
       const res = await fetch(`/api/epasa/appuntamenti/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error();
-      const updated = await res.json();
+      // Aggiorna con i dati canonici restituiti dal server
+      const updated: Appointment = await res.json();
       setAllAppointments(prev => prev.map(a => a.id === id ? updated : a));
-    } catch { alert("Errore durante l'aggiornamento dell'appuntamento"); }
+    } catch {
+      // Rollback: ricarica dal server
+      try {
+        const res = await fetch('/api/epasa/appuntamenti');
+        const appData = await res.json();
+        if (appData) setAllAppointments(appData);
+      } catch { }
+      alert("Errore durante l'aggiornamento dell'appuntamento");
+    }
   };
 
+  // ─── DELETE con optimistic update ────────────────────────────────────────
   const handleDeleteAppointment = async (id: string) => {
+    const snapshot = allAppointments.find(a => a.id === id);
+    markLocalMutation();
+    setAllAppointments(prev => prev.filter(a => a.id !== id));
     try {
       const res = await fetch(`/api/epasa/appuntamenti/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-      setAllAppointments(prev => prev.filter(a => a.id !== id));
-    } catch { alert("Errore durante l'eliminazione dell'appuntamento"); }
+    } catch {
+      // Rollback
+      if (snapshot) setAllAppointments(prev => [...prev, snapshot]);
+      alert("Errore durante l'eliminazione dell'appuntamento");
+    }
   };
 
+  // ─── EditMode (UFF CHIUSO) con optimistic update ──────────────────────────
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
 
@@ -568,14 +599,35 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
     const uffApts = getUffChiusoApts(dateStr, time, operator);
     if (uffApts.length > 0) {
+      // ── Sblocco ottimistico ──
+      const removedIds = uffApts.map(a => a.id);
+      markLocalMutation();
+      setAllAppointments(prev => prev.filter(a => !removedIds.includes(a.id)));
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
           if (!res.ok) throw new Error();
-        } catch { alert('Errore durante lo sblocco'); return; }
+        } catch {
+          // Rollback parziale: ricarica tutto
+          await loadData();
+          alert('Errore durante lo sblocco');
+          return;
+        }
       }
-      setAllAppointments(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
+      // ── Blocco ottimistico ──
+      const tempId = `__optimistic_${Date.now()}`;
+      const newUff: Appointment = {
+        id: tempId,
+        sede_id: selectedSede.id,
+        operatore_id: operator,
+        data: dateStr,
+        ora: time,
+        cliente: 'UFF CHIUSO',
+        mese: dateStr.substring(0, 7),
+      };
+      markLocalMutation();
+      setAllAppointments(prev => [...prev, newUff]);
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -587,9 +639,12 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
           }),
         });
         if (!res.ok) throw new Error();
-        const newApt = await res.json();
-        setAllAppointments(prev => [...prev, newApt]);
-      } catch { alert('Errore durante il blocco'); }
+        const newApt: Appointment = await res.json();
+        setAllAppointments(prev => prev.map(a => a.id === tempId ? newApt : a));
+      } catch {
+        setAllAppointments(prev => prev.filter(a => a.id !== tempId));
+        alert('Errore durante il blocco');
+      }
     }
   };
 
