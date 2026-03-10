@@ -324,29 +324,32 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
     appointments.filter(a =>
       a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
-      a.ora_inizio.substring(0, 5) === slotLabel &&
+      slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5) &&
       (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO'
     );
 
+  // FIX: controlla se lo slot è COPERTO da un UFF CHIUSO (non solo se inizia esattamente qui).
+  // Prima usava ora_inizio === slotLabel, quindi uno slot 16:00-20:00 non veniva
+  // riconosciuto come "uff chiuso" sugli slot interni (es. 18:30).
   const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
-    const s = appointments.filter(a =>
+    const covering = appointments.filter(a =>
       a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
-      a.ora_inizio.substring(0, 5) === slotLabel
+      slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5)
     );
-    return s.length > 0 && s.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
+    return covering.length > 0 && covering.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
   };
 
-  // FIX: aggiunto guard su selectedSedeId per evitare blocchi su sede non ancora inizializzata
   const handleEditModeSlotClick = async (dateStr: string, slotLabel: string, personaId: string, day: Date) => {
     if (!selectedSedeId) return;
     const realApts = appointments.filter(a =>
       a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
-      a.ora_inizio.substring(0, 5) === slotLabel &&
+      slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5) &&
       (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
     );
     if (realApts.length > 0) return;
     const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
     if (uffApts.length > 0) {
+      // Sblocco: elimina tutti gli UFF CHIUSO che coprono questo slot
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -355,11 +358,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       }
       await loadData();
     } else {
+      // Blocco: crea un UFF CHIUSO di mezza ora per questo slot
       const slots = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
       const idx = slots.findIndex(s => s.label === slotLabel);
-      // FIX: usa endSlots[idx + 1] solo se idx è valido e l'elemento esiste,
-      // altrimenti usa l'ultimo slot di fine — evita ora_fine undefined su slot di bordo
       const oraFine =
         idx !== -1 && idx + 1 < endSlots.length
           ? endSlots[idx + 1].label
@@ -646,9 +648,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             <td key={`${persona.id}-${slot.label}`}
                               className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
                               style={{ height: '45px' }}>
-                              {/* FIX: in edit mode lo slot vuoto mostra sempre il lucchetto (opacity-30)
-                                  invece di nasconderlo completamente (opacity-0), così è sempre cliccabile
-                                  e visivamente distinguibile anche senza hover */}
                               {editMode && slotApts.length === 0 ? (
                                 <div
                                   onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
