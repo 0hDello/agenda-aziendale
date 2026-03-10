@@ -78,12 +78,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
-  // ─── Search state ─────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
 
-  // ─── Print state ─────────────────────────────────────────────────────────
   const [showPrintModal, setShowPrintModal]     = useState(false);
   const [printPersonaId, setPrintPersonaId]     = useState<string>('');
   const [printDate, setPrintDate]               = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -220,9 +218,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         if (anchorDate) {
           const container = scrollContainerRef.current;
           const el = document.querySelector<HTMLElement>(`[data-date="${anchorDate}"]`);
-          if (el && container) {
-            container.scrollTo({ top: el.offsetTop - distanceFromTop, behavior: 'instant' });
-          }
+          if (el && container) container.scrollTo({ top: el.offsetTop - distanceFromTop, behavior: 'instant' });
         }
         anchorDateStrRef.current   = null;
         anchorOffsetTopRef.current = null;
@@ -260,7 +256,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => { loadData(); }, []);
 
-  // ─── SSE ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/appuntamenti/events');
     es.addEventListener('update', () => {
@@ -306,7 +301,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, []);
 
-  // ─── Shortcut Ctrl+K ─────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
@@ -316,14 +310,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearch]);
 
-  // ─── Map persone precalcolata ──────────────────────────────────────────────────
   const personeMap = useMemo(() => {
     const m = new Map<string, Persona>();
     for (const p of persone) m.set(p.id, p);
     return m;
   }, [persone]);
 
-  // ─── Ricerca ottimizzata ──────────────────────────────────────────────────────
   const searchResults = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
     if (!q) return [];
@@ -339,10 +331,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         personaNome.includes(q) ||
         a.data.includes(q) ||
         a.sede_id.toLowerCase().includes(q);
-      if (match && !seen.has(a.id)) {
-        seen.add(a.id);
-        out.push(a);
-      }
+      if (match && !seen.has(a.id)) { seen.add(a.id); out.push(a); }
     }
     out.sort((a, b) => b.data.localeCompare(a.data));
     return out.slice(0, 50);
@@ -350,12 +339,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const isSearchPending = searchQuery !== deferredQuery;
 
-  const closeSearch = () => {
-    setShowSearch(false);
-    setSearchQuery('');
-  };
+  const closeSearch = () => { setShowSearch(false); setSearchQuery(''); };
 
-  // ─── Navigazione da risultato di ricerca ─────────────────────────────────
   const navigateToSearchResult = (apt: Appuntamento) => {
     const targetSede = sediRef.current.find(s => s.id === apt.sede_id);
     if (targetSede) setSelectedSedeId(targetSede.id);
@@ -380,7 +365,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     } catch (error) { console.error('Errore caricamento dati:', error); }
   };
 
-  // ─── STAMPA ──────────────────────────────────────────────────────────────────
   const openPrintModal = () => {
     const defaultPersona = sedePersone[0]?.id ?? '';
     setPrintPersonaId(defaultPersona);
@@ -405,7 +389,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     setShowPrintModal(false);
   };
 
-  // ─── CREATE ──────────────────────────────────────────────────────────────────
   const handleCreateAppointment = async (data: any) => {
     if (!data.persona_id || !data.sede_id || !data.data || !data.ora_inizio || !data.ora_fine) { alert('Compila tutti i campi obbligatori'); return; }
     const tempId = `__optimistic_${Date.now()}`;
@@ -422,7 +405,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // ─── UPDATE ──────────────────────────────────────────────────────────────────
   const handleUpdateAppointment = async (id: string, data: any) => {
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
     markLocalMutation();
@@ -437,7 +419,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  // ─── DELETE ──────────────────────────────────────────────────────────────────
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
     const snapshot = appointments.find(a => a.id === id);
@@ -677,6 +658,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
+              {/* Colonna orario SINISTRA */}
               <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
                 <span className="text-[#005CA9]">Orario</span>
               </th>
@@ -688,6 +670,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </div>
                 </th>
               ))}
+              {/* Colonna orario DESTRA */}
+              <th className="p-2 text-right text-xs font-semibold bg-[#F5F8FA] sticky right-0 z-10 w-[60px] border-l border-gray-200">
+                <span className="text-[#005CA9]">Orario</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -699,7 +685,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
               return (
                 <React.Fragment key={dateStr}>
                   <tr data-date={dateStr}>
-                    <td colSpan={sedePersone.length + 1}
+                    <td colSpan={sedePersone.length + 2}
                       className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
                       {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
                       {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
@@ -707,7 +693,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </tr>
                   {isClosed ? (
                     <tr>
-                      <td colSpan={sedePersone.length + 1} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
+                      <td colSpan={sedePersone.length + 2} className="p-4 text-center bg-gray-50 border-b border-gray-200" style={{ height: '60px' }}>
                         <div className="flex items-center justify-center gap-2 text-gray-400">
                           <Lock size={14} />
                           <span className="text-xs font-medium">{isBorgoSede ? 'Borgo è aperto solo il mercoledì' : 'Sede chiusa'}</span>
@@ -717,6 +703,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   ) : (
                     dayTimeSlots.map(slot => (
                       <tr key={`${dateStr}-${slot.label}`}>
+                        {/* Cella orario SINISTRA */}
                         <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                         </td>
@@ -762,6 +749,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             </td>
                           );
                         })}
+                        {/* Cella orario DESTRA */}
+                        <td className="p-0 bg-[#F5F8FA] sticky right-0 z-10 border-l border-gray-200 border-b border-gray-100 w-[60px]">
+                          <div className="px-1 py-2 text-xs font-semibold text-gray-700 text-right">{slot.label}</div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -781,7 +772,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const handleNext = () => { if (viewMode === 'daily') navigateToDate(addDays(selectedDate, 1)); else setSelectedDate(addMonths(selectedDate, 1)); };
 
   return (
-    // ── Wrapper: occupa tutta la viewport, niente padding né max-w ──
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white border-t-4 border-[#005CA9]">
 
       {/* ── HEADER ── */}
@@ -853,7 +843,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         </div>
       </div>
 
-      {/* ── BODY: occupa il resto della viewport ── */}
+      {/* ── BODY ── */}
       <div className="flex-1 overflow-hidden">
         {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
       </div>
