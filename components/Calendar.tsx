@@ -53,6 +53,8 @@ const SCROLL_THRESHOLD_FW   = 400;
 const SCROLL_THRESHOLD_BK   = 200;
 const STICKY_HEADER_HEIGHT  = 41;
 const SSE_RELOAD_DEBOUNCE   = 800;
+// Finestra (ms) in cui il SSE echo di una mutazione locale viene ignorato
+const LOCAL_MUTATION_WINDOW = 3000;
 
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
@@ -81,16 +83,19 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [searchQuery, setSearchQuery]       = useState('');
   const [searchResults, setSearchResults]   = useState<Appuntamento[]>([]);
 
-  const scrollContainerRef  = useRef<HTMLDivElement>(null);
-  const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
-  const visibleDaysRef      = useRef<Date[]>([]);
-  const viewModeRef         = useRef<ViewMode>('daily');
-  const loadingDirRef       = useRef<'idle' | 'fw' | 'bk'>('idle');
-  const anchorDateStrRef    = useRef<string | null>(null);
-  const anchorScrollTopRef  = useRef<number | null>(null);
-  const anchorOffsetTopRef  = useRef<number | null>(null);
-  const searchInputRef      = useRef<HTMLInputElement>(null);
-  const sediRef             = useRef<Sede[]>([]);
+  const scrollContainerRef    = useRef<HTMLDivElement>(null);
+  const sseReloadTimerRef     = useRef<NodeJS.Timeout | null>(null);
+  const visibleDaysRef        = useRef<Date[]>([]);
+  const viewModeRef           = useRef<ViewMode>('daily');
+  const loadingDirRef         = useRef<'idle' | 'fw' | 'bk'>('idle');
+  const anchorDateStrRef      = useRef<string | null>(null);
+  const anchorScrollTopRef    = useRef<number | null>(null);
+  const anchorOffsetTopRef    = useRef<number | null>(null);
+  const searchInputRef        = useRef<HTMLInputElement>(null);
+  const sediRef               = useRef<Sede[]>([]);
+  // Timestamp dell'ultima mutazione locale: il SSE echo viene ignorato finché
+  // non trascorre LOCAL_MUTATION_WINDOW ms dall'ultima operazione.
+  const localMutationAtRef    = useRef<number>(0);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
@@ -252,9 +257,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => { loadData(); }, []);
 
+  // ─── SSE: ignora l'echo delle mutazioni locali ────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/appuntamenti/events');
     es.addEventListener('update', () => {
+      // Se l'evento arriva entro LOCAL_MUTATION_WINDOW ms da una nostra mutazione,
+      // è quasi certamente il nostro echo: lo saltiamo.
+      if (Date.now() - localMutationAtRef.current < LOCAL_MUTATION_WINDOW) return;
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
         try {
@@ -325,7 +334,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         a.sede_id.toLowerCase().includes(q)
       )
     );
-    // Arricchisce con il nome persona per la ricerca per nome
     const resultsWithName = appointments.filter(a => {
       if ((a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO') return false;
       const persona = persone.find(p => p.id === a.persona_id);
@@ -357,6 +365,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     closeSearch();
   };
 
+  // ─── Helper: marca mutazione locale ──────────────────────────────────────
+  const markLocalMutation = () => { localMutationAtRef.current = Date.now(); };
+
   const loadData = async () => {
     try {
       const [sediRes, personeRes, psRes, appRes] = await Promise.all([fetch('/api/sedi'), fetch('/api/persone'), fetch('/api/persona-sede'), fetch('/api/appuntamenti')]);
@@ -368,27 +379,69 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     } catch (error) { console.error('Errore caricamento dati:', error); }
   };
 
+  // ─── CREATE con optimistic update ────────────────────────────────────────
   const handleCreateAppointment = async (data: any) => {
+    if (!data.persona_id || !data.sede_id || !data.data || !data.ora_inizio || !data.ora_fine) {
+      alert('Compila tutti i campi obbligatori');
+      return;
+    }
+    // ID temporaneo per il rendering immediato
+    const tempId = `__optimistic_${Date.now()}`;
+    const optimisticApt: Appuntamento = { ...data, id: tempId };
+    markLocalMutation();
+    setAppointments(prev => [...prev, optimisticApt]);
     try {
-      if (!data.persona_id || !data.sede_id || !data.data || !data.ora_inizio || !data.ora_fine) { alert('Compila tutti i campi obbligatori'); return; }
-      const res = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const res = await fetch('/api/appuntamenti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
       if (!res.ok) throw new Error();
-    } catch (err) { alert('Errore imprevisto: ' + String(err)); }
+      // Sostituisci il placeholder con i dati reali dal server
+      const created: Appuntamento = await res.json();
+      setAppointments(prev => prev.map(a => a.id === tempId ? created : a));
+    } catch (err) {
+      // Rollback
+      setAppointments(prev => prev.filter(a => a.id !== tempId));
+      alert('Errore imprevisto: ' + String(err));
+    }
   };
 
+  // ─── UPDATE con optimistic update ────────────────────────────────────────
   const handleUpdateAppointment = async (id: string, data: any) => {
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
+    markLocalMutation();
     try {
-      const res = await fetch(`/api/appuntamenti/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const res = await fetch(`/api/appuntamenti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
       if (!res.ok) throw new Error();
-    } catch (err) { alert('Errore imprevisto: ' + String(err)); }
+      // Aggiorna con i dati canonici restituiti dal server (es. timestamp)
+      const updated: Appuntamento = await res.json();
+      setAppointments(prev => prev.map(a => a.id === id ? updated : a));
+    } catch (err) {
+      // Rollback: ricarica dal server
+      try { const res = await fetch('/api/appuntamenti'); const data = await res.json(); if (data) setAppointments(data); } catch { }
+      alert('Errore imprevisto: ' + String(err));
+    }
   };
 
+  // ─── DELETE con optimistic update ────────────────────────────────────────
   const handleDeleteAppointment = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return;
+    const snapshot = appointments.find(a => a.id === id);
+    markLocalMutation();
+    setAppointments(prev => prev.filter(a => a.id !== id));
     try {
       const res = await fetch(`/api/appuntamenti/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-    } catch (err) { alert('Errore imprevisto: ' + String(err)); }
+    } catch (err) {
+      // Rollback
+      if (snapshot) setAppointments(prev => [...prev, snapshot]);
+      alert('Errore imprevisto: ' + String(err));
+    }
   };
 
   const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
@@ -406,6 +459,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return covering.length > 0 && covering.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
   };
 
+  // ─── EditMode (UFF CHIUSO) con optimistic update ──────────────────────────
   const handleEditModeSlotClick = async (dateStr: string, slotLabel: string, personaId: string, day: Date) => {
     if (!selectedSedeId) return;
     const realApts = appointments.filter(a =>
@@ -416,37 +470,53 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (realApts.length > 0) return;
     const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
     if (uffApts.length > 0) {
+      // ── Sblocco ottimistico ──
+      const removedIds = uffApts.map(a => a.id);
+      markLocalMutation();
+      setAppointments(prev => prev.filter(a => !removedIds.includes(a.id)));
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
           if (!res.ok) throw new Error();
-        } catch { alert('Errore durante lo sblocco'); return; }
+        } catch {
+          // Rollback parziale: ricarica tutto
+          await loadData();
+          alert('Errore durante lo sblocco');
+          return;
+        }
       }
-      await loadData();
     } else {
-      const slots = getTimeSlotsForDay(day);
+      // ── Blocco ottimistico ──
+      const slots    = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
-      const idx = slots.findIndex(s => s.label === slotLabel);
-      const oraFine =
-        idx !== -1 && idx + 1 < endSlots.length
-          ? endSlots[idx + 1].label
-          : endSlots[endSlots.length - 1].label;
+      const idx      = slots.findIndex(s => s.label === slotLabel);
+      const oraFine  = idx !== -1 && idx + 1 < endSlots.length ? endSlots[idx + 1].label : endSlots[endSlots.length - 1].label;
+      const tempId   = `__optimistic_${Date.now()}`;
+      const newUff: Appuntamento = {
+        id: tempId,
+        persona_id: personaId,
+        sede_id: selectedSedeId,
+        data: dateStr,
+        ora_inizio: slotLabel,
+        ora_fine: oraFine,
+        cliente: 'UFF CHIUSO',
+        note: '',
+      } as Appuntamento;
+      markLocalMutation();
+      setAppointments(prev => [...prev, newUff]);
       try {
         const res = await fetch('/api/appuntamenti', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            persona_id: personaId,
-            sede_id: selectedSedeId,
-            data: dateStr,
-            ora_inizio: slotLabel,
-            ora_fine: oraFine,
-            cliente: 'UFF CHIUSO',
-            note: '',
-          }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' }),
         });
         if (!res.ok) throw new Error();
-        await loadData();
-      } catch { alert('Errore durante il blocco'); }
+        const created: Appuntamento = await res.json();
+        setAppointments(prev => prev.map(a => a.id === tempId ? created : a));
+      } catch {
+        setAppointments(prev => prev.filter(a => a.id !== tempId));
+        alert('Errore durante il blocco');
+      }
     }
   };
 
@@ -465,6 +535,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragStart = (appointment: Appuntamento, time: string) => setDraggedAppointment({ appointment, originalTime: time });
 
+  // ─── DRAG & DROP con optimistic update ───────────────────────────────────
   const handleDrop = async (date: string, newTime: string, personaId: string, day: Date) => {
     if (!draggedAppointment) return;
     const { appointment, originalTime } = draggedAppointment;
@@ -483,17 +554,29 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const newEnd   = ne < slots.length ? slots[ne].label : endSlots[endSlots.length - 1].label;
     const hasConflict = appointments.some(apt => {
       if (apt.id === appointment.id || apt.persona_id !== personaId || apt.sede_id !== appointment.sede_id || apt.data !== date) return false;
-      return newStart < apt.ora_fine.substring(0,5) && newEnd > apt.ora_inizio.substring(0,5);
+      return newStart < apt.ora_fine.substring(0, 5) && newEnd > apt.ora_inizio.substring(0, 5);
     });
     if (hasConflict) { alert('Impossibile spostare: fascia già occupata'); setDraggedAppointment(null); return; }
+    // Salva snapshot per eventuale rollback
+    const snapshot = { ...appointment };
+    const updatedData = { persona_id: personaId, sede_id: appointment.sede_id, ora_inizio: newStart, ora_fine: newEnd, cliente: appointment.cliente, note: appointment.note, highlight: appointment.highlight };
+    markLocalMutation();
+    setAppointments(prev => prev.map(a => a.id === appointment.id ? { ...a, ...updatedData, data: date } : a));
+    setDraggedAppointment(null);
     try {
       const res = await fetch(`/api/appuntamenti/${appointment.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persona_id: personaId, sede_id: appointment.sede_id, ora_inizio: newStart, ora_fine: newEnd, cliente: appointment.cliente, note: appointment.note, highlight: appointment.highlight }),
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
       });
       if (!res.ok) throw new Error();
-    } catch { alert('Errore imprevisto'); }
-    setDraggedAppointment(null);
+      const updated: Appuntamento = await res.json();
+      setAppointments(prev => prev.map(a => a.id === appointment.id ? updated : a));
+    } catch {
+      // Rollback
+      setAppointments(prev => prev.map(a => a.id === snapshot.id ? snapshot : a));
+      alert('Errore imprevisto');
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
