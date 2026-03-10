@@ -13,6 +13,7 @@ import {
   List,
   Lock,
   Unlock,
+  Search,
 } from 'lucide-react';
 import {
   format,
@@ -75,6 +76,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [editMode, setEditMode]             = useState(false);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
+  // ─── Search state ─────────────────────────────────────────────────────────
+  const [showSearch, setShowSearch]         = useState(false);
+  const [searchQuery, setSearchQuery]       = useState('');
+  const [searchResults, setSearchResults]   = useState<Appuntamento[]>([]);
+
   const scrollContainerRef  = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef   = useRef<NodeJS.Timeout | null>(null);
   const visibleDaysRef      = useRef<Date[]>([]);
@@ -83,9 +89,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const anchorDateStrRef    = useRef<string | null>(null);
   const anchorScrollTopRef  = useRef<number | null>(null);
   const anchorOffsetTopRef  = useRef<number | null>(null);
+  const searchInputRef      = useRef<HTMLInputElement>(null);
+  const sediRef             = useRef<Sede[]>([]);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
+  useEffect(() => { sediRef.current = sedi; }, [sedi]);
 
   const selectedSede     = sedi.find(s => s.id === selectedSedeId) ?? null;
   const selectedSedeNome = selectedSede?.nome ?? '';
@@ -287,6 +296,67 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     };
   }, []);
 
+  // ─── Shortcut Ctrl+K per aprire la ricerca ────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+      if (e.key === 'Escape' && showSearch) {
+        closeSearch();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
+
+  // ─── Funzione ricerca ─────────────────────────────────────────────────────
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) { setSearchResults([]); return; }
+    const q = query.toLowerCase().trim();
+    const results = appointments.filter(a =>
+      (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO' && (
+        (a.cliente ?? '').toLowerCase().includes(q) ||
+        (a.note?.toLowerCase().includes(q)) ||
+        a.persona_id.toLowerCase().includes(q) ||
+        a.data.includes(q) ||
+        a.sede_id.toLowerCase().includes(q)
+      )
+    );
+    // Arricchisce con il nome persona per la ricerca per nome
+    const resultsWithName = appointments.filter(a => {
+      if ((a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO') return false;
+      const persona = persone.find(p => p.id === a.persona_id);
+      return persona?.nome.toLowerCase().includes(q);
+    });
+    const merged = [...results];
+    for (const r of resultsWithName) {
+      if (!merged.some(x => x.id === r.id)) merged.push(r);
+    }
+    merged.sort((a, b) => b.data.localeCompare(a.data));
+    setSearchResults(merged.slice(0, 50));
+  };
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  // ─── Navigazione da risultato di ricerca ─────────────────────────────────
+  const navigateToSearchResult = (apt: Appuntamento) => {
+    const targetSede = sediRef.current.find(s => s.id === apt.sede_id);
+    if (targetSede) setSelectedSedeId(targetSede.id);
+    try {
+      const [y, m, d] = apt.data.split('-').map(Number);
+      setTimeout(() => navigateToDate(new Date(y, m - 1, d, 12, 0, 0)), 50);
+    } catch { /* ignora date malformate */ }
+    setViewMode('daily');
+    closeSearch();
+  };
+
   const loadData = async () => {
     try {
       const [sediRes, personeRes, psRes, appRes] = await Promise.all([fetch('/api/sedi'), fetch('/api/persone'), fetch('/api/persona-sede'), fetch('/api/appuntamenti')]);
@@ -328,9 +398,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO'
     );
 
-  // FIX: controlla se lo slot è COPERTO da un UFF CHIUSO (non solo se inizia esattamente qui).
-  // Prima usava ora_inizio === slotLabel, quindi uno slot 16:00-20:00 non veniva
-  // riconosciuto come "uff chiuso" sugli slot interni (es. 18:30).
   const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
     const covering = appointments.filter(a =>
       a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId &&
@@ -349,7 +416,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (realApts.length > 0) return;
     const uffApts = getUffChiusoApts(dateStr, slotLabel, personaId);
     if (uffApts.length > 0) {
-      // Sblocco: elimina tutti gli UFF CHIUSO che coprono questo slot
       for (const apt of uffApts) {
         try {
           const res = await fetch(`/api/appuntamenti/${apt.id}`, { method: 'DELETE' });
@@ -358,7 +424,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       }
       await loadData();
     } else {
-      // Blocco: crea un UFF CHIUSO di mezza ora per questo slot
       const slots = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
       const idx = slots.findIndex(s => s.label === slotLabel);
@@ -459,14 +524,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return null;
   };
 
-  // Calcola gli slot per la data dello slot selezionato (usato dal modale)
   const modalDate = selectedSlot.date
     ? (() => { try { return parseISO(selectedSlot.date); } catch { return new Date(); } })()
     : new Date();
   const modalDaySlots    = getTimeSlotsForSede(selectedSedeNome, modalDate, agendaId);
   const modalDayEndSlots = getEndTimeSlotsForSede(selectedSedeNome, modalDate, agendaId);
 
-  // ─── VISTA MENSILE ───────────────────────────────────────────────────────
+  // ─── VISTA MENSILE ────────────────────────────────────────────────────────
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona)) ? selectedMonthlyPersona : sedePersone[0]?.id ?? null;
     if (!activePersona) return null;
@@ -565,7 +629,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     );
   };
 
-  // ─── VISTA GIORNALIERA ─────────────────────────────────────────────────────
+  // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
   const renderDailyView = () => (
     <div>
       <div
@@ -704,6 +768,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300' }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
+                    {/* ── Bottone Cerca ── */}
+                    <button
+                      onClick={() => setShowSearch(true)}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
+                      title="Cerca appuntamenti (Ctrl+K)"
+                    >
+                      <Search size={11} /> Cerca
+                    </button>
                   </div>
                 </div>
               </div>
@@ -753,6 +825,89 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
           {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
         </div>
       </div>
+
+      {/* ── SEARCH OVERLAY ── */}
+      {showSearch && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-16"
+          onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}
+        >
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border-t-4 border-[#005CA9]">
+            <div className="flex items-center gap-3 p-4 border-b border-gray-200">
+              <Search size={18} className="text-[#005CA9] flex-shrink-0" />
+              <input
+                ref={searchInputRef}
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={e => handleSearch(e.target.value)}
+                placeholder="Cerca cliente, persona, data (es. 2026-03)..."
+                className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={16} />
+                </button>
+              )}
+              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              {!searchQuery && (
+                <div className="px-4 py-8 text-center">
+                  <Search size={32} className="text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400 font-medium">Inizia a digitare per cercare</p>
+                  <p className="text-xs text-gray-300 mt-1">Cerca per nome cliente, persona o data</p>
+                </div>
+              )}
+              {searchQuery && searchResults.length === 0 && (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm text-gray-400">Nessun risultato per <strong>&quot;{searchQuery}&quot;</strong></p>
+                </div>
+              )}
+              {searchResults.map(apt => {
+                const sede    = sedi.find(s => s.id === apt.sede_id);
+                const persona = persone.find(p => p.id === apt.persona_id);
+                return (
+                  <div
+                    key={apt.id}
+                    onClick={() => navigateToSearchResult(apt)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <User size={15} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{apt.cliente}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        <span className="font-medium text-[#005CA9]">{persona?.nome ?? apt.persona_id}</span>
+                        {' · '}{sede?.nome ?? apt.sede_id}
+                        {' · '}{(() => { try { const [y,m,d] = apt.data.split('-').map(Number); return format(new Date(y,m-1,d,12), 'dd/MM/yyyy', { locale: it }); } catch { return apt.data; } })()}
+                        {' · '}{apt.ora_inizio?.substring(0, 5)}
+                      </p>
+                      {apt.note && (
+                        <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>
+                      )}
+                    </div>
+                    <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] transition-colors flex-shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+            {searchResults.length > 0 && (
+              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between">
+                <p className="text-xs text-gray-400">
+                  {searchResults.length}{searchResults.length === 50 ? '+' : ''} risultat{searchResults.length === 1 ? 'o' : 'i'} — clicca per navigare
+                </p>
+                <kbd className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-mono">ESC</kbd>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
