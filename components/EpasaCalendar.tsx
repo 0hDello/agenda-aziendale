@@ -79,7 +79,6 @@ interface GiornoChiuso {
   motivo: string | null;
 }
 
-// ─── Slot per sede ──────────────────────────────────────────────────────────────────────
 const TIME_SLOTS_IMOLA: string[] = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00',
 ];
@@ -103,11 +102,9 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
   return allOperators;
 };
 
-// ─── Regole MILECE ──────────────────────────────────────────────────────────────────────────────────
 const MILECE_WORKING_DAYS = [2, 3, 5];
 const MILECE_START_TIME   = '08:30';
 
-// ─── Helpers data ───────────────────────────────────────────────────────────────────────────────────
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
@@ -144,7 +141,6 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-// ─── Costanti scroll ───────────────────────────────────────────────────────────────────────────────────
 const MAX_VISIBLE_DAYS    = 30;
 const DAYS_PAST           = 3;
 const DAYS_FUTURE         = 10;
@@ -154,10 +150,8 @@ const SCROLL_THRESHOLD_FW = 400;
 const SCROLL_THRESHOLD_BK = 200;
 const SSE_RELOAD_DEBOUNCE = 800;
 const STICKY_HEADER_HEIGHT = 41;
-// Finestra (ms) in cui il SSE echo di una mutazione locale viene ignorato
 const LOCAL_MUTATION_WINDOW = 3000;
 
-// ─── Colore unico operatori ────────────────────────────────────────────────────────────────────────────────────────
 const OPERATOR_COLOR = '#005CA9';
 
 export default function EpasaCalendar({ agendaId, initialLoredana = false }: EpasaCalendarProps) {
@@ -180,12 +174,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const [realtimeFlash, setRealtimeFlash]     = useState(false);
   const [showLoredanaView, setShowLoredanaView] = useState(initialLoredana);
 
-  // ─── Search state ────────────────────────────────────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]           = useState(false);
   const [searchQuery, setSearchQuery]         = useState('');
   const [searchResults, setSearchResults]     = useState<Appointment[]>([]);
 
-  // ─── Refs ───────────────────────────────────────────────────────────────────────────────────────
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const visibleDaysRef     = useRef<Date[]>([]);
   const loadingDirRef      = useRef<'idle' | 'fw' | 'bk'>('idle');
@@ -196,8 +188,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const viewModeRef        = useRef<ViewMode>('daily');
   const searchInputRef     = useRef<HTMLInputElement>(null);
   const sediRef            = useRef<Sede[]>([]);
-  // Timestamp dell'ultima mutazione locale: il SSE echo viene ignorato finché
-  // non trascorre LOCAL_MUTATION_WINDOW ms dall'ultima operazione.
   const localMutationAtRef = useRef<number>(0);
 
   useEffect(() => { visibleDaysRef.current = visibleDays; }, [visibleDays]);
@@ -208,31 +198,20 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
   const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
 
-  // ─── Helper: marca mutazione locale ──────────────────────────────────────
   const markLocalMutation = () => { localMutationAtRef.current = Date.now(); };
 
-  // ─── Shortcut Ctrl+K per aprire la ricerca ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearch(true);
-      }
-      if (e.key === 'Escape' && showSearch) {
-        closeSearch();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
+      if (e.key === 'Escape' && showSearch) closeSearch();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearch]);
 
-  // ─── Funzione ricerca ───────────────────────────────────────────────────────────────────────────────────────────
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
+    if (!query.trim()) { setSearchResults([]); return; }
     const q = query.toLowerCase().trim();
     const results = allAppointments.filter(a =>
       a.cliente.trim().toUpperCase() !== 'UFF CHIUSO' && (
@@ -247,13 +226,8 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     setSearchResults(results.slice(0, 50));
   };
 
-  const closeSearch = () => {
-    setShowSearch(false);
-    setSearchQuery('');
-    setSearchResults([]);
-  };
+  const closeSearch = () => { setShowSearch(false); setSearchQuery(''); setSearchResults([]); };
 
-  // ─── Navigazione da risultato di ricerca: cambia sede + data ──────────────────────────────────────────
   const navigateToSearchResult = (apt: Appointment) => {
     const targetSede = sediRef.current.find(s => s.id === apt.sede_id);
     if (targetSede) setSelectedSede(targetSede);
@@ -262,7 +236,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     closeSearch();
   };
 
-  // ─── Business logic ────────────────────────────────────────────────────────────────────────────────────────
   const isMileceTimeBlocked = (operator: string, day: Date, time: string) => {
     if (operator !== 'MILECE') return false;
     if (!isMileceWorkingDay(day)) return false;
@@ -302,27 +275,22 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     if (!selectedSede) return 0;
     return allAppointments.filter(
       a => a.sede_id === selectedSede.id && a.data === dateStr &&
-           a.operatore_id === operatoreId &&
-           a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+           a.operatore_id === operatoreId && a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
     ).length;
   };
 
   const getUffChiusoSlotsCount = (dateStr: string, operatoreId: string) => {
     if (!selectedSede) return 0;
-    return getTimeSlotsForSede(selectedSede.id)
-      .filter(t => isUffChiusoSlot(dateStr, t, operatoreId)).length;
+    return getTimeSlotsForSede(selectedSede.id).filter(t => isUffChiusoSlot(dateStr, t, operatoreId)).length;
   };
 
-  // ─── Scroll helpers ───────────────────────────────────────────────────────────────────────────────────
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const container = scrollContainerRef.current;
     const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
     if (!el || !container) return;
-
     const containerRect = container.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     const scrollOffset = elRect.top - containerRect.top + container.scrollTop - STICKY_HEADER_HEIGHT;
-
     container.scrollTo({ top: scrollOffset, behavior });
   };
 
@@ -364,9 +332,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     const days = visibleDaysRef.current;
     const firstDay = days[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
-
     const container = scrollContainerRef.current;
-
     let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
     let anchorOffsetTop = 0;
     if (container) {
@@ -375,27 +341,20 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
       for (const row of Array.from(rows)) {
         if (row.getBoundingClientRect().top >= containerTop - 5) {
           const ds = row.getAttribute('data-epasa-date');
-          if (ds) {
-            anchorDateStr = ds;
-            anchorOffsetTop = row.offsetTop;
-            break;
-          }
+          if (ds) { anchorDateStr = ds; anchorOffsetTop = row.offsetTop; break; }
         }
       }
     }
-
     anchorDateStrRef.current   = anchorDateStr;
     anchorOffsetTopRef.current = anchorOffsetTop;
     anchorScrollTopRef.current = container ? container.scrollTop : 0;
     loadingDirRef.current = 'bk';
-
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
     if (newDays.length === 0) { loadingDirRef.current = 'idle'; return; }
-
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
@@ -407,19 +366,15 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
     if (dir === 'bk') {
-      const anchorDate   = anchorDateStrRef.current;
+      const anchorDate    = anchorDateStrRef.current;
       const prevScrollTop = anchorScrollTopRef.current ?? 0;
       const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
       const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
-
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (anchorDate) {
           const container = scrollContainerRef.current;
           const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchorDate}"]`);
-          if (el && container) {
-            const newOffsetTop = el.offsetTop;
-            container.scrollTo({ top: newOffsetTop - distanceFromTop, behavior: 'instant' });
-          }
+          if (el && container) container.scrollTo({ top: el.offsetTop - distanceFromTop, behavior: 'instant' });
         }
         anchorDateStrRef.current   = null;
         anchorOffsetTopRef.current = null;
@@ -427,9 +382,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
         loadingDirRef.current = 'idle';
       }));
     } else {
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        loadingDirRef.current = 'idle';
-      }));
+      requestAnimationFrame(() => requestAnimationFrame(() => { loadingDirRef.current = 'idle'; }));
     }
   }, []);
   useEffect(ldEff, [visibleDays]);
@@ -439,22 +392,14 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     const container = scrollContainerRef.current;
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
-    if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_FW) {
-      loadMoreDaysForward();
-    }
-    if (scrollTop < SCROLL_THRESHOLD_BK) {
-      loadMoreDaysBackward();
-    }
+    if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_FW) loadMoreDaysForward();
+    if (scrollTop < SCROLL_THRESHOLD_BK) loadMoreDaysBackward();
   }, [loadMoreDaysForward, loadMoreDaysBackward]);
 
   const setScrollRef = useCallback((el: HTMLDivElement | null) => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.removeEventListener('scroll', onScroll);
-    }
+    if (scrollContainerRef.current) scrollContainerRef.current.removeEventListener('scroll', onScroll);
     (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-    if (el) {
-      el.addEventListener('scroll', onScroll, { passive: true });
-    }
+    if (el) el.addEventListener('scroll', onScroll, { passive: true });
   }, [onScroll]);
 
   useEffect(() => {
@@ -474,33 +419,24 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     }
   }, [sedi, selectedSede]);
 
-  // ─── SSE: ignora l'echo delle mutazioni locali ────────────────────────────
   const sseEffect = useCallback(() => {
     const es = new EventSource('/api/epasa/events');
     es.addEventListener('update', () => {
-      // Se l'evento arriva entro LOCAL_MUTATION_WINDOW ms da una nostra mutazione,
-      // è quasi certamente il nostro echo: lo saltiamo.
       if (Date.now() - localMutationAtRef.current < LOCAL_MUTATION_WINDOW) return;
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
         try {
-          const [appRes, gcRes] = await Promise.all([
-            fetch('/api/epasa/appuntamenti'),
-            fetch('/api/epasa/giorni-chiusi'),
-          ]);
+          const [appRes, gcRes] = await Promise.all([fetch('/api/epasa/appuntamenti'), fetch('/api/epasa/giorni-chiusi')]);
           const [appData, gcData] = await Promise.all([appRes.json(), gcRes.json()]);
           if (appData) setAllAppointments(appData);
           if (gcData && Array.isArray(gcData)) setGiorniChiusi(gcData);
           setRealtimeFlash(true);
           setTimeout(() => setRealtimeFlash(false), 1500);
-        } catch { /* silenzioso */ }
+        } catch { }
       }, SSE_RELOAD_DEBOUNCE);
     });
     es.onerror = () => {};
-    return () => {
-      es.close();
-      if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
-    };
+    return () => { es.close(); if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current); };
   }, []);
   useEffect(sseEffect, []);
 
@@ -508,10 +444,8 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     setLoading(true);
     try {
       const [sediRes, opRes, appRes, gcRes] = await Promise.all([
-        fetch('/api/epasa/sedi'),
-        fetch('/api/epasa/operatori'),
-        fetch('/api/epasa/appuntamenti'),
-        fetch('/api/epasa/giorni-chiusi'),
+        fetch('/api/epasa/sedi'), fetch('/api/epasa/operatori'),
+        fetch('/api/epasa/appuntamenti'), fetch('/api/epasa/giorni-chiusi'),
       ]);
       const [sediData, opData, appData, gcData] = await Promise.all([
         sediRes.json(), opRes.json(), appRes.json(), gcRes.json(),
@@ -527,51 +461,32 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     }
   };
 
-  // ─── CREATE con optimistic update ────────────────────────────────────────
   const handleCreateAppointment = async (data: any) => {
     const tempId = `__optimistic_${Date.now()}`;
-    const optimisticApt: Appointment = { ...data, id: tempId };
     markLocalMutation();
-    setAllAppointments(prev => [...prev, optimisticApt]);
+    setAllAppointments(prev => [...prev, { ...data, id: tempId }]);
     try {
-      const res = await fetch('/api/epasa/appuntamenti', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-      });
+      const res = await fetch('/api/epasa/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (!res.ok) throw new Error();
-      // Sostituisci il placeholder con i dati reali dal server
       const newApt: Appointment = await res.json();
       setAllAppointments(prev => prev.map(a => a.id === tempId ? newApt : a));
-    } catch {
-      // Rollback
-      setAllAppointments(prev => prev.filter(a => a.id !== tempId));
-      alert("Errore durante la creazione dell'appuntamento");
-    }
+    } catch { setAllAppointments(prev => prev.filter(a => a.id !== tempId)); alert("Errore durante la creazione dell'appuntamento"); }
   };
 
-  // ─── UPDATE con optimistic update ────────────────────────────────────────
   const handleUpdateAppointment = async (id: string, data: any) => {
     markLocalMutation();
     setAllAppointments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
     try {
-      const res = await fetch(`/api/epasa/appuntamenti/${id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-      });
+      const res = await fetch(`/api/epasa/appuntamenti/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (!res.ok) throw new Error();
-      // Aggiorna con i dati canonici restituiti dal server
       const updated: Appointment = await res.json();
       setAllAppointments(prev => prev.map(a => a.id === id ? updated : a));
     } catch {
-      // Rollback: ricarica dal server
-      try {
-        const res = await fetch('/api/epasa/appuntamenti');
-        const appData = await res.json();
-        if (appData) setAllAppointments(appData);
-      } catch { }
+      try { const res = await fetch('/api/epasa/appuntamenti'); const d = await res.json(); if (d) setAllAppointments(d); } catch { }
       alert("Errore durante l'aggiornamento dell'appuntamento");
     }
   };
 
-  // ─── DELETE con optimistic update ────────────────────────────────────────
   const handleDeleteAppointment = async (id: string) => {
     const snapshot = allAppointments.find(a => a.id === id);
     markLocalMutation();
@@ -579,81 +494,43 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     try {
       const res = await fetch(`/api/epasa/appuntamenti/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-    } catch {
-      // Rollback
-      if (snapshot) setAllAppointments(prev => [...prev, snapshot]);
-      alert("Errore durante l'eliminazione dell'appuntamento");
-    }
+    } catch { if (snapshot) setAllAppointments(prev => [...prev, snapshot]); alert("Errore durante l'eliminazione dell'appuntamento"); }
   };
 
-  // ─── EditMode (UFF CHIUSO) con optimistic update ──────────────────────────
   const handleEditModeSlotClick = async (dateStr: string, time: string, operator: string) => {
     if (!selectedSede) return;
-
     const realApts = allAppointments.filter(
-      a => a.sede_id === selectedSede.id && a.data === dateStr &&
-           a.ora === time && a.operatore_id === operator &&
-           a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+      a => a.sede_id === selectedSede.id && a.data === dateStr && a.ora === time && a.operatore_id === operator && a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
     );
     if (realApts.length > 0) return;
-
     const uffApts = getUffChiusoApts(dateStr, time, operator);
     if (uffApts.length > 0) {
-      // ── Sblocco ottimistico ──
       const removedIds = uffApts.map(a => a.id);
       markLocalMutation();
       setAllAppointments(prev => prev.filter(a => !removedIds.includes(a.id)));
       for (const apt of uffApts) {
-        try {
-          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error();
-        } catch {
-          // Rollback parziale: ricarica tutto
-          await loadData();
-          alert('Errore durante lo sblocco');
-          return;
-        }
+        try { const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' }); if (!res.ok) throw new Error(); }
+        catch { await loadData(); alert('Errore durante lo sblocco'); return; }
       }
     } else {
-      // ── Blocco ottimistico ──
       const tempId = `__optimistic_${Date.now()}`;
-      const newUff: Appointment = {
-        id: tempId,
-        sede_id: selectedSede.id,
-        operatore_id: operator,
-        data: dateStr,
-        ora: time,
-        cliente: 'UFF CHIUSO',
-        mese: dateStr.substring(0, 7),
-      };
       markLocalMutation();
-      setAllAppointments(prev => [...prev, newUff]);
+      setAllAppointments(prev => [...prev, { id: tempId, sede_id: selectedSede.id, operatore_id: operator, data: dateStr, ora: time, cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7) }]);
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sede_id: selectedSede.id, operatore_id: operator,
-            data: dateStr, ora: time,
-            cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7),
-          }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sede_id: selectedSede.id, operatore_id: operator, data: dateStr, ora: time, cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7) }),
         });
         if (!res.ok) throw new Error();
         const newApt: Appointment = await res.json();
         setAllAppointments(prev => prev.map(a => a.id === tempId ? newApt : a));
-      } catch {
-        setAllAppointments(prev => prev.filter(a => a.id !== tempId));
-        alert('Errore durante il blocco');
-      }
+      } catch { setAllAppointments(prev => prev.filter(a => a.id !== tempId)); alert('Errore durante il blocco'); }
     }
   };
 
   const openModalForNewAppointment = (date: string, time: string, operator: string) => {
-    setSelectedSlot({ date, time, operator });
-    setEditingAppointment(null);
-    setShowModal(true);
+    setSelectedSlot({ date, time, operator }); setEditingAppointment(null); setShowModal(true);
   };
-
   const openModalForEditAppointment = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setSelectedSlot({ date: appointment.data, time: appointment.ora, operator: appointment.operatore_id });
@@ -663,8 +540,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const getAppointmentsForSlot = (date: string, time: string, operator: string) => {
     if (!selectedSede) return [];
     return allAppointments.filter(
-      a => a.sede_id === selectedSede.id && a.data === date &&
-           a.ora === time && a.operatore_id === operator
+      a => a.sede_id === selectedSede.id && a.data === date && a.ora === time && a.operatore_id === operator
     );
   };
 
@@ -706,8 +582,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const operatorsInSede = getOperatorsForSede();
 
   const activeMonthlyOperator = selectedMonthlyOperator && operatorsInSede.includes(selectedMonthlyOperator)
-    ? selectedMonthlyOperator
-    : operatorsInSede[0] ?? null;
+    ? selectedMonthlyOperator : operatorsInSede[0] ?? null;
 
   const getSedeOrariLabel = () => {
     if (!selectedSede) return '';
@@ -716,18 +591,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     return 'Lun-Ven 8:00-12:00';
   };
 
-  const handlePreviousDay = () => {
-    const d = subDays(selectedDate, 1);
-    if (d >= MIN_DATE) navigateToDate(d);
-  };
-  const handlePreviousMonth = () => {
-    const d = subMonths(selectedDate, 1);
-    if (d >= MIN_DATE) setSelectedDate(d);
-  };
+  const handlePreviousDay   = () => { const d = subDays(selectedDate, 1); if (d >= MIN_DATE) navigateToDate(d); };
+  const handlePreviousMonth = () => { const d = subMonths(selectedDate, 1); if (d >= MIN_DATE) setSelectedDate(d); };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  VISTA MENSILE
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══ VISTA MENSILE ═══════════════════════════════════════════════════════
   const renderMonthlyView = () => {
     if (!activeMonthlyOperator) return null;
     const operator = activeMonthlyOperator;
@@ -737,7 +604,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     const monthEnd   = endOfMonth(selectedDate);
     const allCalDays = eachDayOfInterval({
       start: startOfWeek(monthStart, { weekStartsOn: 1 }),
-      end:   endOfWeek(monthEnd,   { weekStartsOn: 1 }),
+      end:   endOfWeek(monthEnd, { weekStartsOn: 1 }),
     });
     const weeks: Date[][] = [];
     for (let i = 0; i < allCalDays.length; i += 7) weeks.push(allCalDays.slice(i, i + 7));
@@ -794,7 +661,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             </div>
           </div>
         </div>
-
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="grid grid-cols-7 border-b border-gray-200">
             {DAY_NAMES.map((name, idx) => (
@@ -825,11 +691,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                   const tbc = slots.filter(t => isMileceTimeBlocked(operator, dateObj, t)).length;
                   const ssc = (selectedSede.id === 'imola' && operator !== 'MILECE')
                     ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length : 0;
-                  freeSlots = Math.max(0,
-                    slots.length - tbc - ssc -
-                    getRealAppointmentsCount(dateStr, operator) -
-                    getUffChiusoSlotsCount(dateStr, operator)
-                  );
+                  freeSlots = Math.max(0, slots.length - tbc - ssc - getRealAppointmentsCount(dateStr, operator) - getUffChiusoSlotsCount(dateStr, operator));
                 }
                 const avBg     = isClosed ? (isWe ? 'bg-gray-100' : 'bg-gray-50') :
                   av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
@@ -857,9 +719,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                     {!isClosed && freeSlots > 0 && (
                       <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                        <span className="text-[10px] font-semibold text-green-700">
-                          {freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}
-                        </span>
+                        <span className="text-[10px] font-semibold text-green-700">{freeSlots} liber{freeSlots === 1 ? 'o' : 'i'}</span>
                       </div>
                     )}
                   </div>
@@ -872,16 +732,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     );
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  VISTA GIORNALIERA
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══ VISTA GIORNALIERA ════════════════════════════════════════════════════
   const renderDailyView = () => (
     <div>
-      <div
-        ref={setScrollRef}
-        className="overflow-y-auto"
-        style={{ maxHeight: 'calc(100vh - 107px)' }}
-      >
+      <div ref={setScrollRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 65px)' }}>
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
@@ -910,13 +764,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
               return (
                 <React.Fragment key={dateStr}>
                   <tr data-epasa-date={dateStr}>
-                    <td
-                      colSpan={Math.max(operatorsInSede.length + 1, 2)}
+                    <td colSpan={Math.max(operatorsInSede.length + 1, 2)}
                       className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                        isToday ? 'bg-[#005CA9] text-white' :
-                        isWe    ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
-                      }`}
-                    >
+                        isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
+                      }`}>
                       {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
                       {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
                     </td>
@@ -964,7 +815,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                             </div>
                           </td>
                         );
-
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
                             className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
@@ -980,7 +830,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                             </div>
                           </td>
                         );
-
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';
@@ -998,19 +847,13 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                                 <div className="w-full overflow-hidden">
                                   <div className="flex items-center gap-1 w-full">
                                     <User size={10} className={`${hl.text} flex-shrink-0`} />
-                                    <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1 min-w-0`}>
-                                      {apt.cliente}
-                                    </span>
-                                    {apt.note && !editMode && (
-                                      <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />
-                                    )}
+                                    <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1 min-w-0`}>{apt.cliente}</span>
+                                    {apt.note && !editMode && <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />}
                                   </div>
                                 </div>
                               </div>
                               {!editMode && apt.note && (
-                                <div
-                                  className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none
-                                             opacity-0 group-hover/slot:opacity-100 transition-opacity duration-150"
+                                <div className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none opacity-0 group-hover/slot:opacity-100 transition-opacity duration-150"
                                   style={{ minWidth: '160px', maxWidth: '240px' }}>
                                   <div className="bg-blue-50 border border-blue-200 text-blue-800 text-[11px] rounded-lg shadow-lg px-3 py-2 leading-relaxed">
                                     <div className="flex items-center gap-1.5 mb-1 pb-1 border-b border-blue-200">
@@ -1019,19 +862,12 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                                     </div>
                                     <p className="whitespace-pre-wrap break-words text-blue-700">{apt.note}</p>
                                   </div>
-                                  <div className="w-0 h-0 ml-4"
-                                    style={{
-                                      borderLeft: '5px solid transparent',
-                                      borderRight: '5px solid transparent',
-                                      borderTop: '5px solid #bfdbfe',
-                                    }}
-                                  />
+                                  <div className="w-0 h-0 ml-4" style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #bfdbfe' }} />
                                 </div>
                               )}
                             </td>
                           );
                         }
-
                         return (
                           <td key={`${operator}-${time}`}
                             className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
@@ -1041,9 +877,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                                 ? handleEditModeSlotClick(dateStr, time, operator)
                                 : openModalForNewAppointment(dateStr, time, operator)}
                               className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
-                                editMode
-                                  ? 'hover:bg-gray-100 group-hover:bg-gray-100'
-                                  : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
+                                editMode ? 'hover:bg-gray-100 group-hover:bg-gray-100' : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
                               }`}
                               title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
                               {editMode
@@ -1066,9 +900,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     </div>
   );
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  RENDER
-  // ═══════════════════════════════════════════════════════════════════════════
   if (loading) return (
     <div className="flex items-center justify-center h-96">
       <div className="text-center">
@@ -1085,142 +916,121 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   );
 
   return (
-    <div className="min-h-screen p-1 md:p-2 animate-fade-in">
-      <div className="max-w-[1800px] mx-auto">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
+    // ── Wrapper: occupa tutta la viewport, niente padding né max-w ──
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white border-t-4 border-[#005CA9]">
 
-          {/* ── HEADER ── */}
-          <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
-                  <CalendarIcon className="w-6 h-6 text-white" />
+      {/* ── HEADER ── */}
+      <div className="flex-shrink-0 bg-white border-b-2 border-[#005CA9]/20 px-4 py-3">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
+              <CalendarIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-[#005CA9]">EPASA - {selectedSede.nome}</h1>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                  realtimeFlash
+                    ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                    : 'bg-gray-50 text-gray-400 border border-gray-200'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                  }`} />
+                  {realtimeFlash ? 'Aggiornato' : 'Live'}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-[#005CA9]">EPASA - {selectedSede.nome}</h1>
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
-                      realtimeFlash
-                        ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
-                        : 'bg-gray-50 text-gray-400 border border-gray-200'
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-                      }`} />
-                      {realtimeFlash ? 'Aggiornato' : 'Live'}
-                    </div>
-                    <button
-                      onClick={() => setShowSearch(true)}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
-                      title="Cerca appuntamenti (Ctrl+K)"
-                    >
-                      <Search size={11} /> Cerca
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>
-                </div>
+                <button onClick={() => setShowSearch(true)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
+                  title="Cerca appuntamenti (Ctrl+K)">
+                  <Search size={11} /> Cerca
+                </button>
               </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={() => setShowLoredanaView(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080] hover:shadow-md"
-                  title="Apri la vista mensile di Loredana">
-                  <Eye size={15} /> Vista Loredana
-                </button>
-
-                <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
-                  <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                    viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
-                  }`}><List className="w-4 h-4 inline mr-1" />Giornaliera</button>
-                  <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                    viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
-                  }`}><LayoutGrid className="w-4 h-4 inline mr-1" />Mensile</button>
-                </div>
-
-                <div className="relative group">
-                  <button onClick={() => setEditMode(e => !e)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
-                      editMode
-                        ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
-                        : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
-                    }`}
-                    title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}>
-                    {editMode ? <Unlock size={16} /> : <Lock size={16} />}
-                  </button>
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
-                    {editMode ? 'Esci dalla modifica' : 'Modifica slot'}
-                  </div>
-                </div>
-
-                <button onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
-                  disabled={selectedDate <= MIN_DATE}
-                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <ChevronLeft className="w-4 h-4 text-gray-600" />
-                </button>
-
-                <button onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center">
-                  <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
-                    {viewMode === 'daily'
-                      ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
-                      : format(selectedDate, 'MMMM yyyy', { locale: it })}
-                  </span>
-                </button>
-
-                <button onClick={() => viewMode === 'daily'
-                  ? navigateToDate(addDays(selectedDate, 1))
-                  : setSelectedDate(addMonths(selectedDate, 1))}
-                  className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
-                </button>
-
-                <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
-                  <Building2 className="w-5 h-5 text-[#005CA9]" />
-                  <div className="relative">
-                    <select value={selectedSede.id}
-                      onChange={e => { const s = sedi.find(x => x.id === e.target.value); if (s) setSelectedSede(s); }}
-                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none">
-                      {sedi.map(s => <option key={s.id} value={s.id} className="text-gray-800 bg-white">{s.nome}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs text-gray-600 mt-0.5">{getSedeOrariLabel()}</p>
             </div>
           </div>
 
-          {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setShowLoredanaView(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080] hover:shadow-md"
+              title="Apri la vista mensile di Loredana">
+              <Eye size={15} /> Vista Loredana
+            </button>
+            <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-300">
+              <button onClick={() => setViewMode('daily')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'daily' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
+              }`}><List className="w-4 h-4 inline mr-1" />Giornaliera</button>
+              <button onClick={() => setViewMode('monthly')} className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'monthly' ? 'bg-[#005CA9] text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'
+              }`}><LayoutGrid className="w-4 h-4 inline mr-1" />Mensile</button>
+            </div>
+            <div className="relative group">
+              <button onClick={() => setEditMode(e => !e)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
+                  editMode
+                    ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
+                    : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
+                }`}
+                title={editMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}>
+                {editMode ? <Unlock size={16} /> : <Lock size={16} />}
+              </button>
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
+                {editMode ? 'Esci dalla modifica' : 'Modifica slot'}
+              </div>
+            </div>
+            <button onClick={viewMode === 'daily' ? handlePreviousDay : handlePreviousMonth}
+              disabled={selectedDate <= MIN_DATE}
+              className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </button>
+            <button onClick={() => setShowDatePicker(!showDatePicker)}
+              className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center">
+              <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
+                {viewMode === 'daily'
+                  ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
+                  : format(selectedDate, 'MMMM yyyy', { locale: it })}
+              </span>
+            </button>
+            <button onClick={() => viewMode === 'daily'
+              ? navigateToDate(addDays(selectedDate, 1))
+              : setSelectedDate(addMonths(selectedDate, 1))}
+              className="p-2 hover:bg-blue-50 rounded-lg border border-gray-200">
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
+            <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
+              <Building2 className="w-5 h-5 text-[#005CA9]" />
+              <div className="relative">
+                <select value={selectedSede.id}
+                  onChange={e => { const s = sedi.find(x => x.id === e.target.value); if (s) setSelectedSede(s); }}
+                  className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none">
+                  {sedi.map(s => <option key={s.id} value={s.id} className="text-gray-800 bg-white">{s.nome}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* ── BODY ── */}
+      <div className="flex-1 overflow-hidden">
+        {viewMode === 'daily' ? renderDailyView() : renderMonthlyView()}
       </div>
 
       {/* ── SEARCH OVERLAY ── */}
       {showSearch && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-16"
-          onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}
-        >
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-16"
+          onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}>
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border-t-4 border-[#005CA9]">
             <div className="flex items-center gap-3 p-4 border-b border-gray-200">
               <Search size={18} className="text-[#005CA9] flex-shrink-0" />
-              <input
-                ref={searchInputRef}
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={e => handleSearch(e.target.value)}
+              <input ref={searchInputRef} autoFocus type="text" value={searchQuery} onChange={e => handleSearch(e.target.value)}
                 placeholder="Cerca cliente, operatore, data (es. 2026-03)..."
-                className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400"
-              />
+                className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400" />
               {searchQuery && (
-                <button
-                  onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={16} />
-                </button>
+                <button onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
               )}
-              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1">
-                <X size={20} />
-              </button>
+              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1"><X size={20} /></button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {!searchQuery && (
@@ -1238,14 +1048,9 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
               {searchResults.map(apt => {
                 const sede = sedi.find(s => s.id === apt.sede_id);
                 return (
-                  <div
-                    key={apt.id}
-                    onClick={() => navigateToSearchResult(apt)}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <User size={15} className="text-white" />
-                    </div>
+                  <div key={apt.id} onClick={() => navigateToSearchResult(apt)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group">
+                    <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm"><User size={15} className="text-white" /></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{apt.cliente}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -1254,9 +1059,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         {' · '}{format(dateStrToLocal(apt.data), 'dd/MM/yyyy', { locale: it })}
                         {' · '}{apt.ora}
                       </p>
-                      {apt.note && (
-                        <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>
-                      )}
+                      {apt.note && <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>}
                     </div>
                     <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] transition-colors flex-shrink-0" />
                   </div>
@@ -1265,9 +1068,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             </div>
             {searchResults.length > 0 && (
               <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between">
-                <p className="text-xs text-gray-400">
-                  {searchResults.length}{searchResults.length === 50 ? '+' : ''} risultat{searchResults.length === 1 ? 'o' : 'i'} — clicca per navigare
-                </p>
+                <p className="text-xs text-gray-400">{searchResults.length}{searchResults.length === 50 ? '+' : ''} risultat{searchResults.length === 1 ? 'o' : 'i'} — clicca per navigare</p>
                 <kbd className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-mono">ESC</kbd>
               </div>
             )}
@@ -1294,20 +1095,15 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Data</h3>
               <button onClick={() => setShowDatePicker(false)}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
-                <X size={20} />
-              </button>
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"><X size={20} /></button>
             </div>
             <div className="flex items-center justify-between mb-4">
               <button type="button" onClick={handlePreviousMonth} disabled={selectedDate <= MIN_DATE}
                 className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
                 <ChevronLeft size={20} className="text-[#005CA9]" />
               </button>
-              <h4 className="text-lg font-bold text-gray-800 capitalize">
-                {format(selectedDate, 'MMMM yyyy', { locale: it })}
-              </h4>
-              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
-                className="p-2 hover:bg-gray-100 rounded-lg">
+              <h4 className="text-lg font-bold text-gray-800 capitalize">{format(selectedDate, 'MMMM yyyy', { locale: it })}</h4>
+              <button type="button" onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
                 <ChevronRight size={20} className="text-[#005CA9]" />
               </button>
             </div>
@@ -1350,9 +1146,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             </div>
             <button type="button"
               onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
-              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold">
-              Vai a Oggi
-            </button>
+              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold">Vai a Oggi</button>
           </div>
         </div>
       )}
