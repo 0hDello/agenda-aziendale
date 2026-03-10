@@ -208,7 +208,27 @@ export default function TimeSlot({
 
   if (appointments.length > 0) {
     const startsHere = appointments.filter(a => a.ora_inizio.substring(0,5) === time);
-    if (!startsHere.length) return <div className="h-full" onDrop={handleDrop} onDragOver={handleDragOver} />;
+    // FIX: se nessun appuntamento inizia qui ma ce ne sono che "coprono" questo slot
+    // (es. slot interno a un appuntamento multi-fascia), rendiamo la cella comunque
+    // cliccabile per poter creare un nuovo appuntamento in quello slot.
+    if (!startsHere.length) {
+      return (
+        <div
+          className="h-full min-h-[45px] hover:bg-gray-50 cursor-pointer transition-colors flex items-center justify-center group"
+          onClick={() => onClick()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </div>
+      );
+    }
 
     const colMap  = assignColumns(allDayAppointments);
     const maxCols = getMaxColumns(allDayAppointments);
