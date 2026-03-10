@@ -14,6 +14,7 @@ import {
   Lock,
   Unlock,
   Search,
+  Printer,
 } from 'lucide-react';
 import {
   format,
@@ -80,9 +81,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   // ─── Search state ─────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  // useDeferredValue: React aggiorna il valore "deferred" in background,
-  // senza bloccare il rendering dell'input mentre l'utente digita.
   const deferredQuery = useDeferredValue(searchQuery);
+
+  // ─── Print state ─────────────────────────────────────────────────────────
+  const [showPrintModal, setShowPrintModal]     = useState(false);
+  const [printPersonaId, setPrintPersonaId]     = useState<string>('');
+  const [printDate, setPrintDate]               = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
   const scrollContainerRef    = useRef<HTMLDivElement>(null);
   const sseReloadTimerRef     = useRef<NodeJS.Timeout | null>(null);
@@ -256,7 +260,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   useEffect(() => { loadData(); }, []);
 
-  // ─── SSE: ignora l'echo delle mutazioni locali ────────────────────────────
+  // ─── SSE ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource('/api/appuntamenti/events');
     es.addEventListener('update', () => {
@@ -312,17 +316,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearch]);
 
-  // ─── Map persone precalcolata (evita .find() in ogni ciclo) ──────────────
+  // ─── Map persone precalcolata ──────────────────────────────────────────────────
   const personeMap = useMemo(() => {
     const m = new Map<string, Persona>();
     for (const p of persone) m.set(p.id, p);
     return m;
   }, [persone]);
 
-  // ─── Ricerca ottimizzata: singola passata, useDeferredValue ──────────────
-  // searchResults si ricalcola solo quando deferredQuery cambia (dopo che
-  // React ha già reso fluido l'aggiornamento dell'input). La singola passata
-  // con Set elimina il doppio loop + merge che bloccava il thread.
+  // ─── Ricerca ottimizzata ──────────────────────────────────────────────────────
   const searchResults = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
     if (!q) return [];
@@ -347,7 +348,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return out.slice(0, 50);
   }, [deferredQuery, appointments, personeMap]);
 
-  // Indica se la ricerca è ancora "in corso" (input più avanti del deferred)
   const isSearchPending = searchQuery !== deferredQuery;
 
   const closeSearch = () => {
@@ -379,6 +379,103 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       if (psData)      setPersonaSede(psData);
       if (appData)     setAppointments(appData);
     } catch (error) { console.error('Errore caricamento dati:', error); }
+  };
+
+  // ─── STAMPA ──────────────────────────────────────────────────────────────────
+  const openPrintModal = () => {
+    // Pre-popola con la persona e la data correntemente selezionate
+    const defaultPersona = sedePersone[0]?.id ?? '';
+    setPrintPersonaId(defaultPersona);
+    setPrintDate(format(selectedDate, 'yyyy-MM-dd'));
+    setShowPrintModal(true);
+  };
+
+  const handlePrint = () => {
+    if (!printPersonaId || !printDate) return;
+
+    const persona = personeMap.get(printPersonaId);
+    const sede    = sedi.find(s => s.id === selectedSedeId);
+
+    // Appuntamenti del giorno per questa persona (esclusi UFF CHIUSO)
+    const dayApts = appointments
+      .filter(a =>
+        a.data === printDate &&
+        a.persona_id === printPersonaId &&
+        a.sede_id === selectedSedeId &&
+        (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
+      )
+      .sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+
+    let [y, mo, d] = printDate.split('-').map(Number);
+    const dayLabel = format(new Date(y, mo - 1, d, 12), 'EEEE dd MMMM yyyy', { locale: it });
+
+    // Righe tabella
+    const rows = dayApts.map(a => `
+      <tr>
+        <td>${a.ora_inizio.substring(0,5)} – ${a.ora_fine.substring(0,5)}</td>
+        <td>${a.cliente ?? ''}</td>
+        <td>${a.note ?? ''}</td>
+      </tr>`).join('');
+
+    const emptyNote = dayApts.length === 0
+      ? '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px 0;">Nessun appuntamento</td></tr>'
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agenda 730 – ${persona?.nome ?? ''} – ${dayLabel}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; padding: 24px 32px; }
+    header { display: flex; justify-content: space-between; align-items: flex-end;
+             border-bottom: 3px solid #005CA9; padding-bottom: 10px; margin-bottom: 18px; }
+    header h1 { font-size: 20px; color: #005CA9; font-weight: 800; letter-spacing: 0.5px; }
+    header .sub { font-size: 11px; color: #555; margin-top: 3px; }
+    .meta { text-align: right; font-size: 11px; color: #555; }
+    .meta strong { display: block; font-size: 14px; color: #222; }
+    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    thead tr { background: #005CA9; color: #fff; }
+    thead th { padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700;
+               text-transform: uppercase; letter-spacing: 0.5px; }
+    tbody tr { border-bottom: 1px solid #e0e0e0; }
+    tbody tr:nth-child(even) { background: #F5F8FA; }
+    tbody td { padding: 8px 10px; vertical-align: top; }
+    tbody td:first-child { white-space: nowrap; font-weight: 700; color: #005CA9; width: 120px; }
+    tbody td:nth-child(2) { font-weight: 600; }
+    tbody td:nth-child(3) { color: #555; font-style: italic; }
+    footer { margin-top: 28px; font-size: 10px; color: #aaa; text-align: center;
+             border-top: 1px solid #e0e0e0; padding-top: 10px; }
+    @media print {
+      body { padding: 10mm 12mm; }
+      @page { size: A4 portrait; margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Agenda 730</h1>
+      <div class="sub">Sede: ${sede?.nome ?? ''}</div>
+    </div>
+    <div class="meta">
+      <strong>${persona?.nome ?? ''}</strong>
+      <span style="text-transform:capitalize">${dayLabel}</span>
+    </div>
+  </header>
+  <table>
+    <thead><tr><th>Orario</th><th>Cliente</th><th>Note</th></tr></thead>
+    <tbody>${rows}${emptyNote}</tbody>
+  </table>
+  <footer>Stampato il ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: it })} &mdash; Agenda Aziendale</footer>
+  <script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=800,height=700');
+    if (win) { win.document.write(html); win.document.close(); }
+    setShowPrintModal(false);
   };
 
   // ─── CREATE con optimistic update ────────────────────────────────────────
@@ -455,7 +552,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return covering.length > 0 && covering.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
   };
 
-  // ─── EditMode (UFF CHIUSO) con optimistic update ──────────────────────────
   const handleEditModeSlotClick = async (dateStr: string, slotLabel: string, personaId: string, day: Date) => {
     if (!selectedSedeId) return;
     const realApts = appointments.filter(a =>
@@ -486,14 +582,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       const oraFine  = idx !== -1 && idx + 1 < endSlots.length ? endSlots[idx + 1].label : endSlots[endSlots.length - 1].label;
       const tempId   = `__optimistic_${Date.now()}`;
       const newUff: Appuntamento = {
-        id: tempId,
-        persona_id: personaId,
-        sede_id: selectedSedeId,
-        data: dateStr,
-        ora_inizio: slotLabel,
-        ora_fine: oraFine,
-        cliente: 'UFF CHIUSO',
-        note: '',
+        id: tempId, persona_id: personaId, sede_id: selectedSedeId,
+        data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine,
+        cliente: 'UFF CHIUSO', note: '',
       } as Appuntamento;
       markLocalMutation();
       setAppointments(prev => [...prev, newUff]);
@@ -528,7 +619,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragStart = (appointment: Appuntamento, time: string) => setDraggedAppointment({ appointment, originalTime: time });
 
-  // ─── DRAG & DROP con optimistic update ───────────────────────────────────
   const handleDrop = async (date: string, newTime: string, personaId: string, day: Date) => {
     if (!draggedAppointment) return;
     const { appointment, originalTime } = draggedAppointment;
@@ -706,11 +796,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
   const renderDailyView = () => (
     <div>
-      <div
-        ref={setScrollRef}
-        className="overflow-y-auto"
-        style={{ maxHeight: 'calc(100vh - 107px)' }}
-      >
+      <div ref={setScrollRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
@@ -759,12 +845,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         </td>
                         {sedePersone.map(persona => {
                           if (isPersonaDisabledForDay(day, persona)) {
-                            return (
-                              <td key={`${persona.id}-${slot.label}`}
-                                className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-50 select-none"
-                                style={{ height: '45px' }}
-                              />
-                            );
+                            return (<td key={`${persona.id}-${slot.label}`} className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-50 select-none" style={{ height: '45px' }} />);
                           }
                           const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
                           const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
@@ -772,8 +853,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                           if (isUffC) return (
                             <td key={`${persona.id}-${slot.label}`}
                               className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none' }`}
-                              style={{ height: '45px' }}
-                              title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                              style={{ height: '45px' }} title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
                               onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
                               <div className="w-full h-full flex items-center justify-center gap-1">
                                 <Lock size={9} className="text-gray-400" />
@@ -787,18 +867,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                               className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
                               style={{ height: '45px' }}>
                               {editMode && slotApts.length === 0 ? (
-                                <div
-                                  onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
+                                <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
                                   className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-amber-50 group transition-colors"
-                                  title="Clicca per bloccare questo slot"
-                                >
+                                  title="Clicca per bloccare questo slot">
                                   <Lock size={12} className="text-gray-300 opacity-30 group-hover:opacity-100 group-hover:text-amber-500 transition-all" />
                                 </div>
                               ) : (
                                 <TimeSlot
-                                  time={slot.label}
-                                  appointments={slotApts}
-                                  allDayAppointments={dayApts}
+                                  time={slot.label} appointments={slotApts} allDayAppointments={dayApts}
                                   daySlots={dayTimeSlots}
                                   onClick={apt => !editMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
                                   onDragStart={handleDragStart}
@@ -842,12 +918,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300' }`} />
                       {realtimeFlash ? 'Aggiornato' : 'Live'}
                     </div>
+                    {/* ── Bottone Cerca ── */}
                     <button
                       onClick={() => setShowSearch(true)}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
                       title="Cerca appuntamenti (Ctrl+K)"
                     >
                       <Search size={11} /> Cerca
+                    </button>
+                    {/* ── Bottone Stampa ── */}
+                    <button
+                      onClick={openPrintModal}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-50 text-gray-500 border border-gray-200 hover:border-[#005CA9] hover:text-[#005CA9] hover:bg-[#E6F2FF] transition-all"
+                      title="Stampa appuntamenti del giorno"
+                    >
+                      <Printer size={11} /> Stampa
                     </button>
                   </div>
                 </div>
@@ -899,6 +984,87 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         </div>
       </div>
 
+      {/* ── PRINT MODAL ── */}
+      {showPrintModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-16"
+          onClick={e => { if (e.target === e.currentTarget) setShowPrintModal(false); }}
+        >
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-[#005CA9]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Printer size={18} className="text-[#005CA9]" />
+                <span className="font-bold text-[#005CA9] text-sm">Stampa appuntamenti</span>
+              </div>
+              <button onClick={() => setShowPrintModal(false)} className="text-gray-400 hover:text-gray-700 transition-colors"><X size={20} /></button>
+            </div>
+            {/* Body */}
+            <div className="p-5 flex flex-col gap-4">
+              {/* Operatore */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Operatore</label>
+                <div className="relative">
+                  <select
+                    value={printPersonaId}
+                    onChange={e => setPrintPersonaId(e.target.value)}
+                    className="w-full px-3 py-2.5 pr-8 text-sm bg-[#F5F8FA] border-2 border-gray-200 rounded-lg font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40 focus:border-[#005CA9] appearance-none transition-all"
+                  >
+                    {sedePersone.map(p => (
+                      <option key={p.id} value={p.id}>{p.nome}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              {/* Data */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Giorno</label>
+                <input
+                  type="date"
+                  value={printDate}
+                  onChange={e => setPrintDate(e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm bg-[#F5F8FA] border-2 border-gray-200 rounded-lg font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40 focus:border-[#005CA9] transition-all"
+                />
+              </div>
+              {/* Anteprima conteggio */}
+              {printPersonaId && printDate && (() => {
+                const cnt = appointments.filter(a =>
+                  a.data === printDate &&
+                  a.persona_id === printPersonaId &&
+                  a.sede_id === selectedSedeId &&
+                  (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO'
+                ).length;
+                return (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <CalendarIcon size={14} className="text-blue-600 flex-shrink-0" />
+                    <span className="text-xs text-blue-700 font-medium">
+                      {cnt === 0 ? 'Nessun appuntamento per questo giorno' : `${cnt} appuntament${cnt === 1 ? 'o' : 'i'} trovat${cnt === 1 ? 'o' : 'i'}`}
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* Footer */}
+            <div className="flex gap-2 px-5 pb-5">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handlePrint}
+                disabled={!printPersonaId || !printDate}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#005CA9] text-white text-sm font-semibold hover:bg-[#004080] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Printer size={14} /> Stampa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── SEARCH OVERLAY ── */}
       {showSearch && (
         <div
@@ -917,20 +1083,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 placeholder="Cerca cliente, persona, data (es. 2026-03)..."
                 className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400"
               />
-              {/* Spinner sottile quando il deferred è in ritardo */}
               {isSearchPending && (
                 <div className="w-3.5 h-3.5 border-2 border-[#005CA9]/30 border-t-[#005CA9] rounded-full animate-spin flex-shrink-0" />
               )}
               {searchQuery && !isSearchPending && (
-                <button
-                  onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors">
+                <button onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X size={16} />
                 </button>
               )}
-              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1">
-                <X size={20} />
-              </button>
+              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1"><X size={20} /></button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {!searchQuery && (
@@ -949,14 +1110,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const sede    = sedi.find(s => s.id === apt.sede_id);
                 const persona = personeMap.get(apt.persona_id);
                 return (
-                  <div
-                    key={apt.id}
-                    onClick={() => navigateToSearchResult(apt)}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <User size={15} className="text-white" />
-                    </div>
+                  <div key={apt.id} onClick={() => navigateToSearchResult(apt)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group">
+                    <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm"><User size={15} className="text-white" /></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{apt.cliente}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -965,9 +1121,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                         {' · '}{(() => { try { const [y,m,d] = apt.data.split('-').map(Number); return format(new Date(y,m-1,d,12), 'dd/MM/yyyy', { locale: it }); } catch { return apt.data; } })()}
                         {' · '}{apt.ora_inizio?.substring(0, 5)}
                       </p>
-                      {apt.note && (
-                        <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>
-                      )}
+                      {apt.note && <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>}
                     </div>
                     <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] transition-colors flex-shrink-0" />
                   </div>
@@ -976,9 +1130,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             </div>
             {searchResults.length > 0 && (
               <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between">
-                <p className="text-xs text-gray-400">
-                  {searchResults.length}{searchResults.length === 50 ? '+' : ''} risultat{searchResults.length === 1 ? 'o' : 'i'} — clicca per navigare
-                </p>
+                <p className="text-xs text-gray-400">{searchResults.length}{searchResults.length === 50 ? '+' : ''} risultat{searchResults.length === 1 ? 'o' : 'i'} — clicca per navigare</p>
                 <kbd className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-mono">ESC</kbd>
               </div>
             )}
