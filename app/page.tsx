@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar as CalendarIcon, Settings, Database, FileText, History, User, BarChart2 } from 'lucide-react';
-import StatisticheModal from '@/components/StatisticheModal';
 
 interface Agenda {
   id: string;
@@ -18,7 +17,6 @@ export default function HomePage() {
   const router = useRouter();
   const [agende, setAgende] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showStatistiche, setShowStatistiche] = useState(false);
 
   useEffect(() => { loadAgende(); }, []);
 
@@ -51,11 +49,10 @@ export default function HomePage() {
             </div>
             <div>
               <h1 className="text-4xl font-bold text-[#005CA9]">Agende</h1>
-              <p className="text-gray-600 mt-1">Seleziona un'agenda per iniziare</p>
+              <p className="text-gray-600 mt-1">Seleziona un&apos;agenda per iniziare</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* TODO: riabilitare quando pronto */}
             <button
               disabled
               onClick={() => router.push('/operatore')}
@@ -115,12 +112,13 @@ export default function HomePage() {
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div className="flex items-center gap-2">
                       {agenda.id === '730' && (
-                        <button onClick={e => { e.stopPropagation(); router.push('/impostazioni'); }}
-                          className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110" title="Impostazioni">
+                        <button
+                          onClick={e => { e.stopPropagation(); router.push('/impostazioni'); }}
+                          className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
+                          title="Impostazioni">
                           <Settings size={18} className="text-[#005CA9]" />
                         </button>
                       )}
-                      {/* TODO: riabilitare quando pronto */}
                       {agenda.id === '730' && (
                         <button
                           disabled
@@ -132,7 +130,7 @@ export default function HomePage() {
                       )}
                       {agenda.id === '730' && (
                         <button
-                          onClick={e => { e.stopPropagation(); setShowStatistiche(true); }}
+                          onClick={e => { e.stopPropagation(); router.push('/statistiche/730'); }}
                           className="bg-blue-50 hover:bg-blue-100 border border-[#005CA9]/20 hover:border-[#005CA9]/50 rounded-full p-2.5 transition-all hover:scale-110"
                           title="Statistiche operatori">
                           <BarChart2 size={18} className="text-[#005CA9]" />
@@ -147,10 +145,6 @@ export default function HomePage() {
           )}
         </div>
       </div>
-
-      {showStatistiche && (
-        <StatisticheModal onClose={() => setShowStatistiche(false)} />
-      )}
     </div>
   );
 }
