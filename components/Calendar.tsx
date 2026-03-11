@@ -132,6 +132,21 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return false;
   };
 
+  // Restituisce true solo se il giorno è chiuso per TUTTE le persone della sede.
+  // Per i sabati eccezione 730, se almeno Monica è presente, il giorno NON è completamente chiuso.
+  const isDayFullyClosedForAllPersone = (day: Date, personeInSede: Persona[]): boolean => {
+    // Prima controlla se è un giorno normalmente chiuso (indipendente dalle persone)
+    if (agendaId === '730' && isWeekend(day) && day.getDay() === 6) {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      if (SABATI_730_ECCEZIONE.includes(dateStr)) {
+        // È un sabato eccezione: è "completamente chiuso" solo se nessuna persona è aperta
+        return personeInSede.every(p => isDayClosedForSede(day, p.nome));
+      }
+    }
+    // Per tutti gli altri giorni, usa la logica standard (non dipende dalla persona)
+    return isDayClosedForSede(day);
+  };
+
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const container = scrollContainerRef.current;
     const el = document.querySelector<HTMLElement>(`[data-date="${formatDate(date)}"]`);
@@ -685,9 +700,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             {visibleDays.map(day => {
               const dateStr      = formatDate(day);
               const isToday      = formatDate(new Date()) === dateStr;
-              // Per la vista giornaliera non c'è una sola persona attiva,
-              // usiamo isDayClosedForSede senza personaNome (sabato = chiuso per tutti nella barra header)
-              const isClosed     = isDayClosedForSede(day);
+              // FIX: per la vista giornaliera, isClosed è true solo se il giorno è chiuso
+              // per TUTTE le persone della sede. Per i sabati eccezione 730 (es. Monica è aperta),
+              // isClosed = false, e i singoli slot vengono gestiti da isPersonaDisabledForDay.
+              const isClosed     = isDayFullyClosedForAllPersone(day, sedePersone);
               const dayTimeSlots = getTimeSlotsForDay(day);
               return (
                 <React.Fragment key={dateStr}>
