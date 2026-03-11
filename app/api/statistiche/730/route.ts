@@ -1,127 +1,122 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay, isWeekend } from 'date-fns';
-import {
-  getTimeSlotsForSede,
-  isSedeWorkingDay,
-  SABATI_730_ECCEZIONE,
-} from '@/utils/dateUtils';
+import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { getTimeSlotsForSede, isSedeWorkingDay } from '@/utils/dateUtils';
 
-// Mesi da considerare: da gennaio 2026 al mese corrente + 1
 const ANNO = 2026;
-const MESI = Array.from({ length: 12 }, (_, i) => i + 1); // 1-12
+const MESI = Array.from({ length: 12 }, (_, i) => i + 1);
 
-interface PersonaRow {
-  id: number;
-  nome: string;
-}
-interface SedeRow {
-  id: number;
-  nome: string;
-}
-interface PersonaSedeRow {
-  persona_id: number;
-  sede_id: number;
-}
+interface PersonaRow { id: string; nome: string; }
+interface SedeRow    { id: string; nome: string; }
+interface PersonaSedeRow { persona_id: string; sede_id: string; }
 interface AppRow {
-  persona_id: number;
-  sede_id: number;
+  persona_id: string;
+  sede_id: string;
   data: string;
   ora_inizio: string;
   cliente: string;
 }
-interface GiornoChiusoRow {
-  data: string;
-  persona_id: number | null;
-}
 
 export async function GET() {
   try {
-    const [personeRes, sediRes, psRes, appRes, gcRes] = await Promise.all([
+    const [personeRes, sediRes, psRes, appRes] = await Promise.all([
       query('SELECT id, nome FROM persone ORDER BY nome'),
       query('SELECT id, nome FROM sedi ORDER BY nome'),
       query('SELECT persona_id, sede_id FROM persona_sede'),
-      query(`SELECT persona_id, sede_id, data, ora_inizio, UPPER(TRIM(cliente)) as cliente
-             FROM appuntamenti
-             WHERE EXTRACT(YEAR FROM data::date) = ${ANNO}
-             ORDER BY data, ora_inizio`),
-      query(`SELECT data, persona_id FROM giorni_chiusi`),
+      query(`
+        SELECT persona_id, sede_id, data, ora_inizio, UPPER(TRIM(cliente)) AS cliente
+        FROM appuntamenti
+        WHERE EXTRACT(YEAR FROM data::date) = ${ANNO}
+        ORDER BY data, ora_inizio
+      `),
     ]);
 
-    const persone: PersonaRow[] = personeRes.rows;
-    const sedi: SedeRow[] = sediRes.rows;
+    const persone: PersonaRow[]    = personeRes.rows;
+    const sedi: SedeRow[]          = sediRes.rows;
     const personaSede: PersonaSedeRow[] = psRes.rows;
+
+    // Normalizza le date (Postgres restituisce Date o stringa ISO)
     const appointments: AppRow[] = appRes.rows.map((r: any) => ({
-      ...r,
-      data: r.data instanceof Date ? format(r.data, 'yyyy-MM-dd') : r.data.split('T')[0],
-      ora_inizio: r.ora_inizio?.substring(0, 5),
-    }));
-    const giorniChiusi: GiornoChiusoRow[] = gcRes.rows.map((r: any) => ({
-      data: r.data instanceof Date ? format(r.data, 'yyyy-MM-dd') : r.data.split('T')[0],
-      persona_id: r.persona_id,
+      persona_id: String(r.persona_id),
+      sede_id:    String(r.sede_id),
+      data: r.data instanceof Date
+        ? format(r.data, 'yyyy-MM-dd')
+        : String(r.data).split('T')[0],
+      ora_inizio: r.ora_inizio?.substring(0, 5) ?? '',
+      cliente: r.cliente ?? '',
     }));
 
-    const isGiornoChiuso = (dateStr: string, personaId: number) =>
-      giorniChiusi.some(
-        g => g.data === dateStr && (g.persona_id === null || g.persona_id === personaId)
-      );
+    // Raggruppa gli UFF CHIUSO per (persona_id, sede_id, data)
+    // Ogni UFF CHIUSO copre uno slot: conta quanti slot vengono bloccati
+    // in base all'intervallo ora_inizio–ora_fine rispetto agli slot disponibili.
+    // Per semplicità: ogni record UFF CHIUSO == 1 slot bloccato.
+    // (Il Calendar li crea slot per slot, quindi è 1:1)
+    const uffChiusoSet = new Set<string>();
+    for (const a of appointments) {
+      if (a.cliente === 'UFF CHIUSO') {
+        uffChiusoSet.add(`${a.persona_id}|${a.sede_id}|${a.data}|${a.ora_inizio}`);
+      }
+    }
 
-    // Per ogni persona calcola capacità totale e prenotati per mese
+    const isSlotUffChiuso = (pid: string, sid: string, dateStr: string, slotLabel: string) =>
+      uffChiusoSet.has(`${pid}|${sid}|${dateStr}|${slotLabel}`);
+
     const risultati = persone.map(persona => {
-      // Sedi associate a questa persona
       const sediPersona = personaSede
-        .filter(ps => ps.persona_id === persona.id)
-        .map(ps => sedi.find(s => s.id === ps.sede_id))
+        .filter(ps => String(ps.persona_id) === String(persona.id))
+        .map(ps => sedi.find(s => String(s.id) === String(ps.sede_id)))
         .filter(Boolean) as SedeRow[];
 
       const perMese: Record<string, { mese: string; capacita: number; prenotati: number }> = {};
 
       for (const mese of MESI) {
         const meseStr = `${ANNO}-${String(mese).padStart(2, '0')}`;
-        const meseLabel = new Intl.DateTimeFormat('it', { month: 'long', year: 'numeric' }).format(
-          new Date(ANNO, mese - 1, 1)
-        );
+        const meseLabel = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+          .format(new Date(ANNO, mese - 1, 1));
 
-        let capacita = 0;
+        let capacita  = 0;
         let prenotati = 0;
 
         for (const sede of sediPersona) {
           const giorni = eachDayOfInterval({
             start: startOfMonth(new Date(ANNO, mese - 1, 1)),
-            end: endOfMonth(new Date(ANNO, mese - 1, 1)),
+            end:   endOfMonth(new Date(ANNO, mese - 1, 1)),
           });
 
           for (const giorno of giorni) {
             const dateStr = format(giorno, 'yyyy-MM-dd');
-            // Controlla se è giorno lavorativo per la sede
             if (!isSedeWorkingDay(sede.nome, giorno, '730')) continue;
-            // Controlla se giorno chiuso per questa persona/sede
-            if (isGiornoChiuso(dateStr, persona.id)) continue;
 
             const slots = getTimeSlotsForSede(sede.nome, giorno, '730');
-            capacita += slots.length;
 
-            // Conta appuntamenti reali (escludi UFF CHIUSO)
-            const dayApts = appointments.filter(
-              a =>
-                a.persona_id === persona.id &&
-                a.sede_id === sede.id &&
-                a.data === dateStr &&
-                a.cliente !== 'UFF CHIUSO'
-            );
-            prenotati += dayApts.length;
+            for (const slot of slots) {
+              // Slot bloccato da UFF CHIUSO → non conta né come capacità né come prenotato
+              if (isSlotUffChiuso(String(persona.id), String(sede.id), dateStr, slot.label)) continue;
+
+              capacita++;
+
+              // Conta appuntamenti reali su questo slot (inizio == slot.label)
+              const hasApt = appointments.some(
+                a =>
+                  String(a.persona_id) === String(persona.id) &&
+                  String(a.sede_id)    === String(sede.id) &&
+                  a.data              === dateStr &&
+                  a.ora_inizio        === slot.label &&
+                  a.cliente           !== 'UFF CHIUSO'
+              );
+              if (hasApt) prenotati++;
+            }
           }
         }
 
         perMese[meseStr] = { mese: meseLabel, capacita, prenotati };
       }
 
-      // Totali anno
-      const totaleCapacita = Object.values(perMese).reduce((s, m) => s + m.capacita, 0);
+      const totaleCapacita  = Object.values(perMese).reduce((s, m) => s + m.capacita, 0);
       const totalePrenotati = Object.values(perMese).reduce((s, m) => s + m.prenotati, 0);
 
       return {
-        id: persona.id,
+        id:   persona.id,
         nome: persona.nome,
         sedi: sediPersona.map(s => s.nome),
         perMese,
@@ -133,6 +128,6 @@ export async function GET() {
     return NextResponse.json(risultati);
   } catch (error) {
     console.error('Errore statistiche:', error);
-    return NextResponse.json({ error: 'Errore statistiche' }, { status: 500 });
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
