@@ -687,7 +687,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 <React.Fragment key={dateStr}>
                   <tr data-date={dateStr}>
                     <td colSpan={sedePersone.length + 2}
-                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-100 text-gray-700' }`}>
+                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${ isToday ? 'bg-[#005CA9] text-white' : isClosed ? 'bg-gray-300 text-gray-500' : 'bg-gray-200 text-gray-700' }`}>
                       {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
                       {isClosed && <span className="ml-2 text-xs font-normal">(CHIUSO)</span>}
                     </td>
@@ -1014,7 +1014,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         selectedDate={selectedSlot.date} selectedTime={selectedSlot.time}
         selectedSedeId={selectedSedeId} defaultPersonaId={selectedSlot.personaId}
         daySlots={modalDaySlots}
-        dayEndSlots={modalDayEndSlots}
+        dayEndSlots={modalDayEndSlots} 
       />
     </div>
   );
