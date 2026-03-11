@@ -12,10 +12,11 @@ interface SedeRow    { id: string; nome: string; }
 interface PersonaSedeRow { persona_id: string; sede_id: string; }
 interface AppRow {
   persona_id: string;
-  sede_id: string;
-  data: string;
+  sede_id:    string;
+  data:       string;
   ora_inizio: string;
-  cliente: string;
+  ora_fine:   string;
+  cliente:    string;
 }
 
 export async function GET() {
@@ -25,7 +26,7 @@ export async function GET() {
       query('SELECT id, nome FROM sedi ORDER BY nome'),
       query('SELECT persona_id, sede_id FROM persona_sede'),
       query(`
-        SELECT persona_id, sede_id, data, ora_inizio, UPPER(TRIM(cliente)) AS cliente
+        SELECT persona_id, sede_id, data, ora_inizio, ora_fine, UPPER(TRIM(cliente)) AS cliente
         FROM appuntamenti
         WHERE EXTRACT(YEAR FROM data::date) = ${ANNO}
           AND EXTRACT(MONTH FROM data::date) >= 4
@@ -44,18 +45,25 @@ export async function GET() {
         ? format(r.data, 'yyyy-MM-dd')
         : String(r.data).split('T')[0],
       ora_inizio: r.ora_inizio?.substring(0, 5) ?? '',
+      ora_fine:   r.ora_fine?.substring(0, 5)   ?? '',
       cliente:    r.cliente ?? '',
     }));
 
-    const uffChiusoSet = new Set<string>();
-    for (const a of appointments) {
-      if (a.cliente === 'UFF CHIUSO') {
-        uffChiusoSet.add(`${a.persona_id}|${a.sede_id}|${a.data}|${a.ora_inizio}`);
-      }
-    }
+    // Gli UFF CHIUSO con ora_inizio–ora_fine coprono più slot:
+    // uno slot è bloccato se slot.label >= ora_inizio && slot.label < ora_fine
+    const uffChiusoRecords = appointments.filter(a => a.cliente === 'UFF CHIUSO');
 
-    const isSlotUffChiuso = (pid: string, sid: string, dateStr: string, slotLabel: string) =>
-      uffChiusoSet.has(`${pid}|${sid}|${dateStr}|${slotLabel}`);
+    const isSlotUffChiuso = (
+      pid: string, sid: string, dateStr: string, slotLabel: string
+    ): boolean =>
+      uffChiusoRecords.some(
+        u =>
+          u.persona_id === pid &&
+          u.sede_id    === sid &&
+          u.data       === dateStr &&
+          slotLabel    >= u.ora_inizio &&
+          slotLabel    <  u.ora_fine
+      );
 
     const risultati = persone.map(persona => {
       const sediPersona = personaSede
@@ -86,6 +94,7 @@ export async function GET() {
             const slots = getTimeSlotsForSede(sede.nome, giorno, '730');
 
             for (const slot of slots) {
+              // Slot coperto da UFF CHIUSO → non conta né come capacità né come prenotato
               if (isSlotUffChiuso(String(persona.id), String(sede.id), dateStr, slot.label)) continue;
 
               capacita++;
