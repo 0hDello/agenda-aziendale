@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle } from 'lucide-react';
+import { X, BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Building2 } from 'lucide-react';
 
 interface MeseStats {
   mese: string;
@@ -27,6 +27,8 @@ export default function StatisticheModal({ onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Sede selezionata per il tab; null = tutte
+  const [selectedSede, setSelectedSede] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/statistiche/730')
@@ -50,14 +52,32 @@ export default function StatisticheModal({ onClose }: Props) {
 
   const meseCorrente = new Date().toISOString().substring(0, 7);
 
+  // Ricava tutte le sedi distinte dall'array dati
+  const tuttiSedi: string[] = Array.from(
+    new Set(data.flatMap(p => p.sedi))
+  ).sort();
+
+  // Filtra le persone in base alla sede selezionata
+  const personeFiltrate = selectedSede
+    ? data.filter(p => p.sedi.includes(selectedSede))
+    : data;
+
+  // Totali aggregati per la sede/tab corrente
+  const totaleAggregato = personeFiltrate.reduce(
+    (acc, p) => ({ cap: acc.cap + p.totaleCapacita, pre: acc.pre + p.totalePrenotati }),
+    { cap: 0, pre: 0 }
+  );
+  const percTotale = getPerc(totaleAggregato.pre, totaleAggregato.cap);
+
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl border-t-4 border-[#005CA9]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="bg-white rounded-2xl w-full max-w-3xl flex flex-col shadow-2xl border-t-4 border-[#005CA9]" style={{ maxHeight: '90vh' }}>
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-[#005CA9] p-2 rounded-lg">
               <BarChart2 size={20} className="text-white" />
@@ -72,7 +92,79 @@ export default function StatisticheModal({ onClose }: Props) {
           </button>
         </div>
 
-        {/* Body */}
+        {/* ── Tab sedi ── */}
+        {!loading && !error && tuttiSedi.length > 0 && (
+          <div className="flex-shrink-0 px-6 pt-3 pb-0 border-b border-gray-200">
+            <div className="flex items-center gap-1 flex-wrap pb-3">
+              {/* Tab "Tutte" */}
+              <button
+                onClick={() => { setSelectedSede(null); setExpanded(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  selectedSede === null
+                    ? 'bg-[#005CA9] text-white border-[#005CA9] shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-[#005CA9] hover:text-[#005CA9]'
+                }`}
+              >
+                <BarChart2 size={12} />
+                Tutte le sedi
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  selectedSede === null ? 'bg-white/30 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>{data.length}</span>
+              </button>
+
+              {/* Tab per ogni sede */}
+              {tuttiSedi.map(sede => {
+                const count = data.filter(p => p.sedi.includes(sede)).length;
+                const isActive = selectedSede === sede;
+                return (
+                  <button
+                    key={sede}
+                    onClick={() => { setSelectedSede(sede); setExpanded(null); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      isActive
+                        ? 'bg-[#005CA9] text-white border-[#005CA9] shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-[#005CA9] hover:text-[#005CA9]'
+                    }`}
+                  >
+                    <Building2 size={12} />
+                    {sede}
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive ? 'bg-white/30 text-white' : 'bg-gray-100 text-gray-500'
+                    }`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Riepilogo sede corrente ── */}
+        {!loading && !error && personeFiltrate.length > 0 && (
+          <div className="flex-shrink-0 px-6 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <span className="text-xs text-gray-500 font-medium">
+              {selectedSede ? (
+                <span className="flex items-center gap-1">
+                  <Building2 size={12} className="text-[#005CA9]" />
+                  <span className="text-[#005CA9] font-semibold">{selectedSede}</span>
+                  <span className="text-gray-400 mx-1">·</span>
+                  {personeFiltrate.length} operator{personeFiltrate.length === 1 ? 'e' : 'i'}
+                </span>
+              ) : (
+                <span>{data.length} operatori totali · {tuttiSedi.length} sed{tuttiSedi.length === 1 ? 'e' : 'i'}</span>
+              )}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-gray-500">
+                {totaleAggregato.pre} / {totaleAggregato.cap} slot
+              </span>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full text-white ${getTextColor(percTotale)}`}>
+                {percTotale}%
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Body scrollabile ── */}
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center h-40">
@@ -84,10 +176,10 @@ export default function StatisticheModal({ onClose }: Props) {
               <p className="text-sm text-red-500 font-medium text-center">Errore nel caricamento delle statistiche</p>
               <p className="text-xs text-gray-400 text-center max-w-sm">{error}</p>
             </div>
-          ) : data.length === 0 ? (
+          ) : personeFiltrate.length === 0 ? (
             <p className="text-center text-gray-400 py-12">Nessun dato disponibile.</p>
           ) : (
-            data.map(persona => {
+            personeFiltrate.map(persona => {
               const perc = getPerc(persona.totalePrenotati, persona.totaleCapacita);
               const barColor = getColor(perc);
               const isOpen = expanded === persona.id;
@@ -105,10 +197,17 @@ export default function StatisticheModal({ onClose }: Props) {
                       <User size={18} className="text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-gray-800 text-sm">{persona.nome}</span>
+                      <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-800 text-sm">{persona.nome}</span>
+                          {/* Badge sedi dell'operatore */}
+                          {persona.sedi.map(s => (
+                            <span key={s} className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E6F2FF] text-[#005CA9] border border-[#005CA9]/20">
+                              <Building2 size={9} />{s}
+                            </span>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-3 text-xs text-gray-500">
-                          <span className="hidden sm:block">{persona.sedi.join(', ')}</span>
                           <span className="font-semibold text-gray-700">
                             {persona.totalePrenotati} / {persona.totaleCapacita} slot anno
                           </span>
