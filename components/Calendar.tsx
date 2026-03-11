@@ -565,7 +565,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
     const personaNome = sedePersone.find(p => p.id === activePersona)?.nome ?? '';
     return (
-      <div className="p-3 md:p-4">
+      <div className="p-3 md:p-4 h-full overflow-y-auto">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           {sedePersone.length > 1 ? (
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
@@ -652,9 +652,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
+  // Il div scrollabile occupa tutta l'altezza del parent flex-1
   const renderDailyView = () => (
-    <div>
-      <div ref={setScrollRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 65px)' }}>
+    <div className="h-full flex flex-col">
+      <div ref={setScrollRef} className="flex-1 overflow-y-auto">
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">

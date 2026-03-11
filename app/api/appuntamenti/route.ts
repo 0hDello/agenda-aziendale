@@ -80,6 +80,22 @@ export async function POST(request: Request) {
           ? result.rows[0].ora_fine.substring(0, 5)
           : result.rows[0].ora_fine,
       };
+
+      // Log in cronologia (solo appuntamenti reali, non UFF CHIUSO)
+      if ((cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO') {
+        try {
+          await query(
+            `INSERT INTO activity_log (source, action, descrizione, dettagli) VALUES ($1, $2, $3, $4)`,
+            [
+              'AGENDA_730',
+              'CREATE',
+              `Nuovo appuntamento: ${cliente || '(nessun cliente)'} – ${data} ${ora_inizio.substring(0,5)}-${ora_fine.substring(0,5)}`,
+              JSON.stringify({ persona_id, sede_id, data, ora_inizio: ora_inizio.substring(0,5), ora_fine: ora_fine.substring(0,5), cliente: cliente || null, note: note || null }),
+            ]
+          );
+        } catch { /* log non bloccante */ }
+      }
+
       broadcast730Update();
       return NextResponse.json(normalized, { status: 201 });
     }

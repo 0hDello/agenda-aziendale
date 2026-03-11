@@ -48,6 +48,21 @@ export async function PUT(
         : result.rows[0].ora_fine,
     };
 
+    // Log in cronologia (solo appuntamenti reali, non UFF CHIUSO)
+    if ((cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO') {
+      try {
+        await query(
+          `INSERT INTO activity_log (source, action, descrizione, dettagli) VALUES ($1, $2, $3, $4)`,
+          [
+            'AGENDA_730',
+            'UPDATE',
+            `Appuntamento modificato: ${cliente || '(nessun cliente)'} – ${normalized.data} ${ora_inizio.substring(0,5)}-${ora_fine.substring(0,5)}`,
+            JSON.stringify({ id, persona_id, sede_id, data: normalized.data, ora_inizio: ora_inizio.substring(0,5), ora_fine: ora_fine.substring(0,5), cliente: cliente || null, note: note || null }),
+          ]
+        );
+      } catch { /* log non bloccante */ }
+    }
+
     broadcast730Update();
     return NextResponse.json(normalized);
   } catch (error) {
@@ -63,6 +78,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Recupera i dati prima di cancellare (per il log)
+    const existing = await query('SELECT * FROM appuntamenti WHERE id = $1', [id]);
+    const apt = existing.rows[0];
+
     const result = await query('DELETE FROM appuntamenti WHERE id = $1', [id]);
 
     if (result.rowCount === 0) {
@@ -70,6 +90,24 @@ export async function DELETE(
         { error: 'Appuntamento non trovato' },
         { status: 404 }
       );
+    }
+
+    // Log in cronologia (solo appuntamenti reali, non UFF CHIUSO)
+    if (apt && (apt.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO') {
+      try {
+        const dataStr = apt.data instanceof Date
+          ? format(apt.data, 'yyyy-MM-dd')
+          : (typeof apt.data === 'string' ? apt.data.split('T')[0] : String(apt.data));
+        await query(
+          `INSERT INTO activity_log (source, action, descrizione, dettagli) VALUES ($1, $2, $3, $4)`,
+          [
+            'AGENDA_730',
+            'DELETE',
+            `Appuntamento eliminato: ${apt.cliente || '(nessun cliente)'} – ${dataStr} ${String(apt.ora_inizio).substring(0,5)}-${String(apt.ora_fine).substring(0,5)}`,
+            JSON.stringify({ id, persona_id: apt.persona_id, sede_id: apt.sede_id, data: dataStr, ora_inizio: String(apt.ora_inizio).substring(0,5), ora_fine: String(apt.ora_fine).substring(0,5), cliente: apt.cliente || null }),
+          ]
+        );
+      } catch { /* log non bloccante */ }
     }
 
     broadcast730Update();
