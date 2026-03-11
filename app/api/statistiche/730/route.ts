@@ -4,7 +4,6 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { getTimeSlotsForSede, isSedeWorkingDay } from '@/utils/dateUtils';
 
 const ANNO = 2026;
-// Solo aprile (4) → dicembre (12)
 const MESI = Array.from({ length: 9 }, (_, i) => i + 4);
 
 interface PersonaRow { id: string; nome: string; }
@@ -49,8 +48,6 @@ export async function GET() {
       cliente:    r.cliente ?? '',
     }));
 
-    // Gli UFF CHIUSO con ora_inizio–ora_fine coprono più slot:
-    // uno slot è bloccato se slot.label >= ora_inizio && slot.label < ora_fine
     const uffChiusoRecords = appointments.filter(a => a.cliente === 'UFF CHIUSO');
 
     const isSlotUffChiuso = (
@@ -89,12 +86,12 @@ export async function GET() {
 
           for (const giorno of giorni) {
             const dateStr = format(giorno, 'yyyy-MM-dd');
-            if (!isSedeWorkingDay(sede.nome, giorno, '730')) continue;
+            // Passa il nome della persona: i sabati eccezione vengono contati solo per Monica
+            if (!isSedeWorkingDay(sede.nome, giorno, '730', persona.nome)) continue;
 
             const slots = getTimeSlotsForSede(sede.nome, giorno, '730');
 
             for (const slot of slots) {
-              // Slot coperto da UFF CHIUSO → non conta né come capacità né come prenotato
               if (isSlotUffChiuso(String(persona.id), String(sede.id), dateStr, slot.label)) continue;
 
               capacita++;

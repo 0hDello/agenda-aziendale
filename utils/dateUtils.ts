@@ -14,9 +14,13 @@ export const formatDateDisplay = (date: Date) => {
   return format(date, 'EEEE dd/MM', { locale: it });
 };
 
-// ─── Eccezioni sabato Agenda 730 ──────────────────────────────────────────────
-// 3 sabati lavorativi solo per MONICA CAPECCHI: 08:30–12:00 (ultimo slot 12:00–12:30)
+// ─── Eccezioni sabato Agenda 730 ────────────────────────────────────────────────
+// 3 sabati lavorativi SOLO per MONICA CAPECCHI: 08:30–12:00
 export const SABATI_730_ECCEZIONE = ['2026-05-23', '2026-06-06', '2026-06-13'];
+
+// Helper: true se il nome corrisponde a Monica
+const isMonica = (personaNome?: string) =>
+  !!personaNome && personaNome.toLowerCase().includes('monica');
 
 // Slot sabato 730 eccezionale: 08:30–12:00
 export const TIME_SLOTS_730_SABATO = [
@@ -35,9 +39,7 @@ export const END_TIME_SLOTS_730_SABATO = [
   { hour: 12, minute: 30, label: '12:30' },
 ];
 
-// ─── Slot condivisi (riutilizzati da più sedi) ───────────────────────────────────
-
-// Lun/Mar/Mer (+ Gio per CSPT/Borgo): 09:00–12:30 + 14:00–17:30  (fine: 18:00)
+// ─── Slot condivisi ──────────────────────────────────────────────────────────────────
 const TIME_SLOTS_STD_LMM = [
   { hour: 9,  minute: 0,  label: '09:00' },
   { hour: 9,  minute: 30, label: '09:30' },
@@ -46,7 +48,6 @@ const TIME_SLOTS_STD_LMM = [
   { hour: 11, minute: 0,  label: '11:00' },
   { hour: 11, minute: 30, label: '11:30' },
   { hour: 12, minute: 0,  label: '12:00' },
-
   { hour: 14, minute: 0,  label: '14:00' },
   { hour: 14, minute: 30, label: '14:30' },
   { hour: 15, minute: 0,  label: '15:00' },
@@ -61,7 +62,6 @@ const END_TIME_SLOTS_STD_LMM = [
   { hour: 18, minute: 0, label: '18:00' },
 ];
 
-// Venerdì standard: solo 09:00–12:00  (fine: 12:30)
 const TIME_SLOTS_STD_VEN = [
   { hour: 9,  minute: 0,  label: '09:00' },
   { hour: 9,  minute: 30, label: '09:30' },
@@ -77,14 +77,10 @@ const END_TIME_SLOTS_STD_VEN = [
   { hour: 12, minute: 30, label: '12:30' },
 ];
 
-// ─── Slot IMOLA per giorno ─────────────────────────────────────────────────
-
-// Lun / Mar / Mer: identico a STD_LMM
+// ─── Slot IMOLA ────────────────────────────────────────────────────────────────────────
 const TIME_SLOTS_IMOLA_LMM     = TIME_SLOTS_STD_LMM;
 const END_TIME_SLOTS_IMOLA_LMM = END_TIME_SLOTS_STD_LMM;
 
-// Gio Imola: 09:00–12:30 + 16:00–19:30  (fine: 20:00)
-// Slot pomeridiani: 16:00 16:30 17:00 17:30 | 18:00 18:30 | 19:00 19:30
 const TIME_SLOTS_IMOLA_GIO = [
   { hour: 9,  minute: 0,  label: '09:00' },
   { hour: 9,  minute: 30, label: '09:30' },
@@ -93,7 +89,6 @@ const TIME_SLOTS_IMOLA_GIO = [
   { hour: 11, minute: 0,  label: '11:00' },
   { hour: 11, minute: 30, label: '11:30' },
   { hour: 12, minute: 0,  label: '12:00' },
-
   { hour: 16, minute: 0,  label: '16:00' },
   { hour: 16, minute: 30, label: '16:30' },
   { hour: 17, minute: 0,  label: '17:00' },
@@ -109,57 +104,36 @@ const END_TIME_SLOTS_IMOLA_GIO = [
   { hour: 20, minute: 0, label: '20:00' },
 ];
 
-// Ven Imola: identico a STD_VEN
 const TIME_SLOTS_IMOLA_VEN     = TIME_SLOTS_STD_VEN;
 const END_TIME_SLOTS_IMOLA_VEN = END_TIME_SLOTS_STD_VEN;
 
-// Compatibilità retroattiva
 export const TIME_SLOTS_IMOLA     = TIME_SLOTS_IMOLA_LMM;
 export const END_TIME_SLOTS_IMOLA = END_TIME_SLOTS_IMOLA_LMM;
 
-// ─── Slot BORGO per giorno ─────────────────────────────────────────────────
-// Lun–Gio: uguale a Imola LMM (09:00–12:30 + 14:00–17:30)
-// Ven:    uguale a Imola VEN  (09:00–12:00, fine 12:30)
-
-export const TIME_SLOTS_BORGO     = TIME_SLOTS_STD_LMM; // legacy export
+// ─── Slot BORGO / CSPT ───────────────────────────────────────────────────────────────
+export const TIME_SLOTS_BORGO     = TIME_SLOTS_STD_LMM;
 export const END_TIME_SLOTS_BORGO = END_TIME_SLOTS_STD_LMM;
+export const TIME_SLOTS_CSPT      = TIME_SLOTS_STD_LMM;
+export const END_TIME_SLOTS_CSPT  = END_TIME_SLOTS_STD_LMM;
 
-// ─── Slot CSPT per giorno ─────────────────────────────────────────────────
-// Lun–Gio: uguale a Imola LMM (09:00–12:30 + 14:00–17:30)
-// Ven:    uguale a Imola VEN  (09:00–12:00, fine 12:30)
-
-export const TIME_SLOTS_CSPT     = TIME_SLOTS_STD_LMM; // legacy export
-export const END_TIME_SLOTS_CSPT = END_TIME_SLOTS_STD_LMM;
-
-// Compatibilità retroattiva generica
 export const TIME_SLOTS     = TIME_SLOTS_IMOLA;
 export const END_TIME_SLOTS = END_TIME_SLOTS_IMOLA;
 
-// ─── Helper interno: slot per-giorno data sede ───────────────────────────
-// Lun(1) Mar(2) Mer(3) Gio(4) → STD_LMM
-// Ven(5)                      → STD_VEN
-const getStdSlotsForDay = (dow: number) =>
-  dow === 5 ? TIME_SLOTS_STD_VEN : TIME_SLOTS_STD_LMM;
+// ─── Helper interno ─────────────────────────────────────────────────────────────────────
+const getStdSlotsForDay    = (dow: number) => dow === 5 ? TIME_SLOTS_STD_VEN    : TIME_SLOTS_STD_LMM;
+const getStdEndSlotsForDay = (dow: number) => dow === 5 ? END_TIME_SLOTS_STD_VEN : END_TIME_SLOTS_STD_LMM;
 
-const getStdEndSlotsForDay = (dow: number) =>
-  dow === 5 ? END_TIME_SLOTS_STD_VEN : END_TIME_SLOTS_STD_LMM;
+// ─── Funzioni principali ──────────────────────────────────────────────────────────────────
 
-// ─── Funzioni principali ───────────────────────────────────────────────────
-
-/**
- * Restituisce gli slot di inizio per la sede e il giorno specifico.
- */
 export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
-  // Eccezione sabati lavorativi Agenda 730
   if (agendaId === '730' && date) {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (SABATI_730_ECCEZIONE.includes(dateStr)) return TIME_SLOTS_730_SABATO;
   }
 
   const n   = nomeSedeOrId.toLowerCase();
-  const dow = date?.getDay() ?? 1; // default lun
+  const dow = date?.getDay() ?? 1;
 
-  // IMOLA: Gio speciale, Ven standard, resto LMM
   if (n.includes('imola') || n === '') {
     if (!date) return TIME_SLOTS_IMOLA_LMM;
     if (dow === 4) return TIME_SLOTS_IMOLA_GIO;
@@ -167,7 +141,6 @@ export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?
     return TIME_SLOTS_IMOLA_LMM;
   }
 
-  // BORGO e CSPT: Lun–Gio = STD_LMM, Ven = STD_VEN
   if (n.includes('borgo') || n.includes('cspt')) {
     return getStdSlotsForDay(dow);
   }
@@ -175,11 +148,7 @@ export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?
   return TIME_SLOTS_STD_LMM;
 };
 
-/**
- * Restituisce gli slot di fine per la sede e il giorno specifico.
- */
 export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
-  // Eccezione sabati lavorativi Agenda 730
   if (agendaId === '730' && date) {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (SABATI_730_ECCEZIONE.includes(dateStr)) return END_TIME_SLOTS_730_SABATO;
@@ -202,20 +171,27 @@ export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agenda
   return END_TIME_SLOTS_STD_LMM;
 };
 
-// Verifica se un giorno è lavorativo per la sede
-export const isSedeWorkingDay = (nomeSedeOrId: string, date: Date, agendaId?: string): boolean => {
+/**
+ * Verifica se un giorno è lavorativo per la sede (e opzionalmente per la persona).
+ * Per i sabati eccezione Agenda 730 il giorno è lavorativo SOLO per Monica.
+ */
+export const isSedeWorkingDay = (
+  nomeSedeOrId: string,
+  date: Date,
+  agendaId?: string,
+  personaNome?: string
+): boolean => {
   const n   = nomeSedeOrId.toLowerCase();
-  const dow = date.getDay(); // 0=dom, 1=lun, ..., 6=sab
+  const dow = date.getDay();
 
-  // Eccezione sabati lavorativi Agenda 730
   if (agendaId === '730' && dow === 6) {
     const dateStr = format(date, 'yyyy-MM-dd');
-    if (SABATI_730_ECCEZIONE.includes(dateStr)) return true;
+    if (SABATI_730_ECCEZIONE.includes(dateStr)) {
+      // Sabato eccezione: lavorativo SOLO per Monica
+      return isMonica(personaNome);
+    }
   }
 
-  // BORGO e CSPT: Lun(1)–Ven(5)
   if (n.includes('borgo') || n.includes('cspt')) return dow >= 1 && dow <= 5;
-
-  // IMOLA e default: Lun(1)–Ven(5)
   return dow >= 1 && dow <= 5;
 };
