@@ -109,10 +109,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const getTimeSlotsForDay    = (day: Date) => getTimeSlotsForSede(selectedSedeNome, day, agendaId);
   const getEndTimeSlotsForDay = (day: Date) => getEndTimeSlotsForSede(selectedSedeNome, day, agendaId);
 
-  const isDayClosedForSede = (day: Date): boolean => {
+  // personaNome opzionale: per i sabati eccezione 730 il giorno è aperto SOLO per Monica
+  const isDayClosedForSede = (day: Date, personaNome?: string): boolean => {
     if (agendaId === '730' && isWeekend(day) && day.getDay() === 6) {
       const dateStr = format(day, 'yyyy-MM-dd');
-      if (SABATI_730_ECCEZIONE.includes(dateStr)) return false;
+      if (SABATI_730_ECCEZIONE.includes(dateStr)) {
+        // Aperto solo se è Monica, chiuso per tutti gli altri
+        return !(personaNome && personaNome.toLowerCase().includes('monica'));
+      }
     }
     if (isWeekend(day)) return true;
     return !isSedeWorkingDay(selectedSedeNome, day);
@@ -522,8 +526,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
-    if (isDayClosedForSede(day)) return 'closed';
+  // personaNome opzionale: i sabati eccezione sono chiusi per chi non è Monica
+  const getDayAvailability = (dateStr: string, personaId: string, day: Date, personaNome?: string): DayAvailability => {
+    if (isDayClosedForSede(day, personaNome)) return 'closed';
     const slots = getTimeSlotsForDay(day);
     const n = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId).length;
     if (n === 0) return 'free';
@@ -536,13 +541,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return Math.max(0, getTimeSlotsForDay(day).length - occupied);
   };
 
-  const getFirstAvailableDay = (personaId: string): string | null => {
+  // Per getFirstAvailableDay usiamo la persona corrente dal mensile
+  const getFirstAvailableDay = (personaId: string, personaNome?: string): string | null => {
     const today = new Date();
     for (let i = 0; i < 90; i++) {
       const d = addDays(today, i);
-      if (isDayClosedForSede(d)) continue;
+      if (isDayClosedForSede(d, personaNome)) continue;
       const s = format(d, 'yyyy-MM-dd');
-      const a = getDayAvailability(s, personaId, d);
+      const a = getDayAvailability(s, personaId, d, personaNome);
       if (a === 'free' || a === 'partial') return s;
     }
     return null;
@@ -556,14 +562,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const renderMonthlyView = () => {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona)) ? selectedMonthlyPersona : sedePersone[0]?.id ?? null;
     if (!activePersona) return null;
-    const fa = getFirstAvailableDay(activePersona);
+    const personaNome = sedePersone.find(p => p.id === activePersona)?.nome ?? '';
+    const fa = getFirstAvailableDay(activePersona, personaNome);
     const monthStart = startOfMonth(selectedDate);
     const monthEnd   = endOfMonth(selectedDate);
     const allCalDays = eachDayOfInterval({ start: startOfWeek(monthStart, { weekStartsOn: 1 }), end: endOfWeek(monthEnd, { weekStartsOn: 1 }) });
     const weeks: Date[][] = [];
     for (let i = 0; i < allCalDays.length; i += 7) weeks.push(allCalDays.slice(i, i + 7));
     const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-    const personaNome = sedePersone.find(p => p.id === activePersona)?.nome ?? '';
     return (
       <div className="p-3 md:p-4 h-full overflow-y-auto">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -618,9 +624,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const isThisMonth = getMonth(day) === getMonth(selectedDate);
                 if (!isThisMonth) return (<div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${ dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50' }`} />);
                 const isToday  = format(new Date(), 'yyyy-MM-dd') === dateStr;
-                const isClosed = isDayClosedForSede(day);
+                // Passa personaNome per rispettare la regola sabati eccezione
+                const isClosed = isDayClosedForSede(day, personaNome);
                 const isBefore = day < MIN_DATE;
-                const av       = getDayAvailability(dateStr, activePersona, day);
+                const av       = getDayAvailability(dateStr, activePersona, day, personaNome);
                 const freeSlots = (!isClosed && av !== 'full') ? getFreeSlots(dateStr, activePersona, day) : 0;
                 const avBg     = isClosed ? 'bg-gray-100' : av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
                 const avBorder = isClosed ? '' : av === 'free' ? 'border-t-2 border-green-400' : av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';
@@ -652,14 +659,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
-  // Il div scrollabile occupa tutta l'altezza del parent flex-1
   const renderDailyView = () => (
     <div className="h-full flex flex-col">
       <div ref={setScrollRef} className="flex-1 overflow-y-auto">
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
-              {/* Colonna orario SINISTRA */}
               <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
                 <span className="text-[#005CA9]">Orario</span>
               </th>
@@ -671,7 +676,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   </div>
                 </th>
               ))}
-              {/* Colonna orario DESTRA */}
               <th className="p-2 text-right text-xs font-semibold bg-[#F5F8FA] sticky right-0 z-10 w-[60px] border-l border-gray-200">
                 <span className="text-[#005CA9]">Orario</span>
               </th>
@@ -681,6 +685,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             {visibleDays.map(day => {
               const dateStr      = formatDate(day);
               const isToday      = formatDate(new Date()) === dateStr;
+              // Per la vista giornaliera non c'è una sola persona attiva,
+              // usiamo isDayClosedForSede senza personaNome (sabato = chiuso per tutti nella barra header)
               const isClosed     = isDayClosedForSede(day);
               const dayTimeSlots = getTimeSlotsForDay(day);
               return (
@@ -704,7 +710,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   ) : (
                     dayTimeSlots.map(slot => (
                       <tr key={`${dateStr}-${slot.label}`}>
-                        {/* Cella orario SINISTRA */}
                         <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                         </td>
@@ -750,7 +755,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             </td>
                           );
                         })}
-                        {/* Cella orario DESTRA */}
                         <td className="p-0 bg-[#F5F8FA] sticky right-0 z-10 border-l border-gray-200 border-b border-gray-100 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700 text-right">{slot.label}</div>
                         </td>
