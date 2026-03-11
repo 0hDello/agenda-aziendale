@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle, ArrowLeft, Calendar } from 'lucide-react';
+import { BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle, ArrowLeft, Calendar, Building2 } from 'lucide-react';
 
 interface MeseStats {
   mese: string;
@@ -25,6 +25,7 @@ export default function StatistichePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [selectedSede, setSelectedSede] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/statistiche/730')
@@ -38,27 +39,33 @@ export default function StatistichePage() {
   }, []);
 
   const getPerc = (p: number, c: number) => (c === 0 ? 0 : Math.round((p / c) * 100));
-
   const getBarColor = (p: number) =>
     p >= 90 ? 'bg-red-500' : p >= 60 ? 'bg-yellow-400' : p >= 30 ? 'bg-blue-500' : 'bg-green-500';
-
   const getBadgeColor = (p: number) =>
     p >= 90 ? 'bg-red-500' : p >= 60 ? 'bg-yellow-500' : p >= 30 ? 'bg-blue-500' : 'bg-green-500';
-
   const getTextColor = (p: number) =>
     p >= 90 ? 'text-red-500' : p >= 60 ? 'text-yellow-500' : 'text-blue-600';
 
   const meseCorrente = new Date().toISOString().substring(0, 7);
   const annoCorrente = new Date().getFullYear();
 
-  // Totali globali
-  const totCapacita  = data.reduce((s, p) => s + p.totaleCapacita, 0);
-  const totPrenotati = data.reduce((s, p) => s + p.totalePrenotati, 0);
+  // Sedi distinte
+  const tuttiSedi: string[] = Array.from(new Set(data.flatMap(p => p.sedi))).sort();
+
+  // Persone filtrate per sede selezionata
+  const personeFiltrate = selectedSede
+    ? data.filter(p => p.sedi.includes(selectedSede))
+    : data;
+
+  // Totali della vista corrente
+  const totCapacita  = personeFiltrate.reduce((s, p) => s + p.totaleCapacita, 0);
+  const totPrenotati = personeFiltrate.reduce((s, p) => s + p.totalePrenotati, 0);
   const totPerc      = getPerc(totPrenotati, totCapacita);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA]">
-      {/* ── HEADER ── */}
+
+      {/* ── HEADER fisso ── */}
       <div className="bg-white border-b-4 border-[#005CA9] px-6 py-4 shadow-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -76,11 +83,16 @@ export default function StatistichePage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-[#005CA9]">Statistiche Agenda 730</h1>
-                <p className="text-xs text-gray-500">Capacità e prenotazioni per operatore &mdash; Anno {annoCorrente}</p>
+                <p className="text-xs text-gray-500">
+                  Capacità e prenotazioni per operatore &mdash; Anno {annoCorrente}
+                  {selectedSede && (
+                    <span className="ml-2 text-[#005CA9] font-semibold">· {selectedSede}</span>
+                  )}
+                </p>
               </div>
             </div>
           </div>
-          {/* Riepilogo globale */}
+          {/* Riepilogo numerico (aggiornato per sede selezionata) */}
           {!loading && !error && data.length > 0 && (
             <div className="hidden md:flex items-center gap-6 bg-[#F5F8FA] border border-gray-200 rounded-xl px-5 py-3">
               <div className="text-center">
@@ -102,7 +114,63 @@ export default function StatistichePage() {
         </div>
       </div>
 
-      {/* ── BODY ── */}
+      {/* ── TAB SEDI sticky sotto l'header ── */}
+      {!loading && !error && tuttiSedi.length > 0 && (
+        <div className="bg-white border-b border-gray-200 sticky top-[73px] z-10 shadow-sm">
+          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 flex-wrap">
+            {/* Tab "Tutte" */}
+            <button
+              onClick={() => { setSelectedSede(null); setExpanded(null); }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+                selectedSede === null
+                  ? 'bg-[#005CA9] text-white border-[#005CA9] shadow'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-[#005CA9] hover:text-[#005CA9]'
+              }`}
+            >
+              <BarChart2 size={14} />
+              Tutte le sedi
+              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                selectedSede === null ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>{data.length}</span>
+            </button>
+
+            {/* Tab per ogni sede */}
+            {tuttiSedi.map(sede => {
+              const count = data.filter(p => p.sedi.includes(sede)).length;
+              const isActive = selectedSede === sede;
+              // totali per questa sede (per barra mini)
+              const sedePers = data.filter(p => p.sedi.includes(sede));
+              const sedeCap = sedePers.reduce((s, p) => s + p.totaleCapacita, 0);
+              const sedePre = sedePers.reduce((s, p) => s + p.totalePrenotati, 0);
+              const sedePerc = getPerc(sedePre, sedeCap);
+
+              return (
+                <button
+                  key={sede}
+                  onClick={() => { setSelectedSede(sede); setExpanded(null); }}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+                    isActive
+                      ? 'bg-[#005CA9] text-white border-[#005CA9] shadow'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-[#005CA9] hover:text-[#005CA9]'
+                  }`}
+                >
+                  <Building2 size={14} />
+                  {sede}
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                    isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'
+                  }`}>{count}</span>
+                  {/* Occupazione mini badge */}
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-bold text-white ${getBadgeColor(sedePerc)}`}>
+                    {sedePerc}%
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── BODY scrollabile ── */}
       <div className="max-w-5xl mx-auto px-4 py-8">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 gap-4">
@@ -119,14 +187,14 @@ export default function StatistichePage() {
               Riprova
             </button>
           </div>
-        ) : data.length === 0 ? (
+        ) : personeFiltrate.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <Calendar size={48} className="text-gray-300" />
             <p className="text-gray-400 font-medium">Nessun dato disponibile.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {data.map(persona => {
+            {personeFiltrate.map(persona => {
               const perc     = getPerc(persona.totalePrenotati, persona.totaleCapacita);
               const isOpen   = expanded === persona.id;
               const meseData = persona.perMese[meseCorrente];
@@ -134,22 +202,25 @@ export default function StatistichePage() {
 
               return (
                 <div key={persona.id} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
+
                   {/* ── Riga principale ── */}
                   <div
                     className="flex items-center gap-5 px-6 py-5 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => setExpanded(isOpen ? null : persona.id)}
                   >
-                    {/* Avatar */}
                     <div className="w-12 h-12 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow">
                       <User size={22} className="text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      {/* Nome + badge % */}
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
+                      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-gray-800 text-base">{persona.nome}</span>
-                          <span className="ml-2 text-xs text-gray-400">{persona.sedi.join(', ')}</span>
+                          {persona.sedi.map(s => (
+                            <span key={s} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E6F2FF] text-[#005CA9] border border-[#005CA9]/20">
+                              <Building2 size={10} />{s}
+                            </span>
+                          ))}
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
                           <span className="text-sm font-semibold text-gray-600">
@@ -162,7 +233,6 @@ export default function StatistichePage() {
                         </div>
                       </div>
 
-                      {/* Barra anno */}
                       <div className="w-full bg-gray-100 rounded-full h-3">
                         <div
                           className={`h-3 rounded-full transition-all duration-700 ${getBarColor(perc)}`}
@@ -170,7 +240,6 @@ export default function StatistichePage() {
                         />
                       </div>
 
-                      {/* Mese corrente */}
                       {meseData && (
                         <div className="mt-2.5 flex items-center gap-2">
                           <TrendingUp size={13} className="text-[#005CA9] flex-shrink-0" />
