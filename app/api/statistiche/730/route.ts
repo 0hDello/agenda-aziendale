@@ -62,40 +62,29 @@ export async function GET() {
           slotLabel    <  u.ora_fine
       );
 
-    const risultati = persone.map(persona => {
-      const sediPersona = personaSede
-        .filter(ps => String(ps.persona_id) === String(persona.id))
-        .map(ps => sedi.find(s => String(s.id) === String(ps.sede_id)))
-        .filter(Boolean) as SedeRow[];
-
+    const calcPerMese = (
+      persona: PersonaRow,
+      sediPersona: SedeRow[]
+    ): Record<string, { mese: string; capacita: number; prenotati: number }> => {
       const perMese: Record<string, { mese: string; capacita: number; prenotati: number }> = {};
-
       for (const mese of MESI) {
         const meseStr   = `${ANNO}-${String(mese).padStart(2, '0')}`;
         const meseLabel = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
           .format(new Date(ANNO, mese - 1, 1));
-
         let capacita  = 0;
         let prenotati = 0;
-
         for (const sede of sediPersona) {
           const giorni = eachDayOfInterval({
             start: startOfMonth(new Date(ANNO, mese - 1, 1)),
             end:   endOfMonth(new Date(ANNO, mese - 1, 1)),
           });
-
           for (const giorno of giorni) {
             const dateStr = format(giorno, 'yyyy-MM-dd');
-            // Passa il nome della persona: i sabati eccezione vengono contati solo per Monica
             if (!isSedeWorkingDay(sede.nome, giorno, '730', persona.nome)) continue;
-
             const slots = getTimeSlotsForSede(sede.nome, giorno, '730');
-
             for (const slot of slots) {
               if (isSlotUffChiuso(String(persona.id), String(sede.id), dateStr, slot.label)) continue;
-
               capacita++;
-
               const hasApt = appointments.some(
                 a =>
                   String(a.persona_id) === String(persona.id) &&
@@ -108,18 +97,35 @@ export async function GET() {
             }
           }
         }
-
         perMese[meseStr] = { mese: meseLabel, capacita, prenotati };
       }
+      return perMese;
+    };
 
+    const risultati = persone.map(persona => {
+      const sediPersona = personaSede
+        .filter(ps => String(ps.persona_id) === String(persona.id))
+        .map(ps => sedi.find(s => String(s.id) === String(ps.sede_id)))
+        .filter(Boolean) as SedeRow[];
+
+      // Totale su tutte le sedi
+      const perMese = calcPerMese(persona, sediPersona);
       const totaleCapacita  = Object.values(perMese).reduce((s, m) => s + m.capacita, 0);
       const totalePrenotati = Object.values(perMese).reduce((s, m) => s + m.prenotati, 0);
+
+      // Breakdown per singola sede
+      const perSedePerMese: Record<string, Record<string, { mese: string; capacita: number; prenotati: number }>> = {};
+      for (const sede of sediPersona) {
+        const datiSede = calcPerMese(persona, [sede]);
+        perSedePerMese[sede.nome] = datiSede;
+      }
 
       return {
         id:   persona.id,
         nome: persona.nome,
         sedi: sediPersona.map(s => s.nome),
         perMese,
+        perSedePerMese,
         totaleCapacita,
         totalePrenotati,
       };
