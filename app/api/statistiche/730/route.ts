@@ -4,7 +4,8 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { getTimeSlotsForSede, isSedeWorkingDay } from '@/utils/dateUtils';
 
 const ANNO = 2026;
-const MESI = Array.from({ length: 12 }, (_, i) => i + 1);
+// Solo aprile (4) → dicembre (12)
+const MESI = Array.from({ length: 9 }, (_, i) => i + 4);
 
 interface PersonaRow { id: string; nome: string; }
 interface SedeRow    { id: string; nome: string; }
@@ -27,15 +28,15 @@ export async function GET() {
         SELECT persona_id, sede_id, data, ora_inizio, UPPER(TRIM(cliente)) AS cliente
         FROM appuntamenti
         WHERE EXTRACT(YEAR FROM data::date) = ${ANNO}
+          AND EXTRACT(MONTH FROM data::date) >= 4
         ORDER BY data, ora_inizio
       `),
     ]);
 
-    const persone: PersonaRow[]    = personeRes.rows;
-    const sedi: SedeRow[]          = sediRes.rows;
+    const persone: PersonaRow[]         = personeRes.rows;
+    const sedi: SedeRow[]               = sediRes.rows;
     const personaSede: PersonaSedeRow[] = psRes.rows;
 
-    // Normalizza le date (Postgres restituisce Date o stringa ISO)
     const appointments: AppRow[] = appRes.rows.map((r: any) => ({
       persona_id: String(r.persona_id),
       sede_id:    String(r.sede_id),
@@ -43,14 +44,9 @@ export async function GET() {
         ? format(r.data, 'yyyy-MM-dd')
         : String(r.data).split('T')[0],
       ora_inizio: r.ora_inizio?.substring(0, 5) ?? '',
-      cliente: r.cliente ?? '',
+      cliente:    r.cliente ?? '',
     }));
 
-    // Raggruppa gli UFF CHIUSO per (persona_id, sede_id, data)
-    // Ogni UFF CHIUSO copre uno slot: conta quanti slot vengono bloccati
-    // in base all'intervallo ora_inizio–ora_fine rispetto agli slot disponibili.
-    // Per semplicità: ogni record UFF CHIUSO == 1 slot bloccato.
-    // (Il Calendar li crea slot per slot, quindi è 1:1)
     const uffChiusoSet = new Set<string>();
     for (const a of appointments) {
       if (a.cliente === 'UFF CHIUSO') {
@@ -70,7 +66,7 @@ export async function GET() {
       const perMese: Record<string, { mese: string; capacita: number; prenotati: number }> = {};
 
       for (const mese of MESI) {
-        const meseStr = `${ANNO}-${String(mese).padStart(2, '0')}`;
+        const meseStr   = `${ANNO}-${String(mese).padStart(2, '0')}`;
         const meseLabel = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
           .format(new Date(ANNO, mese - 1, 1));
 
@@ -90,19 +86,17 @@ export async function GET() {
             const slots = getTimeSlotsForSede(sede.nome, giorno, '730');
 
             for (const slot of slots) {
-              // Slot bloccato da UFF CHIUSO → non conta né come capacità né come prenotato
               if (isSlotUffChiuso(String(persona.id), String(sede.id), dateStr, slot.label)) continue;
 
               capacita++;
 
-              // Conta appuntamenti reali su questo slot (inizio == slot.label)
               const hasApt = appointments.some(
                 a =>
                   String(a.persona_id) === String(persona.id) &&
                   String(a.sede_id)    === String(sede.id) &&
-                  a.data              === dateStr &&
-                  a.ora_inizio        === slot.label &&
-                  a.cliente           !== 'UFF CHIUSO'
+                  a.data               === dateStr &&
+                  a.ora_inizio         === slot.label &&
+                  a.cliente            !== 'UFF CHIUSO'
               );
               if (hasApt) prenotati++;
             }
