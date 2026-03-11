@@ -27,9 +27,9 @@ const ACTION_CONFIG = {
 } as const;
 
 const SOURCE_CONFIG = {
-  EPASA:       { label: 'Agenda EPASA',  bg: 'bg-[#E6F2FF]',  text: 'text-[#005CA9]',  icon: Calendar },
+  EPASA:         { label: 'Agenda EPASA',  bg: 'bg-[#E6F2FF]', text: 'text-[#005CA9]',  icon: Calendar },
   SALA_RIUNIONI: { label: 'Sale Riunioni', bg: 'bg-purple-50', text: 'text-purple-700', icon: Building2 },
-  AGENDA_730:  { label: 'Agenda 730',    bg: 'bg-amber-50',   text: 'text-amber-700',  icon: CalendarDays },
+  AGENDA_730:    { label: 'Agenda 730',    bg: 'bg-amber-50',  text: 'text-amber-700',  icon: CalendarDays },
 } as const;
 
 function formatDateGroup(iso: string) {
@@ -173,7 +173,8 @@ function CronologiaInner() {
   const hasFilters = sourceParam !== 'ALL' || actionParam !== 'ALL' || !!qParam;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA]">
+    // h-full + overflow-y-auto: necessario perché il layout root ha overflow-hidden su html/body/main
+    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA]">
       <div className="max-w-3xl mx-auto px-4 py-8">
 
         {/* Header */}
@@ -376,7 +377,7 @@ function CronologiaInner() {
             </div>
 
             {/* Pagination */}
-            <div className="mt-8 flex items-center justify-center gap-2 flex-wrap">
+            <div className="mt-8 pb-8 flex items-center justify-center gap-2 flex-wrap">
               <button
                 onClick={() => setParam({ page: String(Math.max(1, page - 1)) })}
                 disabled={page <= 1}
@@ -422,7 +423,7 @@ function CronologiaInner() {
 export default function CronologiaPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] flex items-center justify-center">
+      <div className="h-full w-full bg-gradient-to-br from-[#E6F2FF] to-[#F5F8FA] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-[#005CA9]" />
           <p className="text-sm text-gray-400 font-medium">Caricamento...</p>
