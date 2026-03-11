@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar as CalendarIcon, Settings, Database, FileText, History, User } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Database, FileText, History, User, BarChart2 } from 'lucide-react';
+import StatisticheModal from '@/components/StatisticheModal';
 
 interface Agenda {
   id: string;
@@ -17,6 +18,7 @@ export default function HomePage() {
   const router = useRouter();
   const [agende, setAgende] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showStatistiche, setShowStatistiche] = useState(false);
 
   useEffect(() => { loadAgende(); }, []);
 
@@ -128,6 +130,14 @@ export default function HomePage() {
                           <User size={18} className="text-gray-400" />
                         </button>
                       )}
+                      {agenda.id === '730' && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setShowStatistiche(true); }}
+                          className="bg-blue-50 hover:bg-blue-100 border border-[#005CA9]/20 hover:border-[#005CA9]/50 rounded-full p-2.5 transition-all hover:scale-110"
+                          title="Statistiche operatori">
+                          <BarChart2 size={18} className="text-[#005CA9]" />
+                        </button>
+                      )}
                     </div>
                     <div className={`text-xl transition-transform ${ agenda.active ? 'text-[#005CA9] group-hover:translate-x-2' : 'text-gray-400' }`}>→</div>
                   </div>
@@ -137,6 +147,10 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {showStatistiche && (
+        <StatisticheModal onClose={() => setShowStatistiche(false)} />
+      )}
     </div>
   );
 }
