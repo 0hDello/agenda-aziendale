@@ -53,7 +53,6 @@ const APPOINTMENT_COLORS: { [key: string]: string } = {
 };
 
 const SSE_RELOAD_DEBOUNCE = 800;
-// Finestra (ms) in cui il SSE echo di una mutazione locale viene ignorato
 const LOCAL_MUTATION_WINDOW = 3000;
 
 function getColorForAppointment(title: string): string {
@@ -84,21 +83,15 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [realtimeFlash, setRealtimeFlash] = useState(false);
 
   const sseReloadTimerRef  = useRef<NodeJS.Timeout | null>(null);
-  // Timestamp dell'ultima mutazione locale: il SSE echo viene ignorato finché
-  // non trascorre LOCAL_MUTATION_WINDOW ms dall'ultima operazione.
   const localMutationAtRef = useRef<number>(0);
 
-  // ─── Helper: marca mutazione locale ─────────────────────────────────────
   const markLocalMutation = () => { localMutationAtRef.current = Date.now(); };
 
   useEffect(() => { loadData(); }, []);
 
-  // ─── SSE realtime – ignora echo delle mutazioni locali ───────────────────
   useEffect(() => {
     const es = new EventSource('/api/room-appuntamenti/events');
     es.addEventListener('update', () => {
-      // Se l'evento arriva entro LOCAL_MUTATION_WINDOW ms da una nostra mutazione,
-      // è quasi certamente il nostro echo: lo saltiamo.
       if (Date.now() - localMutationAtRef.current < LOCAL_MUTATION_WINDOW) return;
       if (sseReloadTimerRef.current) clearTimeout(sseReloadTimerRef.current);
       sseReloadTimerRef.current = setTimeout(async () => {
@@ -108,7 +101,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           if (data) setAllAppointments(data);
           setRealtimeFlash(true);
           setTimeout(() => setRealtimeFlash(false), 1500);
-        } catch { /* silenzioso */ }
+        } catch { }
       }, SSE_RELOAD_DEBOUNCE);
     });
     es.onerror = () => {};
@@ -185,7 +178,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     setIsModalOpen(true);
   };
 
-  // ─── SAVE (create / update) con optimistic update ─────────────────────────
   const handleSaveAppointment = async (data: { date: string; time: string; title: string; endTime?: string }) => {
     if (!selectedRoom) return;
 
@@ -200,77 +192,44 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     );
 
     if (existing) {
-      // ── UPDATE ottimistico ──
-      const optimisticUpdated: Appointment = {
-        ...existing,
-        titolo: data.title,
-        ora_fine,
-        mese,
-      };
+      const optimisticUpdated: Appointment = { ...existing, titolo: data.title, ora_fine, mese };
       markLocalMutation();
       setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? optimisticUpdated : apt));
       try {
         const response = await fetch(`/api/room-appuntamenti/${existing.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            titolo: data.title,
-            ora_fine,
-            mese,
-            sala_id: selectedRoom.id,
-            data: data.date,
-            ora_inizio: data.time,
-          }),
+          body: JSON.stringify({ titolo: data.title, ora_fine, mese, sala_id: selectedRoom.id, data: data.date, ora_inizio: data.time }),
         });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Errore aggiornamento');
         }
-        // Sostituisci con i dati canonici del server
         const updated: Appointment = await response.json();
         setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? updated : apt));
       } catch (error) {
-        // Rollback
         setAllAppointments(prev => prev.map(apt => apt.id === existing.id ? existing : apt));
         console.error('Errore aggiornamento appuntamento:', error);
         alert(error instanceof Error ? error.message : "Errore durante l'aggiornamento dell'appuntamento");
       }
     } else {
-      // ── CREATE ottimistico ──
       const tempId = `__optimistic_${Date.now()}`;
-      const optimisticApt: Appointment = {
-        id: tempId,
-        sala_id: selectedRoom.id,
-        data: data.date,
-        ora_inizio: data.time,
-        ora_fine,
-        titolo: data.title,
-        mese,
-      };
+      const optimisticApt: Appointment = { id: tempId, sala_id: selectedRoom.id, data: data.date, ora_inizio: data.time, ora_fine, titolo: data.title, mese };
       markLocalMutation();
       setAllAppointments(prev => [...prev, optimisticApt]);
       try {
         const response = await fetch('/api/room-appuntamenti', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sala_id: selectedRoom.id,
-            data: data.date,
-            ora_inizio: data.time,
-            ora_fine,
-            titolo: data.title,
-            mese,
-          }),
+          body: JSON.stringify({ sala_id: selectedRoom.id, data: data.date, ora_inizio: data.time, ora_fine, titolo: data.title, mese }),
         });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Errore creazione');
         }
-        // Sostituisci il placeholder con l'ID reale del server
         const newAppointment: Appointment = await response.json();
         setAllAppointments(prev => prev.map(apt => apt.id === tempId ? newAppointment : apt));
       } catch (error) {
-        // Rollback
         setAllAppointments(prev => prev.filter(apt => apt.id !== tempId));
         console.error('Errore creazione appuntamento:', error);
         alert(error instanceof Error ? error.message : "Errore durante la creazione dell'appuntamento");
@@ -278,7 +237,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     }
   };
 
-  // ─── DELETE con optimistic update ─────────────────────────────────────────
   const handleDeleteAppointment = async () => {
     if (!selectedSlot || !selectedRoom) return;
 
@@ -298,7 +256,6 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
         throw new Error(errorData.error || 'Errore eliminazione');
       }
     } catch (error) {
-      // Rollback
       setAllAppointments(prev => [...prev, appointment]);
       console.error('Errore eliminazione appuntamento:', error);
       alert(error instanceof Error ? error.message : "Errore durante l'eliminazione dell'appuntamento");
@@ -344,168 +301,169 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     : null;
 
   return (
-    <div className="min-h-screen p-1 md:p-2 animate-fade-in">
-      <div className="max-w-[1800px] mx-auto">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-slide-in border-t-4 border-[#005CA9]">
-          <div className="bg-white border-b-2 border-[#005CA9]/20 p-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
-                  <Building2 className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-bold text-[#005CA9]">
-                      {selectedRoom.nome}
-                    </h1>
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
-                      realtimeFlash
-                        ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
-                        : 'bg-gray-50 text-gray-400 border border-gray-200'
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-                      }`} />
-                      {realtimeFlash ? 'Aggiornato' : 'Live'}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    {monthAppointmentsCount} prenotazioni in {MONTHS[currentMonth]}
-                  </p>
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white border-t-4 border-[#005CA9]">
+
+      {/* ── HEADER ── */}
+      <div className="flex-shrink-0 bg-white border-b-2 border-[#005CA9]/20 px-4 py-3">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#005CA9] p-2 rounded-lg shadow-lg">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-[#005CA9]">
+                  {selectedRoom.nome}
+                </h1>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-500 ${
+                  realtimeFlash
+                    ? 'bg-green-100 text-green-700 border border-green-300 scale-105'
+                    : 'bg-gray-50 text-gray-400 border border-gray-200'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    realtimeFlash ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                  }`} />
+                  {realtimeFlash ? 'Aggiornato' : 'Live'}
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={previousMonth}
-                  disabled={currentMonth === 0}
-                  className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4 text-gray-600" />
-                </button>
-                <div className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20">
-                  <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
-                    {MONTHS[currentMonth]} {currentYear}
-                  </span>
-                </div>
-                <button
-                  onClick={nextMonth}
-                  disabled={currentMonth === 11}
-                  className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
-                </button>
-
-                <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
-                  <div className="relative">
-                    <select
-                      value={selectedRoom.id}
-                      onChange={(e) => {
-                        const room = rooms.find(r => r.id === e.target.value);
-                        if (room) setSelectedRoom(room);
-                      }}
-                      className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
-                    >
-                      {rooms.map((room) => (
-                        <option key={room.id} value={room.id} className="text-gray-800 bg-white">
-                          {room.nome}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {monthAppointmentsCount} prenotazioni in {MONTHS[currentMonth]}
+              </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 107px)' }}>
-            <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              <thead className="sticky top-0 z-20">
-                <tr className="border-b-2 border-[#005CA9]/20">
-                  <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
-                    <span className="text-[#005CA9]">Ora</span>
-                  </th>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={previousMonth}
+              disabled={currentMonth === 0}
+              className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </button>
+            <div className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20">
+              <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
+                {MONTHS[currentMonth]} {currentYear}
+              </span>
+            </div>
+            <button
+              onClick={nextMonth}
+              disabled={currentMonth === 11}
+              className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
+
+            <div className="flex items-center gap-2 ml-2 border-l border-gray-300 pl-2">
+              <div className="relative">
+                <select
+                  value={selectedRoom.id}
+                  onChange={(e) => {
+                    const room = rooms.find(r => r.id === e.target.value);
+                    if (room) setSelectedRoom(room);
+                  }}
+                  className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none"
+                >
+                  {rooms.map((room) => (
+                    <option key={room.id} value={room.id} className="text-gray-800 bg-white">
+                      {room.nome}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BODY ── */}
+      <div className="flex-1 overflow-hidden">
+        <div className="overflow-x-auto overflow-y-auto h-full" style={{ maxHeight: 'calc(100vh - 65px)' }}>
+          <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+            <thead className="sticky top-0 z-20">
+              <tr className="border-b-2 border-[#005CA9]/20">
+                <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 w-[60px] border-r border-gray-200">
+                  <span className="text-[#005CA9]">Ora</span>
+                </th>
+                {Array.from({ length: getDaysInMonth() }, (_, i) => {
+                  const day = i + 1;
+                  const date = new Date(currentYear, currentMonth, day);
+                  const dayName = date.toLocaleDateString('it-IT', { weekday: 'short' });
+                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                  return (
+                    <th
+                      key={day}
+                      className={`p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[45px] ${
+                        isWeekend ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[#005CA9] font-bold">{day}</span>
+                        <span className="text-gray-600 text-[10px] capitalize">{dayName}</span>
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {TIME_SLOTS.map((time) => (
+                <tr key={time}>
+                  <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                    <div className="px-2 py-2 text-xs font-semibold text-gray-700">{time}</div>
+                  </td>
                   {Array.from({ length: getDaysInMonth() }, (_, i) => {
                     const day = i + 1;
+                    const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const appointment = roomData[dateKey]?.[time];
                     const date = new Date(currentYear, currentMonth, day);
-                    const dayName = date.toLocaleDateString('it-IT', { weekday: 'short' });
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    return (
-                      <th
-                        key={day}
-                        className={`p-2 text-center text-xs font-semibold bg-[#F5F8FA] min-w-[45px] ${
-                          isWeekend ? 'bg-gray-100' : ''
-                        }`}
-                      >
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[#005CA9] font-bold">{day}</span>
-                          <span className="text-gray-600 text-[10px] capitalize">{dayName}</span>
-                        </div>
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {TIME_SLOTS.map((time) => (
-                  <tr key={time}>
-                    <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
-                      <div className="px-2 py-2 text-xs font-semibold text-gray-700">{time}</div>
-                    </td>
-                    {Array.from({ length: getDaysInMonth() }, (_, i) => {
-                      const day = i + 1;
-                      const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const appointment = roomData[dateKey]?.[time];
-                      const date = new Date(currentYear, currentMonth, day);
-                      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                      const covered = isCellCovered(dateKey, time);
+                    const covered = isCellCovered(dateKey, time);
 
-                      if (covered) return null;
+                    if (covered) return null;
 
-                      if (appointment) {
-                        const rowSpan = getSlotSpan(time, appointment.ora_fine);
-                        return (
-                          <td
-                            key={day}
-                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 ${
-                              isWeekend ? 'bg-gray-50' : ''
-                            }`}
-                            rowSpan={rowSpan}
-                            style={{ height: `${rowSpan * 45}px` }}
-                          >
-                            <div
-                              className="w-full h-full cursor-pointer hover:opacity-90 transition-all flex items-center justify-center text-white text-[11px] font-semibold px-2"
-                              style={{ backgroundColor: getColorForAppointment(appointment.title) }}
-                              title={`${appointment.title}\n${time} - ${appointment.ora_fine}`}
-                              onClick={() => handleCellClick(dateKey, time)}
-                            >
-                              <span className="text-center leading-tight">{appointment.title}</span>
-                            </div>
-                          </td>
-                        );
-                      }
-
+                    if (appointment) {
+                      const rowSpan = getSlotSpan(time, appointment.ora_fine);
                       return (
                         <td
                           key={day}
                           className={`relative p-0 border-r border-gray-100 border-b border-gray-100 ${
                             isWeekend ? 'bg-gray-50' : ''
                           }`}
-                          style={{ height: '45px' }}
+                          rowSpan={rowSpan}
+                          style={{ height: `${rowSpan * 45}px` }}
                         >
                           <div
-                            className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer"
+                            className="w-full h-full cursor-pointer hover:opacity-90 transition-all flex items-center justify-center text-white text-[11px] font-semibold px-2"
+                            style={{ backgroundColor: getColorForAppointment(appointment.title) }}
+                            title={`${appointment.title}\n${time} - ${appointment.ora_fine}`}
                             onClick={() => handleCellClick(dateKey, time)}
-                          />
+                          >
+                            <span className="text-center leading-tight">{appointment.title}</span>
+                          </div>
                         </td>
                       );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    }
+
+                    return (
+                      <td
+                        key={day}
+                        className={`relative p-0 border-r border-gray-100 border-b border-gray-100 ${
+                          isWeekend ? 'bg-gray-50' : ''
+                        }`}
+                        style={{ height: '45px' }}
+                      >
+                        <div
+                          className="w-full h-full hover:bg-blue-50/30 transition-colors cursor-pointer"
+                          onClick={() => handleCellClick(dateKey, time)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
