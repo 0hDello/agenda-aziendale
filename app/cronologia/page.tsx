@@ -5,19 +5,19 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, History, RefreshCw, Building2, Calendar,
   Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  Search, X,
+  Search, X, CalendarDays,
 } from 'lucide-react';
 
 interface LogEntry {
   id: number;
-  source: 'EPASA' | 'SALA_RIUNIONI';
+  source: 'EPASA' | 'SALA_RIUNIONI' | 'AGENDA_730';
   action: 'CREATE' | 'UPDATE' | 'DELETE';
   descrizione: string;
   dettagli: Record<string, unknown> | null;
   created_at: string;
 }
 
-type SourceFilter = 'ALL' | 'EPASA' | 'SALA_RIUNIONI';
+type SourceFilter = 'ALL' | 'EPASA' | 'SALA_RIUNIONI' | 'AGENDA_730';
 type ActionFilter = 'ALL' | 'CREATE' | 'UPDATE' | 'DELETE';
 
 const ACTION_CONFIG = {
@@ -27,8 +27,9 @@ const ACTION_CONFIG = {
 } as const;
 
 const SOURCE_CONFIG = {
-  EPASA: { label: 'Agenda EPASA', bg: 'bg-[#E6F2FF]', text: 'text-[#005CA9]', icon: Calendar },
+  EPASA:       { label: 'Agenda EPASA',  bg: 'bg-[#E6F2FF]',  text: 'text-[#005CA9]',  icon: Calendar },
   SALA_RIUNIONI: { label: 'Sale Riunioni', bg: 'bg-purple-50', text: 'text-purple-700', icon: Building2 },
+  AGENDA_730:  { label: 'Agenda 730',    bg: 'bg-amber-50',   text: 'text-amber-700',  icon: CalendarDays },
 } as const;
 
 function formatDateGroup(iso: string) {
@@ -222,7 +223,7 @@ function CronologiaInner() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(['ALL', 'EPASA', 'SALA_RIUNIONI'] as const).map(s => (
+            {(['ALL', 'EPASA', 'SALA_RIUNIONI', 'AGENDA_730'] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setParam({ source: s === 'ALL' ? null : s, page: '1' })}
@@ -309,7 +310,12 @@ function CronologiaInner() {
                     <div className="space-y-3">
                       {entries.map((log) => {
                         const ac = ACTION_CONFIG[log.action];
-                        const sc = SOURCE_CONFIG[log.source];
+                        const sc = SOURCE_CONFIG[log.source] ?? {
+                          label: log.source,
+                          bg: 'bg-gray-50',
+                          text: 'text-gray-600',
+                          icon: CalendarDays,
+                        };
                         const ActionIcon = ac.icon;
                         const SourceIcon = sc.icon;
                         const isExp = expanded.has(log.id);
