@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, BarChart2, User, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { X, BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle } from 'lucide-react';
 
 interface MeseStats {
   mese: string;
@@ -10,7 +10,7 @@ interface MeseStats {
 }
 
 interface PersonaStats {
-  id: number;
+  id: string;
   nome: string;
   sedi: string[];
   perMese: Record<string, MeseStats>;
@@ -25,18 +25,28 @@ interface Props {
 export default function StatisticheModal({ onClose }: Props) {
   const [data, setData] = useState<PersonaStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/statistiche/730')
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(d => {
+        if (Array.isArray(d)) {
+          setData(d);
+        } else {
+          setError(d?.error ?? 'Errore sconosciuto');
+        }
+        setLoading(false);
+      })
+      .catch(e => { setError(String(e)); setLoading(false); });
   }, []);
 
   const getPerc = (p: number, c: number) => (c === 0 ? 0 : Math.round((p / c) * 100));
   const getColor = (p: number) =>
     p >= 90 ? 'bg-red-500' : p >= 60 ? 'bg-yellow-400' : p >= 30 ? 'bg-blue-500' : 'bg-green-500';
+  const getTextColor = (p: number) =>
+    p >= 90 ? 'bg-red-500' : p >= 60 ? 'bg-yellow-500' : p >= 30 ? 'bg-blue-500' : 'bg-green-500';
 
   const meseCorrente = new Date().toISOString().substring(0, 7);
 
@@ -68,6 +78,12 @@ export default function StatisticheModal({ onClose }: Props) {
             <div className="flex items-center justify-center h-40">
               <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-[#005CA9]" />
             </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-40 gap-3">
+              <AlertCircle size={36} className="text-red-400" />
+              <p className="text-sm text-red-500 font-medium text-center">Errore nel caricamento delle statistiche</p>
+              <p className="text-xs text-gray-400 text-center max-w-sm">{error}</p>
+            </div>
           ) : data.length === 0 ? (
             <p className="text-center text-gray-400 py-12">Nessun dato disponibile.</p>
           ) : (
@@ -96,9 +112,9 @@ export default function StatisticheModal({ onClose }: Props) {
                           <span className="font-semibold text-gray-700">
                             {persona.totalePrenotati} / {persona.totaleCapacita} slot anno
                           </span>
-                          <span className={`font-bold px-2 py-0.5 rounded-full text-white text-[11px] ${
-                            perc >= 90 ? 'bg-red-500' : perc >= 60 ? 'bg-yellow-500' : perc >= 30 ? 'bg-blue-500' : 'bg-green-500'
-                          }`}>{perc}%</span>
+                          <span className={`font-bold px-2 py-0.5 rounded-full text-white text-[11px] ${getTextColor(perc)}`}>
+                            {perc}%
+                          </span>
                         </div>
                       </div>
                       {/* Barra anno */}
