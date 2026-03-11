@@ -59,19 +59,6 @@ const LOCAL_MUTATION_WINDOW = 3000;
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-// Normalizza tutti gli ID di un oggetto a stringa
-const normalizeIds = <T extends Record<string, any>>(obj: T): T => {
-  const result = { ...obj };
-  for (const key of Object.keys(result)) {
-    if (key === 'id' || key.endsWith('_id')) {
-      if (result[key] !== null && result[key] !== undefined) {
-        result[key] = String(result[key]);
-      }
-    }
-  }
-  return result;
-};
-
 export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedDate, setSelectedDate]     = useState(new Date());
   const [viewMode, setViewMode]             = useState<ViewMode>('daily');
@@ -278,7 +265,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         try {
           const res = await fetch('/api/appuntamenti');
           const data = await res.json();
-          if (data) setAppointments((data as any[]).map(normalizeIds) as Appuntamento[]);
+          if (data) setAppointments(data);
           setRealtimeFlash(true);
           setTimeout(() => setRealtimeFlash(false), 1500);
         } catch { }
@@ -371,12 +358,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       const [sediRes, personeRes, psRes, appRes] = await Promise.all([fetch('/api/sedi'), fetch('/api/persone'), fetch('/api/persona-sede'), fetch('/api/appuntamenti')]);
       const [sediData, personeData, psData, appData] = await Promise.all([sediRes.json(), personeRes.json(), psRes.json(), appRes.json()]);
-      // Normalizza tutti gli ID a stringa per compatibilità con il driver PostgreSQL
-      // (pg restituisce colonne integer come numeri JS, il select HTML restituisce stringhe)
-      if (sediData)    setSedi((sediData as any[]).map(normalizeIds) as Sede[]);
-      if (personeData) setPersone((personeData as any[]).map(normalizeIds) as Persona[]);
-      if (psData)      setPersonaSede((psData as any[]).map(normalizeIds) as PersonaSede[]);
-      if (appData)     setAppointments((appData as any[]).map(normalizeIds) as Appuntamento[]);
+      if (sediData)    setSedi(sediData);
+      if (personeData) setPersone(personeData);
+      if (psData)      setPersonaSede(psData);
+      if (appData)     setAppointments(appData);
     } catch (error) { console.error('Errore caricamento dati:', error); }
   };
 
@@ -412,7 +397,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       const res = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (!res.ok) throw new Error();
-      const created: Appuntamento = normalizeIds(await res.json());
+      const created: Appuntamento = await res.json();
       setAppointments(prev => prev.map(a => a.id === tempId ? created : a));
     } catch (err) {
       setAppointments(prev => prev.filter(a => a.id !== tempId));
@@ -426,10 +411,10 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       const res = await fetch(`/api/appuntamenti/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (!res.ok) throw new Error();
-      const updated: Appuntamento = normalizeIds(await res.json());
+      const updated: Appuntamento = await res.json();
       setAppointments(prev => prev.map(a => a.id === id ? updated : a));
     } catch (err) {
-      try { const res = await fetch('/api/appuntamenti'); const d = await res.json(); if (d) setAppointments((d as any[]).map(normalizeIds) as Appuntamento[]); } catch { }
+      try { const res = await fetch('/api/appuntamenti'); const d = await res.json(); if (d) setAppointments(d); } catch { }
       alert('Errore imprevisto: ' + String(err));
     }
   };
@@ -480,7 +465,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       try {
         const res = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' }) });
         if (!res.ok) throw new Error();
-        const created: Appuntamento = normalizeIds(await res.json());
+        const created: Appuntamento = await res.json();
         setAppointments(prev => prev.map(a => a.id === tempId ? created : a));
       } catch { setAppointments(prev => prev.filter(a => a.id !== tempId)); alert('Errore durante il blocco'); }
     }
@@ -530,7 +515,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     try {
       const res = await fetch(`/api/appuntamenti/${appointment.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedData) });
       if (!res.ok) throw new Error();
-      const updated: Appuntamento = normalizeIds(await res.json());
+      const updated: Appuntamento = await res.json();
       setAppointments(prev => prev.map(a => a.id === appointment.id ? updated : a));
     } catch { setAppointments(prev => prev.map(a => a.id === snapshot.id ? snapshot : a)); alert('Errore imprevisto'); }
   };
@@ -667,6 +652,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   // ─── VISTA GIORNALIERA ────────────────────────────────────────────────────
+  // Il div scrollabile occupa tutta l'altezza del parent flex-1
   const renderDailyView = () => (
     <div className="h-full flex flex-col">
       <div ref={setScrollRef} className="flex-1 overflow-y-auto">
