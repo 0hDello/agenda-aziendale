@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import UpdateBanner from '@/components/UpdateBanner';
 
 export const metadata: Metadata = {
   title: 'Agenda Aziendale',
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="it" className="h-full w-full overflow-hidden">
       <body className="h-full w-full overflow-hidden bg-gray-50">
+        <UpdateBanner />
         <main className="h-full w-full overflow-hidden">{children}</main>
       </body>
     </html>
