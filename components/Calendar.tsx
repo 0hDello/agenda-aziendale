@@ -547,7 +547,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const slots = getTimeSlotsForDay(day);
     const n = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId).length;
     if (n === 0) return 'free';
-    if (n >= slots.length * 0.8) return 'full';
+    if (n >= slots.length) return 'full';
     return 'partial';
   };
 
