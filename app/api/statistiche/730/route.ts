@@ -4,7 +4,8 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { getTimeSlotsForSede, isSedeWorkingDay } from '@/utils/dateUtils';
 
 const ANNO = 2026;
-const MESI = Array.from({ length: 9 }, (_, i) => i + 4);
+const MESI = [4, 5, 6, 7, 9]; // aprile, maggio, giugno, luglio, settembre
+
 
 interface PersonaRow { id: string; nome: string; }
 interface SedeRow    { id: string; nome: string; }
