@@ -137,12 +137,11 @@ export default function EpasaAppointmentModal({
 
   if (!isOpen) return null;
 
-  // Info di contesto (sola lettura, mostrate nell'header)
   const sedeName = sedi.find(s => s.id === formData.sede_id)?.nome ?? formData.sede_id;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-[#005CA9]">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -156,7 +155,7 @@ export default function EpasaAppointmentModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg"
           >
             <X size={18} />
           </button>
@@ -177,13 +176,12 @@ export default function EpasaAppointmentModal({
                 setFormData({ ...formData, cliente: e.target.value });
                 autoResize(e.target);
               }}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm resize-none overflow-hidden"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none text-sm resize-none overflow-hidden"
               placeholder="Nome cliente"
               rows={1}
               required
               autoFocus
               onKeyDown={e => {
-                // Invio non va a capo, submit del form
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   (e.currentTarget.closest('form') as HTMLFormElement)?.requestSubmit();
@@ -200,7 +198,7 @@ export default function EpasaAppointmentModal({
             <textarea
               value={formData.note}
               onChange={e => setFormData({ ...formData, note: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors resize-none text-sm"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none resize-none text-sm"
               rows={2}
               placeholder="Note aggiuntive"
             />
@@ -218,10 +216,10 @@ export default function EpasaAppointmentModal({
                   type="button"
                   onClick={() => setFormData({ ...formData, highlight: hc.id })}
                   title={hc.label}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                  className={`w-7 h-7 rounded-full border-2 ${
                     formData.highlight === hc.id
-                      ? 'scale-125 shadow-md border-gray-700'
-                      : 'border-gray-300 hover:scale-110'
+                      ? 'shadow-md border-gray-700'
+                      : 'border-gray-300'
                   }`}
                   style={{ backgroundColor: hc.preview }}
                 />
@@ -235,7 +233,7 @@ export default function EpasaAppointmentModal({
               <button
                 type="button"
                 onClick={handleDelete}
-                className="flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold text-sm"
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-sm"
               >
                 <Trash2 size={14} /> Elimina
               </button>
@@ -243,13 +241,13 @@ export default function EpasaAppointmentModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm"
+              className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex-1 px-3 py-2 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] transition-colors font-semibold text-sm"
+              className="flex-1 px-3 py-2 bg-[#005CA9] text-white rounded-lg hover:bg-[#004080] font-semibold text-sm"
             >
               {existingAppointment ? 'Salva' : 'Crea'}
             </button>
