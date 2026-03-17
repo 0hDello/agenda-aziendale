@@ -141,8 +141,8 @@ export default function EpasaAppointmentModal({
   const sedeName = sedi.find(s => s.id === formData.sede_id)?.nome ?? formData.sede_id;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-[#005CA9]">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
