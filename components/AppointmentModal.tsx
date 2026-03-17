@@ -245,8 +245,8 @@ export default function AppointmentModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-        <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-[#005CA9]">
 
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -388,8 +388,8 @@ export default function AppointmentModal({
 
       {/* ── Calendario multi-data ── */}
       {showCalendar && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[60] p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border-t-4 border-[#005CA9]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Giorni</h3>
               <button onClick={() => setShowCalendar(false)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">

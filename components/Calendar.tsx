@@ -726,31 +726,31 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   ) : (
                     dayTimeSlots.map(slot => (
                       <tr key={`${dateStr}-${slot.label}`}>
-                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 w-[60px]">
+                        <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-300 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700">{slot.label}</div>
                         </td>
                         {sedePersone.map(persona => {
                           if (isPersonaDisabledForDay(day, persona)) {
-                            return (<td key={`${persona.id}-${slot.label}`} className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-50 select-none" style={{ height: '45px' }} />);
+                            return (<td key={`${persona.id}-${slot.label}`} className="relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 select-none" style={{ height: '45px' }} />);
                           }
                           const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
                           const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
                           const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
                           if (isUffC) return (
                             <td key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${ editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none' }`}
+                              className={`relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 ${ editMode ? 'cursor-pointer hover:bg-gray-600' : 'select-none' }`}
                               style={{ height: '45px' }} title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
                               onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
                               <div className="w-full h-full flex items-center justify-center gap-1">
-                                <Lock size={9} className="text-gray-400" />
-                                <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                                {editMode && <Unlock size={9} className="text-gray-400 ml-1" />}
+                                <Lock size={9} className="text-gray-200" />
+                                <span className="text-[10px] text-gray-200 font-medium">uff. chiuso</span>
+                                {editMode && <Unlock size={9} className="text-gray-200 ml-1" />}
                               </div>
                             </td>
                           );
                           return (
                             <td key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-100 ${ !slotApts.length ? 'border-b border-gray-100' : '' }`}
+                              className={`relative p-0 border-r border-gray-300 ${ !slotApts.length ? 'border-b border-gray-300' : '' }`}
                               style={{ height: '45px' }}>
                               {editMode && slotApts.length === 0 ? (
                                 <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
@@ -771,7 +771,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             </td>
                           );
                         })}
-                        <td className="p-0 bg-[#F5F8FA] sticky right-0 z-10 border-l border-gray-200 border-b border-gray-100 w-[60px]">
+                        <td className="p-0 bg-[#F5F8FA] sticky right-0 z-10 border-l border-gray-200 border-b border-gray-300 w-[60px]">
                           <div className="px-1 py-2 text-xs font-semibold text-gray-700 text-right">{slot.label}</div>
                         </td>
                       </tr>
