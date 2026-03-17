@@ -47,6 +47,8 @@ function AppointmentCell({
   onClick: (e: React.MouseEvent) => void;
 }) {
   const hl = HIGHLIGHT_MAP[apt.highlight ?? ''] ?? HIGHLIGHT_MAP[''];
+  const cellH = typeof style.height === 'string' ? parseInt(style.height) : (typeof style.height === 'number' ? style.height : 45);
+  const showTimeRange = cellH > 50;
   const cellRef = useRef<HTMLDivElement>(null);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
   const [above, setAbove] = useState(false);
@@ -88,13 +90,13 @@ function AppointmentCell({
         borderLeftWidth: '4px',
         borderLeftStyle: 'solid',
       }}
-      className={`appointment-cell px-2 cursor-move transition-colors flex items-center ${className}`}
+      className={`appointment-cell px-2 cursor-move flex flex-col justify-center ${className}`}
     >
       <div className="w-full overflow-hidden">
         <div className="flex items-center gap-1 w-full">
           <User size={10} className="flex-shrink-0" style={{ color: hl.text }} />
           <span
-            className="text-[10px] font-semibold truncate flex-1 min-w-0 pointer-events-none"
+            className="text-[10px] font-bold truncate flex-1 min-w-0 pointer-events-none"
             style={{ color: hl.text }}
           >
             {apt.cliente || 'Appuntamento'}
@@ -103,6 +105,13 @@ function AppointmentCell({
             <MessageSquare size={9} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
           )}
         </div>
+        {showTimeRange && (
+          <div className="flex items-center gap-0.5 mt-0.5">
+            <span className="text-[9px] opacity-60 pointer-events-none leading-none font-medium" style={{ color: hl.text }}>
+              {apt.ora_inizio?.substring(0, 5)} – {apt.ora_fine?.substring(0, 5)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tooltip nota via portal */}

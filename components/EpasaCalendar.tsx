@@ -765,13 +765,40 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                 <React.Fragment key={dateStr}>
                   <tr data-epasa-date={dateStr}>
                     <td colSpan={Math.max(operatorsInSede.length + 1, 2)}
-                      className={`p-2 text-center font-bold text-sm sticky left-0 z-10 ${
-                        isToday ? 'bg-[#005CA9] text-white' : isWe ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 text-gray-700'
-                      }`}>
-                      {format(day, 'EEEE dd MMMM yyyy', { locale: it })}
-                      {isWe && <span className="ml-2 text-xs">(CHIUSO)</span>}
+                      className={`p-0 sticky left-0 z-10 ${isToday ? 'bg-[#005CA9]' : isWe ? 'bg-gray-200' : 'bg-[#EEF4FB]'}`}>
+                      <div className={`flex items-center justify-between px-4 py-2 border-b-2 ${isToday ? 'border-white/20' : isWe ? 'border-gray-300' : 'border-[#005CA9]/15'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-black text-sm ${isToday ? 'bg-white/20 text-white' : isWe ? 'bg-gray-300 text-gray-500' : 'bg-[#005CA9] text-white'}`}>
+                            {format(day, 'd')}
+                          </div>
+                          <div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest leading-none mb-0.5 ${isToday ? 'text-blue-200' : isWe ? 'text-gray-400' : 'text-[#005CA9]/50'}`}>
+                              {format(day, 'EEEE', { locale: it })}
+                            </p>
+                            <p className={`text-sm font-bold leading-tight ${isToday ? 'text-white' : isWe ? 'text-gray-500' : 'text-[#005CA9]'}`}>
+                              {format(day, 'dd MMMM yyyy', { locale: it })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isToday && <span className="px-2.5 py-0.5 bg-white/20 text-white text-[10px] font-black rounded-full uppercase tracking-widest">Oggi</span>}
+                          {isWe && <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-300/60 text-gray-500 text-[10px] font-bold rounded-full uppercase tracking-wide"><Lock size={8} /> Chiuso</span>}
+                        </div>
+                      </div>
                     </td>
                   </tr>
+                  {isWe && (
+                    <tr>
+                      <td colSpan={Math.max(operatorsInSede.length + 1, 2)} className="p-5 text-center border-b-2 border-gray-300" style={{ height: '64px', background: 'repeating-linear-gradient(45deg,#f9fafb,#f9fafb 8px,#f1f5f9 8px,#f1f5f9 16px)' }}>
+                        <div className="flex items-center justify-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                            <Lock size={13} className="text-gray-400" />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-400">Sede chiusa</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {!isWe && currentTimeSlots.map(time => (
                     <tr key={`${dateStr}-${time}`}>
                       <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-300 border-b border-gray-300"
@@ -794,10 +821,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                             : 'Ufficio chiuso';
                           return (
                             <td key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 select-none"
+                              className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
                               style={{ height: '45px' }} title={title}>
                               <div className="w-full h-full flex items-center justify-center">
-                                <span className="text-[10px] text-gray-200 font-medium flex items-center gap-1">
+                                <span className="text-[10px] text-slate-200 font-medium flex items-center gap-1">
                                   <Lock size={9} /> chiuso
                                 </span>
                               </div>
@@ -806,10 +833,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         }
                         if (isMTC) return (
                           <td key={`${operator}-${time}`}
-                            className="relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 select-none"
+                            className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
                             style={{ height: '45px' }} title="MILECE inizia alle 08:30">
                             <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-[10px] text-gray-200 font-medium flex items-center gap-1">
+                              <span className="text-[10px] text-slate-200 font-medium flex items-center gap-1">
                                 <Lock size={9} /> chiuso
                               </span>
                             </div>
@@ -817,16 +844,14 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         );
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
-                            className={`relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 ${
-                              editMode ? 'cursor-pointer hover:bg-gray-600' : 'select-none'
-                            }`}
+                            className={`relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 ${ editMode ? 'cursor-pointer hover:bg-slate-700' : 'select-none' }`}
                             style={{ height: '45px' }}
                             title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
                             onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}>
-                            <div className="w-full h-full flex items-center justify-center gap-1">
-                              <Lock size={9} className="text-gray-200" />
-                              <span className="text-[10px] text-gray-200 font-medium">uff. chiuso</span>
-                              {editMode && <Unlock size={9} className="text-gray-200 ml-1" />}
+                            <div className="w-full h-full flex items-center px-2 gap-1.5">
+                              <Lock size={9} className="text-slate-300 flex-shrink-0" />
+                              <span className="text-[10px] text-slate-200 font-semibold italic truncate flex-1">uff. chiuso</span>
+                              {editMode && <Unlock size={9} className="text-amber-300 flex-shrink-0" />}
                             </div>
                           </td>
                         );
@@ -847,7 +872,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                                 <div className="w-full overflow-hidden">
                                   <div className="flex items-center gap-1 w-full">
                                     <User size={10} className={`${hl.text} flex-shrink-0`} />
-                                    <span className={`text-[10px] font-semibold truncate ${hl.text} flex-1 min-w-0`}>{apt.cliente}</span>
+                                    <span className={`text-[10px] font-bold truncate ${hl.text} flex-1 min-w-0`}>{apt.cliente}</span>
                                     {apt.note && !editMode && <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />}
                                   </div>
                                 </div>
