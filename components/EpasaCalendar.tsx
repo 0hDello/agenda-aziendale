@@ -670,12 +670,12 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             ))}
           </div>
           {weeks.map((week, wIdx) => (
-            <div key={wIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0" style={{ minHeight: '80px' }}>
+            <div key={wIdx} className="grid grid-cols-7 border-b border-gray-200 last:border-b-0" style={{ minHeight: '80px' }}>
               {week.map((day, dIdx) => {
                 const dateStr = formatDate(day);
                 const isThisMonth = getMonth(day) === getMonth(selectedDate);
                 if (!isThisMonth) return (
-                  <div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${
+                  <div key={dateStr} className={`p-1.5 border-r border-gray-200 last:border-r-0 ${
                     dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50'
                   }`} />
                 );
@@ -703,7 +703,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                 return (
                   <div key={dateStr}
                     onClick={() => { if (!isClosed && !isBefore) { navigateToDate(day); setViewMode('daily'); } }}
-                    className={`relative p-1.5 border-r border-gray-100 last:border-r-0 transition-all ${avBg} ${avBorder} ${
+                    className={`relative p-1.5 border-r border-gray-200 last:border-r-0 transition-all ${avBg} ${avBorder} ${
                       !isClosed && !isBefore ? 'cursor-pointer hover:brightness-95' : ''
                     } ${isBefore && !isClosed ? 'opacity-40' : ''}`}
                     title={isClosed ? 'Chiuso' : freeSlots > 0
@@ -739,11 +739,11 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
-              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200" style={{ width: '60px' }}>
+              <th className="p-2 text-left text-xs font-semibold bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-300" style={{ width: '60px' }}>
                 <span className="text-[#005CA9]">Orario</span>
               </th>
               {operatorsInSede.length > 0 ? operatorsInSede.map(operator => (
-                <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA]">
+                <th key={operator} className="p-2 text-center text-xs font-semibold bg-[#F5F8FA] border-r border-gray-300">
                   <div className="flex items-center justify-center gap-1.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: OPERATOR_COLOR }}>
                       <User size={14} className="text-white" />
@@ -774,7 +774,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                   </tr>
                   {!isWe && currentTimeSlots.map(time => (
                     <tr key={`${dateStr}-${time}`}>
-                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100"
+                      <td className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-300 border-b border-gray-300"
                         style={{ width: '60px', height: '45px' }}>
                         <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
                       </td>
@@ -794,10 +794,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                             : 'Ufficio chiuso';
                           return (
                             <td key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                              className="relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 select-none"
                               style={{ height: '45px' }} title={title}>
                               <div className="w-full h-full flex items-center justify-center">
-                                <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                                <span className="text-[10px] text-gray-200 font-medium flex items-center gap-1">
                                   <Lock size={9} /> chiuso
                                 </span>
                               </div>
@@ -806,10 +806,10 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         }
                         if (isMTC) return (
                           <td key={`${operator}-${time}`}
-                            className="relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 select-none"
+                            className="relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 select-none"
                             style={{ height: '45px' }} title="MILECE inizia alle 08:30">
                             <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                              <span className="text-[10px] text-gray-200 font-medium flex items-center gap-1">
                                 <Lock size={9} /> chiuso
                               </span>
                             </div>
@@ -817,16 +817,16 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         );
                         if (isUffC) return (
                           <td key={`${operator}-${time}`}
-                            className={`relative p-0 border-r border-gray-100 border-b border-gray-100 bg-gray-100 ${
-                              editMode ? 'cursor-pointer hover:bg-gray-200' : 'select-none'
+                            className={`relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 ${
+                              editMode ? 'cursor-pointer hover:bg-gray-600' : 'select-none'
                             }`}
                             style={{ height: '45px' }}
                             title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
                             onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}>
                             <div className="w-full h-full flex items-center justify-center gap-1">
-                              <Lock size={9} className="text-gray-400" />
-                              <span className="text-[10px] text-gray-400 font-medium">uff. chiuso</span>
-                              {editMode && <Unlock size={9} className="text-gray-400 ml-1" />}
+                              <Lock size={9} className="text-gray-200" />
+                              <span className="text-[10px] text-gray-200 font-medium">uff. chiuso</span>
+                              {editMode && <Unlock size={9} className="text-gray-200 ml-1" />}
                             </div>
                           </td>
                         );
@@ -836,11 +836,11 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                           const hl    = HIGHLIGHT_STYLE[hlKey] ?? HIGHLIGHT_STYLE[''];
                           return (
                             <td key={`${operator}-${time}`}
-                              className="relative p-0 border-r border-gray-100 border-b border-gray-100 group/slot"
+                              className="relative p-0 border-r border-gray-300 border-b border-gray-300 group/slot"
                               style={{ height: '45px' }}>
                               <div
                                 onClick={() => !editMode && openModalForEditAppointment(apt)}
-                                className={`w-full h-full px-2 py-1 ${hl.cell} border-l-4 ${hl.border} transition-all flex items-center ${
+                                className={`w-full h-full px-2 py-1 ${hl.cell} border-l-4 ${hl.border} flex items-center ${
                                   editMode ? 'cursor-not-allowed' : 'hover:brightness-95 cursor-pointer'
                                 }`}
                                 title={editMode ? 'Slot occupato: non bloccabile' : undefined}>
@@ -870,13 +870,13 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                         }
                         return (
                           <td key={`${operator}-${time}`}
-                            className="relative p-0 border-r border-gray-100 border-b border-gray-100 group"
+                            className="relative p-0 border-r border-gray-300 border-b border-gray-300 group"
                             style={{ height: '45px' }}>
                             <div
                               onClick={() => editMode
                                 ? handleEditModeSlotClick(dateStr, time, operator)
                                 : openModalForNewAppointment(dateStr, time, operator)}
-                              className={`w-full h-full transition-colors cursor-pointer flex items-center justify-center ${
+                              className={`w-full h-full cursor-pointer flex items-center justify-center ${
                                 editMode ? 'hover:bg-gray-100 group-hover:bg-gray-100' : 'hover:bg-blue-50/30 group-hover:bg-blue-50'
                               }`}
                               title={editMode ? 'Clicca per bloccare questo slot' : undefined}>
@@ -916,7 +916,6 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   );
 
   return (
-    // ── Wrapper: occupa tutta la viewport, niente padding né max-w ──
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white border-t-4 border-[#005CA9]">
 
       {/* ── HEADER ── */}
@@ -951,7 +950,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setShowLoredanaView(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080] hover:shadow-md"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-50 border-2 border-[#005CA9] text-[#005CA9] hover:bg-blue-100 hover:border-[#004080]"
               title="Apri la vista mensile di Loredana">
               <Eye size={15} /> Vista Loredana
             </button>
@@ -965,7 +964,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             </div>
             <div className="relative group">
               <button onClick={() => setEditMode(e => !e)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center shadow border-2 ${
                   editMode
                     ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
                     : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
@@ -983,7 +982,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
             <button onClick={() => setShowDatePicker(!showDatePicker)}
-              className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] transition-colors cursor-pointer min-w-[220px] text-center">
+              className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 hover:bg-[#D1E7FF] cursor-pointer min-w-[220px] text-center">
               <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
                 {viewMode === 'daily'
                   ? format(selectedDate, 'EEEE dd MMMM yyyy', { locale: it })
@@ -1001,7 +1000,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
               <div className="relative">
                 <select value={selectedSede.id}
                   onChange={e => { const s = sedi.find(x => x.id === e.target.value); if (s) setSelectedSede(s); }}
-                  className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 transition-all cursor-pointer hover:bg-[#D1E7FF] appearance-none">
+                  className="px-3 py-2 pr-8 text-sm bg-[#E6F2FF] text-[#005CA9] border-2 border-[#005CA9]/20 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#005CA9]/50 cursor-pointer hover:bg-[#D1E7FF] appearance-none">
                   {sedi.map(s => <option key={s.id} value={s.id} className="text-gray-800 bg-white">{s.nome}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#005CA9] pointer-events-none" />
@@ -1028,9 +1027,9 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                 className="flex-1 text-sm outline-none text-gray-800 placeholder-gray-400" />
               {searchQuery && (
                 <button onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
+                  className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
               )}
-              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 transition-colors ml-1"><X size={20} /></button>
+              <button onClick={closeSearch} className="text-gray-400 hover:text-gray-700 ml-1"><X size={20} /></button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {!searchQuery && (
@@ -1042,14 +1041,14 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
               )}
               {searchQuery && searchResults.length === 0 && (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-gray-400">Nessun risultato per <strong>"{searchQuery}"</strong></p>
+                  <p className="text-sm text-gray-400">Nessun risultato per <strong>&quot;{searchQuery}&quot;</strong></p>
                 </div>
               )}
               {searchResults.map(apt => {
                 const sede = sedi.find(s => s.id === apt.sede_id);
                 return (
                   <div key={apt.id} onClick={() => navigateToSearchResult(apt)}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 transition-colors group">
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#E6F2FF] cursor-pointer border-b border-gray-100 group">
                     <div className="w-9 h-9 rounded-full bg-[#005CA9] flex items-center justify-center flex-shrink-0 shadow-sm"><User size={15} className="text-white" /></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{apt.cliente}</p>
@@ -1061,7 +1060,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                       </p>
                       {apt.note && <p className="text-xs text-gray-400 truncate mt-0.5 italic">{apt.note}</p>}
                     </div>
-                    <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] transition-colors flex-shrink-0" />
+                    <ChevronRight size={16} className="text-gray-300 group-hover:text-[#005CA9] flex-shrink-0" />
                   </div>
                 );
               })}
@@ -1090,12 +1089,12 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
       )}
 
       {showDatePicker && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9]">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border-t-4 border-[#005CA9]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#005CA9]">Seleziona Data</h3>
               <button onClick={() => setShowDatePicker(false)}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"><X size={20} /></button>
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg"><X size={20} /></button>
             </div>
             <div className="flex items-center justify-between mb-4">
               <button type="button" onClick={handlePreviousMonth} disabled={selectedDate <= MIN_DATE}
@@ -1146,7 +1145,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
             </div>
             <button type="button"
               onClick={() => { navigateToDate(new Date()); setShowDatePicker(false); }}
-              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] transition-colors font-semibold">Vai a Oggi</button>
+              className="w-full px-4 py-3 bg-[#005CA9] text-white rounded-xl hover:bg-[#004080] font-semibold">Vai a Oggi</button>
           </div>
         </div>
       )}
