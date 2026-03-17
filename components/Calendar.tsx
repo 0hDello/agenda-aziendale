@@ -38,7 +38,7 @@ import { it } from 'date-fns/locale';
 import { Appuntamento, Persona, Sede, PersonaSede } from '@/lib/types';
 import { formatDate, getTimeSlotsForSede, getEndTimeSlotsForSede, isSedeWorkingDay, TIME_SLOTS, SABATI_730_ECCEZIONE } from '@/utils/dateUtils';
 import TimeSlot from './TimeSlot';
-import AppointmentModal from './AppointmentModal';
+import AppointmentModal, { AppointmentModalHandle } from './AppointmentModal';
 import React from 'react';
 
 interface CalendarProps {
@@ -69,13 +69,12 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [sedi, setSedi]                     = useState<Sede[]>([]);
   const [personaSede, setPersonaSede]       = useState<PersonaSede[]>([]);
   const [selectedSedeId, setSelectedSedeId] = useState<string>('');
-  const [isModalOpen, setIsModalOpen]       = useState(false);
-  const [selectedSlot, setSelectedSlot]     = useState({ date: '', time: '', personaId: '' });
-  const [selectedAppointment, setSelectedAppointment] = useState<Appuntamento | null>(null);
+  const appointmentModalRef = useRef<AppointmentModalHandle>(null);
   const [draggedAppointment, setDraggedAppointment]   = useState<{ appointment: Appuntamento; originalTime: string } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
   const [editMode, setEditMode]             = useState(false);
+  const deferredEditMode                    = useDeferredValue(editMode);
   const [realtimeFlash, setRealtimeFlash]   = useState(false);
 
   const [showSearch, setShowSearch]   = useState(false);
@@ -335,6 +334,20 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return m;
   }, [persone]);
 
+  // Pre-index appointments by "${data}|${persona_id}" for the selected sede.
+  // This avoids O(n_appointments) filter in every table cell during every render.
+  const appointmentsByDayPerson = useMemo(() => {
+    const map = new Map<string, Appuntamento[]>();
+    for (const apt of appointments) {
+      if (apt.sede_id !== selectedSedeId) continue;
+      const key = `${apt.data}|${apt.persona_id}`;
+      const arr = map.get(key);
+      if (arr) arr.push(apt);
+      else map.set(key, [apt]);
+    }
+    return map;
+  }, [appointments, selectedSedeId]);
+
   const searchResults = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
     if (!q) return [];
@@ -452,11 +465,14 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
   };
 
-  const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] =>
-    appointments.filter(a => a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId && slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5) && (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
+  const getUffChiusoApts = (dateStr: string, slotLabel: string, personaId: string): Appuntamento[] => {
+    const dayApts = appointmentsByDayPerson.get(`${dateStr}|${personaId}`) ?? [];
+    return dayApts.filter(a => slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5) && (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
+  };
 
   const isUffChiusoSlot = (dateStr: string, slotLabel: string, personaId: string): boolean => {
-    const covering = appointments.filter(a => a.data === dateStr && a.sede_id === selectedSedeId && a.persona_id === personaId && slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5));
+    const dayApts = appointmentsByDayPerson.get(`${dateStr}|${personaId}`) ?? [];
+    const covering = dayApts.filter(a => slotLabel >= a.ora_inizio.substring(0, 5) && slotLabel < a.ora_fine.substring(0, 5));
     return covering.length > 0 && covering.every(a => (a.cliente ?? '').trim().toUpperCase() === 'UFF CHIUSO');
   };
 
@@ -474,15 +490,16 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         catch { await loadData(); alert('Errore durante lo sblocco'); return; }
       }
     } else {
+      const motivo   = window.prompt('Motivo chiusura (es. Ferie, Formazione, ...):') ?? '';
       const slots    = getTimeSlotsForDay(day);
       const endSlots = getEndTimeSlotsForDay(day);
       const idx      = slots.findIndex(s => s.label === slotLabel);
       const oraFine  = idx !== -1 && idx + 1 < endSlots.length ? endSlots[idx + 1].label : endSlots[endSlots.length - 1].label;
       const tempId   = `__optimistic_${Date.now()}`;
       markLocalMutation();
-      setAppointments(prev => [...prev, { id: tempId, persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' } as Appuntamento]);
+      setAppointments(prev => [...prev, { id: tempId, persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: motivo } as Appuntamento]);
       try {
-        const res = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: '' }) });
+        const res = await fetch('/api/appuntamenti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ persona_id: personaId, sede_id: selectedSedeId, data: dateStr, ora_inizio: slotLabel, ora_fine: oraFine, cliente: 'UFF CHIUSO', note: motivo }) });
         if (!res.ok) throw new Error();
         const created: Appuntamento = await res.json();
         setAppointments(prev => prev.map(a => a.id === tempId ? created : a));
@@ -491,17 +508,26 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   const handleSlotClick = (date: string, time: string, personaId: string, existingAppointment?: Appuntamento) => {
-    if (existingAppointment) setSelectedAppointment(existingAppointment);
-    else { setSelectedAppointment(null); setSelectedSlot({ date, time, personaId }); }
-    setIsModalOpen(true);
+    const day      = parseISO(date);
+    const daySlots    = getTimeSlotsForSede(selectedSedeNome, day, agendaId);
+    const dayEndSlots = getEndTimeSlotsForSede(selectedSedeNome, day, agendaId);
+    appointmentModalRef.current?.open({
+      date, time, personaId,
+      existingAppointment,
+      sedeId: selectedSedeId,
+      daySlots,
+      dayEndSlots,
+    });
   };
 
-  const getAppointmentsForSlot = (date: string, time: string, personaId: string) =>
-    appointments.filter(apt => {
+  const getAppointmentsForSlot = (date: string, time: string, personaId: string) => {
+    const dayApts = appointmentsByDayPerson.get(`${date}|${personaId}`) ?? [];
+    return dayApts.filter(apt => {
       const s = apt.ora_inizio ? apt.ora_inizio.substring(0, 5) : '';
       const e = apt.ora_fine   ? apt.ora_fine.substring(0, 5)   : '';
-      return apt.data === date && apt.sede_id === selectedSedeId && time >= s && time < e && apt.persona_id === personaId;
+      return time >= s && time < e;
     });
+  };
 
   const handleDragStart = (appointment: Appuntamento, time: string) => setDraggedAppointment({ appointment, originalTime: time });
 
@@ -545,7 +571,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const getDayAvailability = (dateStr: string, personaId: string, day: Date, personaNome?: string): DayAvailability => {
     if (isDayClosedForSede(day, personaNome)) return 'closed';
     const slots = getTimeSlotsForDay(day);
-    const n = appointments.filter(apt => apt.sede_id === selectedSedeId && apt.data === dateStr && apt.persona_id === personaId).length;
+    const n = (appointmentsByDayPerson.get(`${dateStr}|${personaId}`) ?? []).length;
     if (n === 0) return 'free';
     if (n >= slots.length) return 'full';
     return 'partial';
@@ -568,10 +594,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     }
     return null;
   };
-
-  const modalDate = selectedSlot.date ? (() => { try { return parseISO(selectedSlot.date); } catch { return new Date(); } })() : new Date();
-  const modalDaySlots    = getTimeSlotsForSede(selectedSedeNome, modalDate, agendaId);
-  const modalDayEndSlots = getEndTimeSlotsForSede(selectedSedeNome, modalDate, agendaId);
 
   // ─── VISTA MENSILE ────────────────────────────────────────────────────────
   const renderMonthlyView = () => {
@@ -734,25 +756,27 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                             return (<td key={`${persona.id}-${slot.label}`} className="relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 select-none" style={{ height: '45px' }} />);
                           }
                           const slotApts = getAppointmentsForSlot(dateStr, slot.label, persona.id);
-                          const dayApts  = appointments.filter(apt => apt.data === dateStr && apt.sede_id === selectedSedeId && apt.persona_id === persona.id);
+                          const dayApts  = appointmentsByDayPerson.get(`${dateStr}|${persona.id}`) ?? [];
                           const isUffC   = isUffChiusoSlot(dateStr, slot.label, persona.id);
-                          if (isUffC) return (
+                          if (isUffC) {
+                            const uffNote = getUffChiusoApts(dateStr, slot.label, persona.id)[0]?.note?.trim() || '';
+                            return (
                             <td key={`${persona.id}-${slot.label}`}
-                              className={`relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 ${ editMode ? 'cursor-pointer hover:bg-gray-600' : 'select-none' }`}
-                              style={{ height: '45px' }} title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
-                              onClick={() => editMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
+                              className={`relative p-0 border-r border-gray-300 border-b border-gray-300 bg-gray-500 ${ deferredEditMode ? 'cursor-pointer hover:bg-gray-600' : 'select-none' }`}
+                              style={{ height: '45px' }} title={deferredEditMode ? 'Clicca per sbloccare' : (uffNote ? `Ufficio chiuso – ${uffNote}` : 'Ufficio chiuso')}
+                              onClick={() => deferredEditMode && handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}>
                               <div className="w-full h-full flex items-center justify-center gap-1">
                                 <Lock size={9} className="text-gray-200" />
-                                <span className="text-[10px] text-gray-200 font-medium">uff. chiuso</span>
-                                {editMode && <Unlock size={9} className="text-gray-200 ml-1" />}
+                                <span className="text-[10px] text-gray-200 font-medium">{uffNote || 'uff. chiuso'}</span>
+                                {deferredEditMode && <Unlock size={9} className="text-gray-200 ml-1" />}
                               </div>
                             </td>
-                          );
+                          );}
                           return (
                             <td key={`${persona.id}-${slot.label}`}
                               className={`relative p-0 border-r border-gray-300 ${ !slotApts.length ? 'border-b border-gray-300' : '' }`}
                               style={{ height: '45px' }}>
-                              {editMode && slotApts.length === 0 ? (
+                              {deferredEditMode && slotApts.length === 0 ? (
                                 <div onClick={() => handleEditModeSlotClick(dateStr, slot.label, persona.id, day)}
                                   className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-amber-50 group transition-colors"
                                   title="Clicca per bloccare questo slot">
@@ -762,7 +786,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                                 <TimeSlot
                                   time={slot.label} appointments={slotApts} allDayAppointments={dayApts}
                                   daySlots={dayTimeSlots}
-                                  onClick={apt => !editMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
+                                  onClick={apt => !deferredEditMode && handleSlotClick(dateStr, slot.label, persona.id, apt)}
                                   onDragStart={handleDragStart}
                                   onDrop={t => handleDrop(dateStr, t, persona.id, day)}
                                   onDragOver={handleDragOver}
@@ -1024,17 +1048,11 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       )}
 
       <AppointmentModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setSelectedAppointment(null); }}
+        ref={appointmentModalRef}
         onSave={handleCreateAppointment}
         onUpdate={handleUpdateAppointment}
         onDelete={handleDeleteAppointment}
-        existingAppointment={selectedAppointment}
         persone={persone} sedi={sedi} personaSede={personaSede}
-        selectedDate={selectedSlot.date} selectedTime={selectedSlot.time}
-        selectedSedeId={selectedSedeId} defaultPersonaId={selectedSlot.personaId}
-        daySlots={modalDaySlots}
-        dayEndSlots={modalDayEndSlots} 
       />
     </div>
   );

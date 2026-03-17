@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   X, User, FileText, Palette, Trash2,
   ChevronLeft, ChevronRight, Plus, Minus, CalendarDays,
@@ -40,53 +40,32 @@ export const HIGHLIGHT_STYLE: Record<string, { cell: string; border: string; tex
 
 interface SlotItem { label: string; hour?: number; minute?: number; }
 
+export interface AppointmentModalHandle {
+  open: (params: {
+    date: string;
+    time: string;
+    personaId: string;
+    existingAppointment?: Appuntamento | null;
+    sedeId?: string;
+    daySlots?: SlotItem[];
+    dayEndSlots?: SlotItem[];
+  }) => void;
+}
+
 interface AppointmentModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   onSave: (data: any) => void;
   onUpdate?: (id: string, data: any) => void;
   onDelete?: (id: string) => void;
-  existingAppointment?: Appuntamento | null;
   persone: Persona[];
   sedi: Sede[];
   personaSede: PersonaSede[];
-  selectedDate: string;
-  selectedTime: string;
-  selectedSedeId?: string;
-  defaultPersonaId?: string | null;
-  /** Slot di inizio del giorno corrente (es. giovedi Imola include 18:00, 19:00...) */
-  daySlots?: SlotItem[];
-  /** Slot di fine del giorno corrente */
-  dayEndSlots?: SlotItem[];
 }
 
-export default function AppointmentModal({
-  isOpen,
-  onClose,
-  onSave,
-  onUpdate,
-  onDelete,
-  existingAppointment,
-  persone,
-  sedi,
-  personaSede,
-  selectedDate,
-  selectedTime,
-  selectedSedeId,
-  defaultPersonaId,
-  daySlots,
-  dayEndSlots,
-}: AppointmentModalProps) {
-  // Usa gli slot del giorno se forniti, altrimenti fallback ai globali
-  const slots    = (daySlots    && daySlots.length    > 0) ? daySlots    : TIME_SLOTS;
-  const endSlots = (dayEndSlots && dayEndSlots.length > 0) ? dayEndSlots : END_TIME_SLOTS;
-  const LAST_END_SLOT = endSlots[endSlots.length - 1].label;
+const AppointmentModal = forwardRef<AppointmentModalHandle, AppointmentModalProps>(
+  function AppointmentModal({ onSave, onUpdate, onDelete, sedi }, ref) {
 
-  const getValidDate = (dateStr: string): Date => {
-    if (!dateStr) return new Date();
-    const parsed = parseISO(dateStr);
-    return isValid(parsed) ? parsed : new Date();
-  };
+  const [isOpen, setIsOpen] = useState(false);
+  const [existingAppointment, setExistingAppointment] = useState<Appuntamento | null>(null);
 
   const [formData, setFormData] = useState({
     persona_id: '',
@@ -101,7 +80,6 @@ export default function AppointmentModal({
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [minTime, setMinTime] = useState<string>('09:00');
 
   const clienteRef = useRef<HTMLTextAreaElement>(null);
 
@@ -114,47 +92,52 @@ export default function AppointmentModal({
   useEffect(() => { autoResize(clienteRef.current); }, [formData.cliente]);
 
   useEffect(() => {
-    if (isOpen) {
-      if (existingAppointment) {
+    if (isOpen) clienteRef.current?.focus();
+  }, [isOpen]);
+
+  useImperativeHandle(ref, () => ({
+    open({ date, time, personaId, existingAppointment: apt, sedeId, daySlots, dayEndSlots }) {
+      const sl = (daySlots    && daySlots.length    > 0) ? daySlots    : TIME_SLOTS;
+      const el = (dayEndSlots && dayEndSlots.length > 0) ? dayEndSlots : END_TIME_SLOTS;
+      setExistingAppointment(apt ?? null);
+
+      if (apt) {
         setFormData({
-          persona_id: existingAppointment.persona_id,
-          sede_id:    existingAppointment.sede_id,
-          ora_inizio: existingAppointment.ora_inizio.substring(0, 5),
-          ora_fine:   existingAppointment.ora_fine.substring(0, 5),
-          cliente:    existingAppointment.cliente || '',
-          note:       existingAppointment.note || '',
-          highlight:  existingAppointment.highlight || '',
+          persona_id: apt.persona_id,
+          sede_id:    apt.sede_id,
+          ora_inizio: apt.ora_inizio.substring(0, 5),
+          ora_fine:   apt.ora_fine.substring(0, 5),
+          cliente:    apt.cliente || '',
+          note:       apt.note || '',
+          highlight:  apt.highlight || '',
         });
-        setSelectedDates([existingAppointment.data]);
-        setMinTime(existingAppointment.ora_inizio.substring(0, 5));
+        setSelectedDates([apt.data]);
       } else {
-        const validDate       = getValidDate(selectedDate);
-        const validDateString = format(validDate, 'yyyy-MM-dd');
-        const timeToUse       = selectedTime || '09:00';
-        const currentIndex    = slots.findIndex(s => s.label === timeToUse);
-        const nextSlotTime    = currentIndex >= 0 && currentIndex < slots.length - 1
-          ? slots[currentIndex + 1].label
-          : LAST_END_SLOT;
+        const parsed        = date ? parseISO(date) : new Date();
+        const validDate     = isValid(parsed) ? parsed : new Date();
+        const validDateStr  = format(validDate, 'yyyy-MM-dd');
+        const timeToUse     = time || '09:00';
+        const idx           = sl.findIndex(s => s.label === timeToUse);
+        const nextSlot      = idx >= 0 && idx < sl.length - 1
+          ? sl[idx + 1].label
+          : el[el.length - 1].label;
         setFormData({
-          persona_id: defaultPersonaId || '',
-          sede_id:    selectedSedeId   || '',
+          persona_id: personaId || '',
+          sede_id:    sedeId    || '',
           ora_inizio: timeToUse,
-          ora_fine:   nextSlotTime,
+          ora_fine:   nextSlot,
           cliente:    '',
           note:       '',
           highlight:  '',
         });
-        setMinTime(timeToUse);
-        setSelectedDates([validDateString]);
+        setSelectedDates([validDateStr]);
       }
       setShowCalendar(false);
-    }
-  }, [isOpen, existingAppointment, selectedDate, selectedTime, selectedSedeId, defaultPersonaId]);
+      setIsOpen(true);
+    },
+  }));
 
-  useEffect(() => {
-    if (selectedSedeId && isOpen && !existingAppointment)
-      setFormData(prev => ({ ...prev, sede_id: selectedSedeId }));
-  }, [selectedSedeId, isOpen, existingAppointment]);
+  const close = () => setIsOpen(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,14 +165,14 @@ export default function AppointmentModal({
         highlight:  formData.highlight,
       }));
     }
-    onClose();
+    close();
   };
 
   const handleDelete = () => {
     if (!existingAppointment || !onDelete) return;
     if (confirm('Sei sicuro di voler eliminare questo appuntamento?')) {
       onDelete(existingAppointment.id);
-      onClose();
+      close();
     }
   };
 
@@ -211,41 +194,20 @@ export default function AppointmentModal({
     });
   };
 
-  const personeFiltered = persone.filter(p =>
-    !formData.sede_id ||
-    personaSede.some(ps => ps.persona_id === p.id && ps.sede_id === formData.sede_id)
-  );
-
-  const getAvailableSlots = (isStart: boolean) => {
-    if (isStart)
-      return slots.filter(s => s.label >= minTime);
-    return endSlots.filter(s => s.label > formData.ora_inizio);
-  };
-
-  const handleOraInizioChange = (v: string) => {
-    setFormData(prev => {
-      const next = { ...prev, ora_inizio: v };
-      if (prev.ora_fine <= v) {
-        const idx = slots.findIndex(s => s.label === v);
-        next.ora_fine = idx >= 0 && idx < slots.length - 1
-          ? slots[idx + 1].label
-          : LAST_END_SLOT;
-      }
-      return next;
-    });
-  };
-
-  if (!isOpen) return null;
-
   const sedeName    = sedi.find(s => s.id === formData.sede_id)?.nome ?? '';
   const displayDate = selectedDates[0]
     ? selectedDates[0].split('-').reverse().join('/')
     : '';
   const displayTime = `${formData.ora_inizio}–${formData.ora_fine}`;
 
+  // Non renderizzare nulla finché non è stato aperto almeno una volta
+  if (!isOpen && !existingAppointment && !formData.cliente && selectedDates.length === 0) {
+    return <div style={{ display: 'none' }} />;
+  }
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" style={{ display: isOpen ? undefined : 'none' }}>
         <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-[#005CA9]">
 
           {/* Header */}
@@ -258,7 +220,7 @@ export default function AppointmentModal({
                 {sedeName}{sedeName && ' · '}{displayDate}{displayDate && ' · '}{displayTime}
               </p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
+            <button onClick={close} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -277,9 +239,8 @@ export default function AppointmentModal({
                 onChange={e => { setFormData({ ...formData, cliente: e.target.value }); autoResize(e.target); }}
                 className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#005CA9] focus:outline-none transition-colors text-sm resize-none overflow-hidden"
                 placeholder="Nome cliente"
-                rows={1}
+                rows={2}
                 required
-                autoFocus
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -370,7 +331,7 @@ export default function AppointmentModal({
               )}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={close}
                 className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm"
               >
                 Annulla
@@ -451,4 +412,6 @@ export default function AppointmentModal({
       )}
     </>
   );
-}
+});
+
+export default AppointmentModal;

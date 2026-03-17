@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/manuel.dellicarri/Desktop/cna-agenda/agenda-aziendale -type f -name *Calendar* -o -name *Appointment* -o -name *appointment*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
