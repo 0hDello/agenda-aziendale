@@ -513,13 +513,14 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
         catch { await loadData(); alert('Errore durante lo sblocco'); return; }
       }
     } else {
+      const motivo = window.prompt('Motivo chiusura (es. Ferie, Formazione, ...):') ?? '';
       const tempId = `__optimistic_${Date.now()}`;
       markLocalMutation();
-      setAllAppointments(prev => [...prev, { id: tempId, sede_id: selectedSede.id, operatore_id: operator, data: dateStr, ora: time, cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7) }]);
+      setAllAppointments(prev => [...prev, { id: tempId, sede_id: selectedSede.id, operatore_id: operator, data: dateStr, ora: time, cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7), note: motivo }]);
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sede_id: selectedSede.id, operatore_id: operator, data: dateStr, ora: time, cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7) }),
+          body: JSON.stringify({ sede_id: selectedSede.id, operatore_id: operator, data: dateStr, ora: time, cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7), note: motivo }),
         });
         if (!res.ok) throw new Error();
         const newApt: Appointment = await res.json();
@@ -842,19 +843,25 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
                             </div>
                           </td>
                         );
-                        if (isUffC) return (
+                        if (isUffC) {
+                          const uffApt = getUffChiusoApts(dateStr, time, operator)[0];
+                          const motivoChiusura = uffApt?.note?.trim() || '';
+                          return (
                           <td key={`${operator}-${time}`}
                             className={`relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 ${ editMode ? 'cursor-pointer hover:bg-slate-700' : 'select-none' }`}
                             style={{ height: '45px' }}
-                            title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                            title={editMode ? 'Clicca per sbloccare' : (motivoChiusura ? `Ufficio chiuso – ${motivoChiusura}` : 'Ufficio chiuso')}
                             onClick={() => editMode && handleEditModeSlotClick(dateStr, time, operator)}>
                             <div className="w-full h-full flex items-center px-2 gap-1.5">
                               <Lock size={9} className="text-slate-300 flex-shrink-0" />
-                              <span className="text-[10px] text-slate-200 font-semibold italic truncate flex-1">uff. chiuso</span>
+                              <span className="text-[10px] text-slate-200 font-semibold italic truncate flex-1">
+                                {motivoChiusura ? motivoChiusura : 'uff. chiuso'}
+                              </span>
                               {editMode && <Unlock size={9} className="text-amber-300 flex-shrink-0" />}
                             </div>
                           </td>
-                        );
+                          );
+                        }
                         if (slotApts.length > 0) {
                           const apt   = slotApts[0];
                           const hlKey = apt.highlight || '';

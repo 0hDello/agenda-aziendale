@@ -248,6 +248,7 @@ export default function LoredanaView({
       setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
     } else {
       // Blocca: crea UFF CHIUSO (lo slot è vuoto)
+      const motivo = window.prompt('Motivo chiusura (es. Ferie, Formazione, ...):') ?? '';
       try {
         const res = await fetch('/api/epasa/appuntamenti', {
           method: 'POST',
@@ -255,7 +256,7 @@ export default function LoredanaView({
           body: JSON.stringify({
             sede_id: sedeId, operatore_id: LOREDANA_ID,
             data: dateStr, ora: time,
-            cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7),
+            cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7), note: motivo,
           }),
         });
         if (!res.ok) throw new Error();
@@ -441,9 +442,10 @@ export default function LoredanaView({
 
                     // ── Slot UFF CHIUSO ── grigio scuro, sblocco in editMode
                     if (uffClosed) {
+                      const motivoChiusura = apt?.note?.trim() || '';
                       return (
                         <div key={time}
-                          title={editMode ? 'Clicca per sbloccare' : 'Ufficio chiuso'}
+                          title={editMode ? 'Clicca per sbloccare' : (motivoChiusura ? `Ufficio chiuso – ${motivoChiusura}` : 'Ufficio chiuso')}
                           onClick={() => editMode && handleEditModeSlotClick(sedeId, dateStr, time)}
                           style={{
                             height: ROW_HEIGHT,
@@ -453,8 +455,13 @@ export default function LoredanaView({
                             gap: 3, padding: '0 4px',
                             cursor: editMode ? 'pointer' : 'default',
                           }}>
-                          <Lock size={8} style={{ color: UFF_CHIUSO_ICON }} />
-                          {editMode && <Unlock size={8} style={{ color: UFF_CHIUSO_ICON, marginLeft: 2 }} />}
+                          <Lock size={8} style={{ color: UFF_CHIUSO_ICON, flexShrink: 0 }} />
+                          {motivoChiusura && (
+                            <span style={{ fontSize: 9, color: UFF_CHIUSO_ICON, fontStyle: 'italic', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                              {motivoChiusura}
+                            </span>
+                          )}
+                          {editMode && <Unlock size={8} style={{ color: UFF_CHIUSO_ICON, marginLeft: 2, flexShrink: 0 }} />}
                         </div>
                       );
                     }
