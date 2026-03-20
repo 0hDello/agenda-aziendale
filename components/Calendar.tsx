@@ -108,41 +108,24 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const getTimeSlotsForDay    = (day: Date) => getTimeSlotsForSede(selectedSedeNome, day, agendaId);
   const getEndTimeSlotsForDay = (day: Date) => getEndTimeSlotsForSede(selectedSedeNome, day, agendaId);
 
-  // personaNome opzionale: per i sabati eccezione 730 il giorno è aperto SOLO per Monica
-  const isDayClosedForSede = (day: Date, personaNome?: string): boolean => {
+  // I sabati eccezione 730 sono aperti per tutti gli operatori di Imola
+  const isDayClosedForSede = (day: Date): boolean => {
     if (agendaId === '730' && isWeekend(day) && day.getDay() === 6) {
       const dateStr = format(day, 'yyyy-MM-dd');
       if (SABATI_730_ECCEZIONE.includes(dateStr)) {
-        // Aperto solo se è Monica, chiuso per tutti gli altri
-        return !(personaNome && personaNome.toLowerCase().includes('monica'));
+        return false; // Aperto per tutti gli operatori di Imola
       }
     }
     if (isWeekend(day)) return true;
     return !isSedeWorkingDay(selectedSedeNome, day);
   };
 
-  const isPersonaDisabledForDay = (day: Date, persona: Persona): boolean => {
-    if (agendaId === '730' && day.getDay() === 6) {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      if (SABATI_730_ECCEZIONE.includes(dateStr)) {
-        return !persona.nome.toLowerCase().includes('monica');
-      }
-    }
+  const isPersonaDisabledForDay = (_day: Date, _persona: Persona): boolean => {
     return false;
   };
 
   // Restituisce true solo se il giorno è chiuso per TUTTE le persone della sede.
-  // Per i sabati eccezione 730, se almeno Monica è presente, il giorno NON è completamente chiuso.
-  const isDayFullyClosedForAllPersone = (day: Date, personeInSede: Persona[]): boolean => {
-    // Prima controlla se è un giorno normalmente chiuso (indipendente dalle persone)
-    if (agendaId === '730' && isWeekend(day) && day.getDay() === 6) {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      if (SABATI_730_ECCEZIONE.includes(dateStr)) {
-        // È un sabato eccezione: è "completamente chiuso" solo se nessuna persona è aperta
-        return personeInSede.every(p => isDayClosedForSede(day, p.nome));
-      }
-    }
-    // Per tutti gli altri giorni, usa la logica standard (non dipende dalla persona)
+  const isDayFullyClosedForAllPersone = (day: Date, _personeInSede: Persona[]): boolean => {
     return isDayClosedForSede(day);
   };
 
@@ -567,9 +550,8 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // personaNome opzionale: i sabati eccezione sono chiusi per chi non è Monica
-  const getDayAvailability = (dateStr: string, personaId: string, day: Date, personaNome?: string): DayAvailability => {
-    if (isDayClosedForSede(day, personaNome)) return 'closed';
+  const getDayAvailability = (dateStr: string, personaId: string, day: Date): DayAvailability => {
+    if (isDayClosedForSede(day)) return 'closed';
     const slots = getTimeSlotsForDay(day);
     const n = (appointmentsByDayPerson.get(`${dateStr}|${personaId}`) ?? []).length;
     if (n === 0) return 'free';
@@ -582,14 +564,13 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     return Math.max(0, getTimeSlotsForDay(day).length - occupied);
   };
 
-  // Per getFirstAvailableDay usiamo la persona corrente dal mensile
-  const getFirstAvailableDay = (personaId: string, personaNome?: string): string | null => {
+  const getFirstAvailableDay = (personaId: string): string | null => {
     const today = new Date();
     for (let i = 0; i < 90; i++) {
       const d = addDays(today, i);
-      if (isDayClosedForSede(d, personaNome)) continue;
+      if (isDayClosedForSede(d)) continue;
       const s = format(d, 'yyyy-MM-dd');
-      const a = getDayAvailability(s, personaId, d, personaNome);
+      const a = getDayAvailability(s, personaId, d);
       if (a === 'free' || a === 'partial') return s;
     }
     return null;
@@ -600,7 +581,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     const activePersona = (selectedMonthlyPersona && sedePersone.some(p => p.id === selectedMonthlyPersona)) ? selectedMonthlyPersona : sedePersone[0]?.id ?? null;
     if (!activePersona) return null;
     const personaNome = sedePersone.find(p => p.id === activePersona)?.nome ?? '';
-    const fa = getFirstAvailableDay(activePersona, personaNome);
+    const fa = getFirstAvailableDay(activePersona);
     const monthStart = startOfMonth(selectedDate);
     const monthEnd   = endOfMonth(selectedDate);
     const allCalDays = eachDayOfInterval({ start: startOfWeek(monthStart, { weekStartsOn: 1 }), end: endOfWeek(monthEnd, { weekStartsOn: 1 }) });
@@ -661,10 +642,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 const isThisMonth = getMonth(day) === getMonth(selectedDate);
                 if (!isThisMonth) return (<div key={dateStr} className={`p-1.5 border-r border-gray-100 last:border-r-0 ${ dIdx >= 5 ? 'bg-gray-100' : 'bg-gray-50' }`} />);
                 const isToday  = format(new Date(), 'yyyy-MM-dd') === dateStr;
-                // Passa personaNome per rispettare la regola sabati eccezione
-                const isClosed = isDayClosedForSede(day, personaNome);
+                const isClosed = isDayClosedForSede(day);
                 const isBefore = day < MIN_DATE;
-                const av       = getDayAvailability(dateStr, activePersona, day, personaNome);
+                const av       = getDayAvailability(dateStr, activePersona, day);
                 const freeSlots = (!isClosed && av !== 'full') ? getFreeSlots(dateStr, activePersona, day) : 0;
                 const avBg     = isClosed ? 'bg-gray-100' : av === 'free' ? 'bg-green-50' : av === 'partial' ? 'bg-yellow-50' : 'bg-red-50';
                 const avBorder = isClosed ? '' : av === 'free' ? 'border-t-2 border-green-400' : av === 'partial' ? 'border-t-2 border-yellow-400' : 'border-t-2 border-red-500';

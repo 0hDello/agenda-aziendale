@@ -15,12 +15,8 @@ export const formatDateDisplay = (date: Date) => {
 };
 
 // ─── Eccezioni sabato Agenda 730 ────────────────────────────────────────────────
-// 3 sabati lavorativi SOLO per MONICA CAPECCHI: 08:30–12:00
+// 3 sabati lavorativi per tutti gli operatori di Imola: 08:30–12:00
 export const SABATI_730_ECCEZIONE = ['2026-05-23', '2026-06-06', '2026-06-13'];
-
-// Helper: true se il nome corrisponde a Monica
-const isMonica = (personaNome?: string) =>
-  !!personaNome && personaNome.toLowerCase().includes('monica');
 
 // Slot sabato 730 eccezionale: 08:30–12:00
 export const TIME_SLOTS_730_SABATO = [
@@ -172,14 +168,14 @@ export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agenda
 };
 
 /**
- * Verifica se un giorno è lavorativo per la sede (e opzionalmente per la persona).
- * Per i sabati eccezione Agenda 730 il giorno è lavorativo SOLO per Monica.
+ * Verifica se un giorno è lavorativo per la sede.
+ * Per i sabati eccezione Agenda 730 il giorno è lavorativo per tutti gli operatori di Imola.
  */
 export const isSedeWorkingDay = (
   nomeSedeOrId: string,
   date: Date,
   agendaId?: string,
-  personaNome?: string
+  _personaNome?: string
 ): boolean => {
   const n   = nomeSedeOrId.toLowerCase();
   const dow = date.getDay();
@@ -187,8 +183,8 @@ export const isSedeWorkingDay = (
   if (agendaId === '730' && dow === 6) {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (SABATI_730_ECCEZIONE.includes(dateStr)) {
-      // Sabato eccezione: lavorativo SOLO per Monica
-      return isMonica(personaNome);
+      // Sabato eccezione: lavorativo per tutti gli operatori di Imola
+      return true;
     }
   }
 
