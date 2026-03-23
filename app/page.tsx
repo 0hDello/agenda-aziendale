@@ -91,24 +91,24 @@ export default function HomePage() {
               <p className="text-gray-500 text-lg">Nessuna agenda disponibile</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {agende.map(agenda => (
                 <div key={agenda.id}
                   onClick={() => agenda.active && router.push(`/agenda/${agenda.id}`)}
-                  className={`rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-transparent ${
+                  className={`rounded-2xl p-4 shadow-lg transition-all duration-300 border-2 border-transparent ${
                     agenda.active ? 'bg-white hover:shadow-2xl cursor-pointer hover:border-[#005CA9] group' : 'bg-gray-100 cursor-not-allowed opacity-75'
                   }`}>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-4 rounded-xl transition-all ${ agenda.active ? 'group-hover:scale-110' : '' }`}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`p-3 rounded-xl transition-all ${ agenda.active ? 'group-hover:scale-110' : '' }`}
                       style={{ backgroundColor: `${agenda.colore || '#005CA9'}20` }}>
-                      <CalendarIcon className="w-8 h-8" style={{ color: agenda.active ? (agenda.colore||'#005CA9') : '#9CA3AF' }} />
+                      <CalendarIcon className="w-6 h-6" style={{ color: agenda.active ? (agenda.colore||'#005CA9') : '#9CA3AF' }} />
                     </div>
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${ agenda.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${ agenda.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }`}>
                       {agenda.active ? 'Attiva' : 'Disattivata'}
                     </span>
                   </div>
-                  <h3 className={`text-xl font-bold mb-2 ${ agenda.active ? 'text-gray-800' : 'text-gray-500' }`}>{agenda.nome}</h3>
-                  <p className={`text-sm mb-4 ${ agenda.active ? 'text-gray-600' : 'text-gray-400' }`}>{agenda.descrizione || 'Nessuna descrizione'}</p>
+                  <h3 className={`text-lg font-bold mb-1 ${ agenda.active ? 'text-gray-800' : 'text-gray-500' }`}>{agenda.nome}</h3>
+                  <p className={`text-xs mb-3 ${ agenda.active ? 'text-gray-600' : 'text-gray-400' }`}>{agenda.descrizione || 'Nessuna descrizione'}</p>
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div className="flex items-center gap-2">
                       {agenda.id === '730' && (

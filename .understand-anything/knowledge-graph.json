@@ -1,0 +1,5543 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "agenda-aziendale",
+    "languages": [
+      "typescript",
+      "javascript"
+    ],
+    "frameworks": [
+      "React",
+      "Next.js",
+      "Tailwind CSS"
+    ],
+    "description": "A Next.js business agenda application for managing appointments, operators, and locations, built with React, Tailwind CSS, and a PostgreSQL backend.",
+    "analyzedAt": "2026-03-23T08:53:24.660Z",
+    "gitCommitHash": "e992c2f2d9facb26b7697709190224089b03dd70"
+  },
+  "nodes": [
+    {
+      "id": "file:app/admin/page.tsx",
+      "type": "file",
+      "name": "page.tsx",
+      "filePath": "app/admin/page.tsx",
+      "summary": "Admin dashboard landing page that renders a card-based navigation UI linking to the SQL query runner, database table browser, and database info sections.",
+      "tags": [
+        "component",
+        "entry-point",
+        "api-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/admin/query/page.tsx",
+      "type": "file",
+      "name": "page.tsx",
+      "filePath": "app/admin/query/page.tsx",
+      "summary": "Interactive SQL query execution page for admins, allowing free-form SQL input, displaying tabular results, and handling errors via the /api/admin/query endpoint.",
+      "tags": [
+        "component",
+        "api-handler",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/admin/tables/page.tsx",
+      "type": "file",
+      "name": "page.tsx",
+      "filePath": "app/admin/tables/page.tsx",
+      "summary": "Admin database table browser that fetches and lists all public PostgreSQL tables, then allows drilling into a specific table to view its rows via the admin tables API.",
+      "tags": [
+        "component",
+        "api-handler",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/agenda/[id]/page.tsx",
+      "type": "file",
+      "name": "page.tsx",
+      "filePath": "app/agenda/[id]/page.tsx",
+      "summary": "Dynamic agenda route that dispatches to one of three calendar views (RoomCalendar, EpasaCalendar, or the standard Calendar) based on the agenda ID path parameter.",
+      "tags": [
+        "component",
+        "entry-point",
+        "event-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/admin/blocca-fino-aprile/route.ts",
+      "summary": "One-shot admin API route that bulk-inserts 'UFF CHIUSO' (office closed) appointments for every free time slot across all locations and operators from today through April 30 2026, skipping weekends and already-occupied slots.",
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/admin/blocca-maggio-dicembre/route.ts",
+      "summary": "One-shot admin API route that blocks specific weekday slots per operator-location pair (Imola/Cspt/Borgo) from May 1 to December 2026 using configurable day-of-week rules, idempotently inserting 'UFF CHIUSO' entries.",
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/admin/query/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/admin/query/route.ts",
+      "summary": "Admin API route exposing a POST endpoint that executes arbitrary SQL queries against the PostgreSQL database and returns the result rows and row count.",
+      "tags": [
+        "api-handler",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/admin/tables/[table]/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/admin/tables/[table]/route.ts",
+      "summary": "Dynamic admin API route that validates a table name against the public schema and returns up to 100 rows from the requested PostgreSQL table.",
+      "tags": [
+        "api-handler",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/admin/tables/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/admin/tables/route.ts",
+      "summary": "Admin API route that lists all table names in the PostgreSQL public schema, used to populate the table browser UI.",
+      "tags": [
+        "api-handler",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/admin/query/page.tsx:QueryPage",
+      "type": "function",
+      "name": "QueryPage",
+      "filePath": "app/admin/query/page.tsx",
+      "lineRange": [
+        6,
+        149
+      ],
+      "summary": "React page component that provides a SQL editor UI, executes queries via POST to /api/admin/query, and renders results in a dynamic table or shows error feedback.",
+      "tags": [
+        "component",
+        "api-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/admin/tables/page.tsx:TablesPage",
+      "type": "function",
+      "name": "TablesPage",
+      "filePath": "app/admin/tables/page.tsx",
+      "lineRange": [
+        13,
+        182
+      ],
+      "summary": "React page component that fetches the list of database tables on mount and supports expanding a selected table to view its row data via the admin tables API.",
+      "tags": [
+        "component",
+        "api-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/admin/blocca-fino-aprile/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/admin/blocca-fino-aprile/route.ts",
+      "lineRange": [
+        18,
+        104
+      ],
+      "summary": "Iterates every non-weekend day from today to April 30 2026 across all sede-persona combinations, checking for existing appointments and inserting 'UFF CHIUSO' placeholders for free slots.",
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/admin/blocca-maggio-dicembre/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/admin/blocca-maggio-dicembre/route.ts",
+      "lineRange": [
+        58,
+        146
+      ],
+      "summary": "Iterates May–December 2026 days, applying per-sede-per-operator blocking rules via deveEssereBloccato, then inserting 'UFF CHIUSO' for qualifying free slots.",
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/admin/blocca-maggio-dicembre/route.ts:deveEssereBloccato",
+      "type": "function",
+      "name": "deveEssereBloccato",
+      "filePath": "app/api/admin/blocca-maggio-dicembre/route.ts",
+      "lineRange": [
+        26,
+        56
+      ],
+      "summary": "Pure helper that determines whether a given sede-operator pair should have a specific day-of-week blocked, encoding the business rules for the May–December closure schedule.",
+      "tags": [
+        "utility",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/admin/query/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/admin/query/route.ts",
+      "lineRange": [
+        4,
+        35
+      ],
+      "summary": "Accepts a SQL string from the request body, executes it against PostgreSQL via the shared query helper, and returns rows with row count or an error response.",
+      "tags": [
+        "api-handler",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/admin/tables/[table]/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/admin/tables/[table]/route.ts",
+      "lineRange": [
+        4,
+        45
+      ],
+      "summary": "Validates the requested table name exists in the public schema, then fetches up to 100 rows from that table and returns them as JSON.",
+      "tags": [
+        "api-handler",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/admin/tables/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/admin/tables/route.ts",
+      "lineRange": [
+        4,
+        35
+      ],
+      "summary": "Queries information_schema.tables to list all public PostgreSQL table names and returns them as a JSON array.",
+      "tags": [
+        "api-handler",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/agende/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/agende/route.ts",
+      "summary": "Next.js API route handler for the 'agende' (agendas) resource. Exposes GET (list all agendas from PostgreSQL, with static fallback if table missing), POST (create a new agenda), and PUT (toggle active status) endpoints. Manages three built-in agenda types: 730, EPASA, and Sale Riunioni.",
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "database",
+        "postgres",
+        "agende"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/agende/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/agende/route.ts",
+      "summary": "Lists all agendas ordered by name, with a fallback to a hardcoded DEFAULT_AGENDE list if the database table does not exist yet.",
+      "tags": [
+        "http-get",
+        "query",
+        "fallback"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/agende/route.ts::POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/agende/route.ts",
+      "summary": "Creates a new agenda entry. Requires id and nome fields; returns 400 if missing, 503 if table not yet created.",
+      "tags": [
+        "http-post",
+        "insert",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/agende/route.ts::PUT",
+      "type": "function",
+      "name": "PUT",
+      "filePath": "app/api/agende/route.ts",
+      "summary": "Updates the active status of an agenda identified by id. Returns 404 if not found.",
+      "tags": [
+        "http-put",
+        "update"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/appuntamenti/[id]/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/appuntamenti/[id]/route.ts",
+      "summary": "Dynamic Next.js API route for individual 730-agenda appointment operations. Handles PUT (update appointment fields, normalize dates, log to activity_log, broadcast SSE) and DELETE (remove appointment, log to activity_log, broadcast SSE). Skips logging for 'UFF CHIUSO' entries.",
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log",
+        "appuntamenti",
+        "730"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/appuntamenti/[id]/route.ts::PUT",
+      "type": "function",
+      "name": "PUT",
+      "filePath": "app/api/appuntamenti/[id]/route.ts",
+      "summary": "Updates an appointment by id. Validates required fields, normalizes date/time formats from DB, writes to activity_log (non-blocking), and broadcasts SSE update.",
+      "tags": [
+        "http-put",
+        "update",
+        "sse",
+        "activity-log",
+        "date-normalization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/appuntamenti/[id]/route.ts::DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "filePath": "app/api/appuntamenti/[id]/route.ts",
+      "summary": "Deletes an appointment by id. Fetches the record first for logging, then deletes, writes to activity_log (non-blocking), and broadcasts SSE update.",
+      "tags": [
+        "http-delete",
+        "delete",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/appuntamenti/events/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/appuntamenti/events/route.ts",
+      "summary": "Server-Sent Events (SSE) endpoint for the 730 agenda. Opens a persistent streaming response, registers the client controller via lib/sse, sends an initial 'connected' event, and deregisters on disconnect.",
+      "tags": [
+        "api-handler",
+        "sse",
+        "streaming",
+        "real-time",
+        "appuntamenti",
+        "730"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/appuntamenti/events/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/appuntamenti/events/route.ts",
+      "summary": "Creates and returns a ReadableStream SSE response, managing client registration lifecycle via add730Client/remove730Client.",
+      "tags": [
+        "http-get",
+        "sse",
+        "streaming"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/appuntamenti/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/appuntamenti/route.ts",
+      "summary": "Next.js API route for the 730-agenda appointments collection. GET lists all appointments optionally filtered by month/year with date normalization. POST creates a new appointment with validation, normalization, activity logging, and SSE broadcast.",
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log",
+        "appuntamenti",
+        "730"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/appuntamenti/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/appuntamenti/route.ts",
+      "summary": "Fetches all appointments, optionally filtered by mese/anno query params. Normalizes date and time fields before returning.",
+      "tags": [
+        "http-get",
+        "query",
+        "filtering",
+        "date-normalization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/appuntamenti/route.ts::POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/appuntamenti/route.ts",
+      "summary": "Creates a new appointment with full field validation, date normalization, non-blocking activity log write, and SSE broadcast.",
+      "tags": [
+        "http-post",
+        "insert",
+        "validation",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/cronologia/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/cronologia/route.ts",
+      "summary": "Next.js API route that serves the activity log (cronologia). GET ensures the activity_log table exists, then returns a paginated, filterable list of log entries supporting filters by source, action, and text search. Returns total, totalPages, page, limit, and hasMore metadata.",
+      "tags": [
+        "api-handler",
+        "activity-log",
+        "cronologia",
+        "pagination",
+        "filtering",
+        "database",
+        "postgres"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/cronologia/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/cronologia/route.ts",
+      "summary": "Lazily creates activity_log table if missing, then queries it with dynamic WHERE conditions for source, action, and text search. Returns paginated results with metadata.",
+      "tags": [
+        "http-get",
+        "pagination",
+        "filtering",
+        "ddl-on-demand"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/epasa/appuntamenti/[id]/route.ts",
+      "summary": "Dynamic Next.js API route for individual EPASA appointment operations. Provides GET (fetch by id), PUT (update with SSE broadcast and activity log), and DELETE (remove with SSE broadcast and activity log). Uses a local normalizeApt helper to normalize date/time fields.",
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "epasa",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/epasa/appuntamenti/[id]/route.ts::normalizeApt",
+      "type": "function",
+      "name": "normalizeApt",
+      "filePath": "app/api/epasa/appuntamenti/[id]/route.ts",
+      "summary": "Helper that normalizes an EPASA appointment row: formats date as 'yyyy-MM-dd' and trims time to HH:mm.",
+      "tags": [
+        "helper",
+        "date-normalization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/appuntamenti/[id]/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/epasa/appuntamenti/[id]/route.ts",
+      "summary": "Fetches a single EPASA appointment by id, returns 404 if not found.",
+      "tags": [
+        "http-get",
+        "query"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/appuntamenti/[id]/route.ts::PUT",
+      "type": "function",
+      "name": "PUT",
+      "filePath": "app/api/epasa/appuntamenti/[id]/route.ts",
+      "summary": "Updates an EPASA appointment by id, broadcasts SSE update, and logs the action via logActivity.",
+      "tags": [
+        "http-put",
+        "update",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/epasa/appuntamenti/[id]/route.ts::DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "filePath": "app/api/epasa/appuntamenti/[id]/route.ts",
+      "summary": "Deletes an EPASA appointment by id, broadcasts SSE update, and logs the action via logActivity.",
+      "tags": [
+        "http-delete",
+        "delete",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/epasa/appuntamenti/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/epasa/appuntamenti/route.ts",
+      "summary": "Next.js API route for the EPASA appointments collection. GET lists all EPASA appointments ordered by date with date normalization. POST creates a new EPASA appointment with validation, normalization, SSE broadcast, and activity logging.",
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "epasa",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/epasa/appuntamenti/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/epasa/appuntamenti/route.ts",
+      "summary": "Fetches all EPASA appointments ordered by date, normalizing date and ora fields.",
+      "tags": [
+        "http-get",
+        "query",
+        "date-normalization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/appuntamenti/route.ts::POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/epasa/appuntamenti/route.ts",
+      "summary": "Creates a new EPASA appointment with required field validation, broadcasts SSE update, and logs activity.",
+      "tags": [
+        "http-post",
+        "insert",
+        "validation",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/epasa/events/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/epasa/events/route.ts",
+      "summary": "Server-Sent Events (SSE) endpoint for the EPASA agenda. Opens a persistent streaming response, registers the client via lib/sse (addEpasaClient), sends an initial 'connected' event, and removes the client on disconnect.",
+      "tags": [
+        "api-handler",
+        "sse",
+        "streaming",
+        "real-time",
+        "epasa"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/events/route.ts::GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/epasa/events/route.ts",
+      "summary": "Creates and returns a ReadableStream SSE response for EPASA clients, managing lifecycle via addEpasaClient/removeEpasaClient.",
+      "tags": [
+        "http-get",
+        "sse",
+        "streaming"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "summary": "Dynamic Next.js API route exposing only DELETE for removing a specific EPASA closed-day entry by id from the epasa_giorni_chiusi table.",
+      "tags": [
+        "api-handler",
+        "rest",
+        "epasa",
+        "giorni-chiusi",
+        "database",
+        "postgres"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/giorni-chiusi/[id]/route.ts::DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "filePath": "app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "summary": "Deletes a closed-day entry by id from epasa_giorni_chiusi.",
+      "tags": [
+        "http-delete",
+        "delete"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "type": "file",
+      "name": "epasa/giorni-chiusi/route.ts",
+      "filePath": "app/api/epasa/giorni-chiusi/route.ts",
+      "summary": "Next.js API route that manages EPASA closed-days records. GET auto-creates the epasa_giorni_chiusi table if absent and returns all entries ordered by date; POST inserts a new closed day and broadcasts an SSE EPASA update to connected clients.",
+      "tags": [
+        "api-route",
+        "epasa",
+        "giorni-chiusi",
+        "postgresql",
+        "sse"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/epasa/giorni-chiusi/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "summary": "Ensures the epasa_giorni_chiusi table exists, fetches all closed-day records ordered by date, and normalises Date objects to ISO date strings before returning the JSON response.",
+      "tags": [
+        "get",
+        "epasa",
+        "giorni-chiusi",
+        "idempotent-ddl",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/epasa/giorni-chiusi/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "summary": "Inserts a new closed-day entry for EPASA (data, operatore_id, motivo), auto-creates the table if absent, validates that 'data' is provided, and broadcasts an SSE update event after a successful insert.",
+      "tags": [
+        "post",
+        "epasa",
+        "giorni-chiusi",
+        "sse",
+        "postgresql"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:app/api/epasa/operatori/route.ts",
+      "type": "file",
+      "name": "epasa/operatori/route.ts",
+      "filePath": "app/api/epasa/operatori/route.ts",
+      "summary": "Minimal read-only Next.js API route that fetches all rows from the epasa_operatori table ordered by id and returns them as JSON.",
+      "tags": [
+        "api-route",
+        "epasa",
+        "operatori",
+        "postgresql",
+        "read-only"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/operatori/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "summary": "Queries the epasa_operatori table for all records ordered by id and returns the rows as a JSON array.",
+      "tags": [
+        "get",
+        "epasa",
+        "operatori",
+        "postgresql"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/epasa/sedi/[id]/route.ts",
+      "type": "file",
+      "name": "epasa/sedi/[id]/route.ts",
+      "filePath": "app/api/epasa/sedi/[id]/route.ts",
+      "summary": "Dynamic Next.js API route for updating and deleting a specific sede (office location) by ID. PUT renames a sede with validation; DELETE removes it and guards against association conflicts.",
+      "tags": [
+        "api-route",
+        "epasa",
+        "sedi",
+        "crud",
+        "dynamic-segment"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/epasa/sedi/[id]/route.ts:PUT",
+      "type": "function",
+      "name": "PUT",
+      "summary": "Updates the nome of a sede record identified by the dynamic route id parameter, returning 400 if the name is empty or 404 if the record is not found.",
+      "tags": [
+        "put",
+        "sedi",
+        "update",
+        "validation",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/epasa/sedi/[id]/route.ts:DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "summary": "Deletes a sede record by dynamic route id, returning 404 if not found and 500 if deletion fails due to existing associations.",
+      "tags": [
+        "delete",
+        "sedi",
+        "postgresql",
+        "constraint-guard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/epasa/sedi/route.ts",
+      "type": "file",
+      "name": "epasa/sedi/route.ts",
+      "filePath": "app/api/epasa/sedi/route.ts",
+      "summary": "Minimal read-only Next.js API route that retrieves all rows from the epasa_sedi table ordered by id.",
+      "tags": [
+        "api-route",
+        "epasa",
+        "sedi",
+        "postgresql",
+        "read-only"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/epasa/sedi/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "summary": "Queries the epasa_sedi table for all records ordered by id and returns the rows as a JSON array.",
+      "tags": [
+        "get",
+        "epasa",
+        "sedi",
+        "postgresql"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/persona-sede/[id]/route.ts",
+      "type": "file",
+      "name": "persona-sede/[id]/route.ts",
+      "filePath": "app/api/persona-sede/[id]/route.ts",
+      "summary": "Dynamic Next.js API route with a single DELETE handler that removes a person–office association from the persona_sede join table by its record id.",
+      "tags": [
+        "api-route",
+        "persona-sede",
+        "delete",
+        "dynamic-segment",
+        "join-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/persona-sede/[id]/route.ts:DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "summary": "Deletes a persona_sede association record by its id, returning 404 if not found with verbose console logging for diagnostics.",
+      "tags": [
+        "delete",
+        "persona-sede",
+        "join-table",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/persona-sede/route.ts",
+      "type": "file",
+      "name": "persona-sede/route.ts",
+      "filePath": "app/api/persona-sede/route.ts",
+      "summary": "Next.js API route that handles the person–office association join table. GET returns all associations; POST creates a new one with a uniqueness check to prevent duplicates.",
+      "tags": [
+        "api-route",
+        "persona-sede",
+        "join-table",
+        "postgresql",
+        "uniqueness-check"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/persona-sede/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "summary": "Fetches all persona_sede association records ordered by creation date descending.",
+      "tags": [
+        "get",
+        "persona-sede",
+        "postgresql"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/persona-sede/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "summary": "Creates a new person–office association after validating required fields and checking for an existing duplicate; returns 400 on duplicate or missing fields, 201 on success.",
+      "tags": [
+        "post",
+        "persona-sede",
+        "duplicate-check",
+        "postgresql"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:app/api/persone/[id]/route.ts",
+      "type": "file",
+      "name": "persone/[id]/route.ts",
+      "filePath": "app/api/persone/[id]/route.ts",
+      "summary": "Dynamic Next.js API route for managing a single persona record: PUT renames the person with validation; DELETE removes the person with a guard message when associations exist.",
+      "tags": [
+        "api-route",
+        "persone",
+        "crud",
+        "dynamic-segment",
+        "postgresql"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/persone/[id]/route.ts:PUT",
+      "type": "function",
+      "name": "PUT",
+      "summary": "Updates the nome field of a persona record identified by the dynamic route id, returning 400 on empty name and 404 if not found.",
+      "tags": [
+        "put",
+        "persone",
+        "update",
+        "validation",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/persone/[id]/route.ts:DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "summary": "Deletes a persona record by id, returning 404 if not found and a descriptive 500 if deletion fails due to existing foreign-key associations.",
+      "tags": [
+        "delete",
+        "persone",
+        "postgresql",
+        "constraint-guard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/persone/route.ts",
+      "type": "file",
+      "name": "persone/route.ts",
+      "filePath": "app/api/persone/route.ts",
+      "summary": "Next.js API route for the persone collection. GET returns all persons sorted alphabetically by name; POST creates a new person with name validation.",
+      "tags": [
+        "api-route",
+        "persone",
+        "crud",
+        "postgresql",
+        "collection"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/persone/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "summary": "Fetches all records from the persone table ordered alphabetically by nome.",
+      "tags": [
+        "get",
+        "persone",
+        "postgresql"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/persone/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "summary": "Inserts a new persona record after validating the nome field is non-empty, returning 201 with the created row on success.",
+      "tags": [
+        "post",
+        "persone",
+        "validation",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "type": "file",
+      "name": "room-appuntamenti/[id]/route.ts",
+      "filePath": "app/api/room-appuntamenti/[id]/route.ts",
+      "summary": "Comprehensive dynamic Next.js API route for managing individual meeting-room bookings. GET retrieves and normalises a single booking; PUT performs conflict checking, partial field updates, SSE broadcast, and activity logging; DELETE removes a booking with SSE broadcast and activity log.",
+      "tags": [
+        "api-route",
+        "room-appuntamenti",
+        "crud",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/room-appuntamenti/[id]/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "summary": "Fetches a single room booking by id, normalising the date to yyyy-MM-dd and trimming ora_inizio/ora_fine strings to HH:mm format before returning.",
+      "tags": [
+        "get",
+        "room-appuntamenti",
+        "normalisation",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/room-appuntamenti/[id]/route.ts:PUT",
+      "type": "function",
+      "name": "PUT",
+      "summary": "Updates a meeting-room booking with dynamic partial-field SQL, performs an overlap conflict check against other bookings, broadcasts an SSE room-update event, and writes an activity log entry describing the change.",
+      "tags": [
+        "put",
+        "room-appuntamenti",
+        "conflict-check",
+        "sse",
+        "activity-log"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/room-appuntamenti/[id]/route.ts:DELETE",
+      "type": "function",
+      "name": "DELETE",
+      "summary": "Deletes a meeting-room booking by id, then broadcasts an SSE room-update event and writes a DELETE activity log entry with formatted date and time details.",
+      "tags": [
+        "delete",
+        "room-appuntamenti",
+        "sse",
+        "activity-log",
+        "postgresql"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:app/api/room-appuntamenti/events/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/room-appuntamenti/events/route.ts",
+      "summary": "Next.js API route that establishes a Server-Sent Events (SSE) stream for real-time notifications of meeting-room appointment changes. Registers/unregisters clients via the shared SSE hub in lib/sse.ts.",
+      "tags": [
+        "api-route",
+        "sse",
+        "room-appointments",
+        "real-time",
+        "next-js"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/room-appuntamenti/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/room-appuntamenti/route.ts",
+      "summary": "Next.js API route handling GET (list) and POST (create) operations for meeting-room appointments, including conflict detection, date normalisation, SSE broadcast on changes, and activity logging.",
+      "tags": [
+        "api-route",
+        "room-appointments",
+        "postgresql",
+        "sse",
+        "logging"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:app/api/room-sale/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/room-sale/route.ts",
+      "summary": "Next.js API route for managing meeting rooms (sale): GET returns all rooms ordered by id, POST inserts a new room with id, name, and colour into PostgreSQL.",
+      "tags": [
+        "api-route",
+        "rooms",
+        "postgresql",
+        "crud",
+        "next-js"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/sedi/[id]/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/sedi/[id]/route.ts",
+      "summary": "Next.js dynamic API route that exposes PUT (update name) and DELETE operations for a specific sede (office location) by id, backed by PostgreSQL.",
+      "tags": [
+        "api-route",
+        "sedi",
+        "postgresql",
+        "crud",
+        "dynamic-route"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/api/sedi/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/sedi/route.ts",
+      "summary": "Next.js API route for sedi (office locations): GET fetches all locations ordered by name, POST creates a new location with name validation, both backed by PostgreSQL.",
+      "tags": [
+        "api-route",
+        "sedi",
+        "postgresql",
+        "crud",
+        "next-js"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/api/statistiche/730/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/statistiche/730/route.ts",
+      "summary": "Next.js API route that computes 730-agenda occupancy statistics per operator per month (April–September 2026), cross-referencing appointments, working-day rules, and time-slot capacity from dateUtils.",
+      "tags": [
+        "api-route",
+        "statistiche",
+        "postgresql",
+        "date-utils",
+        "analytics"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:app/api/version/route.ts",
+      "type": "file",
+      "name": "route.ts",
+      "filePath": "app/api/version/route.ts",
+      "summary": "Minimal Next.js API route that returns the current server build ID (derived from BUILD_ID env var or timestamp) with no-cache headers, used for client-side update detection.",
+      "tags": [
+        "api-route",
+        "version",
+        "build-id",
+        "next-js",
+        "cache-control"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:app/cronologia/page.tsx",
+      "type": "file",
+      "name": "page.tsx",
+      "filePath": "app/cronologia/page.tsx",
+      "summary": "Client-side Next.js page that displays a paginated, filterable activity log (cronologia) sourced from /api/cronologia, supporting filter by source (EPASA/SALA_RIUNIONI/AGENDA_730) and action type (CREATE/UPDATE/DELETE) with URL-driven state.",
+      "tags": [
+        "page",
+        "cronologia",
+        "activity-log",
+        "pagination",
+        "client-component"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:app/impostazioni/agende/page.tsx",
+      "type": "file",
+      "name": "page.tsx",
+      "filePath": "app/impostazioni/agende/page.tsx",
+      "summary": "Thin Next.js settings page that wraps the AgendeManager component inside a max-width container for agenda configuration.",
+      "tags": [
+        "page",
+        "impostazioni",
+        "agende",
+        "settings",
+        "next-js"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/room-appuntamenti/events/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/room-appuntamenti/events/route.ts",
+      "lineRange": [
+        10,
+        35
+      ],
+      "summary": "Creates a ReadableStream for the SSE connection, registers the controller with addRoomClient, sends an initial connected event, and cleans up with removeRoomClient on stream cancel.",
+      "tags": [
+        "sse",
+        "readable-stream",
+        "room-events",
+        "api-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/room-appuntamenti/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/room-appuntamenti/route.ts",
+      "lineRange": [
+        7,
+        32
+      ],
+      "summary": "Fetches all room appointments from PostgreSQL, normalises date and time fields (Date objects to ISO strings), and returns JSON.",
+      "tags": [
+        "api-handler",
+        "postgresql",
+        "room-appointments",
+        "normalisation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/api/room-appuntamenti/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/room-appuntamenti/route.ts",
+      "lineRange": [
+        34,
+        108
+      ],
+      "summary": "Validates and inserts a new room appointment after a conflict check query; normalises the returned row, broadcasts an SSE update, and logs the activity.",
+      "tags": [
+        "api-handler",
+        "room-appointments",
+        "conflict-detection",
+        "sse",
+        "logging"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/room-sale/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/room-sale/route.ts",
+      "lineRange": [
+        4,
+        12
+      ],
+      "summary": "Queries all rows from room_sale ordered by id and returns them as JSON.",
+      "tags": [
+        "api-handler",
+        "rooms",
+        "postgresql"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/room-sale/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/room-sale/route.ts",
+      "lineRange": [
+        14,
+        38
+      ],
+      "summary": "Inserts a new meeting room record (id, nome, colore) into room_sale with default grey colour if none provided.",
+      "tags": [
+        "api-handler",
+        "rooms",
+        "postgresql",
+        "insert"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/sedi/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/sedi/route.ts",
+      "lineRange": [
+        4,
+        12
+      ],
+      "summary": "Retrieves all sedi records ordered by name from PostgreSQL and returns them as JSON.",
+      "tags": [
+        "api-handler",
+        "sedi",
+        "postgresql"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/sedi/route.ts:POST",
+      "type": "function",
+      "name": "POST",
+      "filePath": "app/api/sedi/route.ts",
+      "lineRange": [
+        14,
+        36
+      ],
+      "summary": "Validates and inserts a new sede record by name into PostgreSQL, returning the created row.",
+      "tags": [
+        "api-handler",
+        "sedi",
+        "postgresql",
+        "insert"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/api/statistiche/730/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/statistiche/730/route.ts",
+      "lineRange": [
+        22,
+        140
+      ],
+      "summary": "Executes parallel PostgreSQL queries for persone, sedi, persona_sede associations, and 2026 appointments, then computes per-operator per-month capacity and booking counts using working-day and time-slot utilities.",
+      "tags": [
+        "api-handler",
+        "statistiche",
+        "analytics",
+        "postgresql",
+        "date-utils"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/api/version/route.ts:GET",
+      "type": "function",
+      "name": "GET",
+      "filePath": "app/api/version/route.ts",
+      "lineRange": [
+        10,
+        19
+      ],
+      "summary": "Returns a JSON response with the current buildId and no-cache headers.",
+      "tags": [
+        "api-handler",
+        "version",
+        "build-id"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/cronologia/page.tsx:CronologiaInner",
+      "type": "function",
+      "name": "CronologiaInner",
+      "filePath": "app/cronologia/page.tsx",
+      "lineRange": [
+        91,
+        420
+      ],
+      "summary": "Main inner component for the cronologia page: manages URL-driven pagination and filter state, fetches log entries from /api/cronologia, groups them by date, and renders a filterable, paginated activity timeline with expandable detail rows.",
+      "tags": [
+        "react-component",
+        "activity-log",
+        "pagination",
+        "filters",
+        "url-state"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "fn:app/cronologia/page.tsx:formatDateGroup",
+      "type": "function",
+      "name": "formatDateGroup",
+      "filePath": "app/cronologia/page.tsx",
+      "lineRange": [
+        35,
+        45
+      ],
+      "summary": "Formats an ISO date string into a human-readable Italian group label (Oggi, Ieri, or full date).",
+      "tags": [
+        "date-formatting",
+        "utility",
+        "italian-locale"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/cronologia/page.tsx:groupByDate",
+      "type": "function",
+      "name": "groupByDate",
+      "filePath": "app/cronologia/page.tsx",
+      "lineRange": [
+        51,
+        62
+      ],
+      "summary": "Groups an array of LogEntry objects by calendar date into labelled buckets for display.",
+      "tags": [
+        "grouping",
+        "utility",
+        "activity-log"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:app/cronologia/page.tsx:getPaginationItems",
+      "type": "function",
+      "name": "getPaginationItems",
+      "filePath": "app/cronologia/page.tsx",
+      "lineRange": [
+        77,
+        88
+      ],
+      "summary": "Generates a pagination item array with ellipsis placeholders for large page counts, given current page and total pages.",
+      "tags": [
+        "pagination",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "fn:app/cronologia/page.tsx:loadLogs",
+      "type": "function",
+      "name": "loadLogs",
+      "filePath": "app/cronologia/page.tsx",
+      "lineRange": [
+        127,
+        156
+      ],
+      "summary": "Async function that fetches paginated log entries from /api/cronologia with source, action, date, and text query parameters, then updates component state.",
+      "tags": [
+        "data-fetching",
+        "api-call",
+        "cronologia"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:app/impostazioni/notifiche/page.tsx",
+      "type": "file",
+      "label": "app/impostazioni/notifiche/page.tsx",
+      "path": "app/impostazioni/notifiche/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 12,
+        "nonEmptyLines": 10,
+        "commentLines": 0,
+        "complexity": 0
+      },
+      "description": "Settings sub-page that wraps NotificheManager for notifications configuration.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/impostazioni/notifiche/page.tsx"
+    },
+    {
+      "id": "file:app/impostazioni/page.tsx",
+      "type": "file",
+      "label": "app/impostazioni/page.tsx",
+      "path": "app/impostazioni/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 82,
+        "nonEmptyLines": 72,
+        "commentLines": 0,
+        "complexity": 0
+      },
+      "description": "Settings hub page listing navigation cards for persone, sedi, and agende sub-sections. Client component using useRouter.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/impostazioni/page.tsx"
+    },
+    {
+      "id": "file:app/impostazioni/persone/page.tsx",
+      "type": "file",
+      "label": "app/impostazioni/persone/page.tsx",
+      "path": "app/impostazioni/persone/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 12,
+        "nonEmptyLines": 10,
+        "commentLines": 0,
+        "complexity": 0
+      },
+      "description": "Settings sub-page that wraps PersoneManager for operator/person management.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/impostazioni/persone/page.tsx"
+    },
+    {
+      "id": "file:app/impostazioni/sedi/page.tsx",
+      "type": "file",
+      "label": "app/impostazioni/sedi/page.tsx",
+      "path": "app/impostazioni/sedi/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 12,
+        "nonEmptyLines": 10,
+        "commentLines": 0,
+        "complexity": 0
+      },
+      "description": "Settings sub-page that wraps SediManager for office location management.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/impostazioni/sedi/page.tsx"
+    },
+    {
+      "id": "file:app/layout.tsx",
+      "type": "file",
+      "label": "app/layout.tsx",
+      "path": "app/layout.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 24,
+        "nonEmptyLines": 21,
+        "commentLines": 0,
+        "complexity": 0
+      },
+      "description": "Root Next.js layout wrapping all pages with UpdateBanner and global metadata. Sets Italian locale and full-viewport body.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/layout.tsx"
+    },
+    {
+      "id": "file:app/operatore/[id]/page.tsx",
+      "type": "file",
+      "label": "app/operatore/[id]/page.tsx",
+      "path": "app/operatore/[id]/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 379,
+        "nonEmptyLines": 345,
+        "commentLines": 1,
+        "complexity": 6
+      },
+      "description": "Operator personal dashboard. Shows calendar, appointment list, weekly distribution chart, and per-sede statistics for a specific operator identified by URL param id.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/operatore/[id]/page.tsx"
+    },
+    {
+      "id": "file:app/operatore/page.tsx",
+      "type": "file",
+      "label": "app/operatore/page.tsx",
+      "path": "app/operatore/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 123,
+        "nonEmptyLines": 110,
+        "commentLines": 0,
+        "complexity": 1
+      },
+      "description": "Operator selection page. Lists all operators with their sedi and today's appointment count, routing to /operatore/[id] on click.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/operatore/page.tsx"
+    },
+    {
+      "id": "file:app/page.tsx",
+      "type": "file",
+      "label": "app/page.tsx",
+      "path": "app/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 151,
+        "nonEmptyLines": 142,
+        "commentLines": 0,
+        "complexity": 5
+      },
+      "description": "Main home/landing page. Fetches and displays agenda cards from /api/agende. Provides navigation to cronologia, admin query, admin tables, impostazioni, statistiche, and per-agenda pages.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/page.tsx"
+    },
+    {
+      "id": "file:app/statistiche/730/page.tsx",
+      "type": "file",
+      "label": "app/statistiche/730/page.tsx",
+      "path": "app/statistiche/730/page.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 326,
+        "nonEmptyLines": 308,
+        "commentLines": 3,
+        "complexity": 4
+      },
+      "description": "Statistics page for the 730 tax declaration agenda. Displays per-operator capacity vs booked appointments by month, filterable by sede, with collapsible monthly breakdowns.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "app/statistiche/730/page.tsx"
+    },
+    {
+      "id": "file:components/settings/NotificheManager.tsx",
+      "type": "file",
+      "path": "components/settings/NotificheManager.tsx",
+      "label": "NotificheManager.tsx",
+      "summary": "Settings panel for managing and sending notifications. Displays a static list of past notifications with type icons/colors, and a modal form to compose new ones. Send functionality is stubbed (not yet backed by an API call).",
+      "tags": [
+        "settings",
+        "notifications",
+        "stub",
+        "ui-component",
+        "modal"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 203,
+        "codeLines": 186,
+        "blankLines": 17,
+        "commentLines": 0
+      },
+      "language": "typescript",
+      "name": "components/settings/NotificheManager.tsx"
+    },
+    {
+      "id": "file:components/settings/PersoneManager.tsx",
+      "type": "file",
+      "path": "components/settings/PersoneManager.tsx",
+      "label": "PersoneManager.tsx",
+      "summary": "Settings panel for full CRUD management of the Persona entities. Fetches from /api/persone, renders a table with edit and delete actions, and uses a modal form for create/update operations with Enter-key shortcut support.",
+      "tags": [
+        "settings",
+        "personas",
+        "crud",
+        "ui-component",
+        "modal"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 230,
+        "codeLines": 203,
+        "blankLines": 27,
+        "commentLines": 0
+      },
+      "language": "typescript",
+      "name": "components/settings/PersoneManager.tsx"
+    },
+    {
+      "id": "file:components/settings/SediManager.tsx",
+      "type": "file",
+      "path": "components/settings/SediManager.tsx",
+      "label": "SediManager.tsx",
+      "summary": "Settings panel for full CRUD management of Sede (office location) entities. Fetches from /api/sedi, renders a table, and uses a modal form for create/update. Contains detailed error handling and debug console logging for API responses.",
+      "tags": [
+        "settings",
+        "sedi",
+        "crud",
+        "ui-component",
+        "modal"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 250,
+        "codeLines": 224,
+        "blankLines": 26,
+        "commentLines": 0
+      },
+      "language": "typescript",
+      "name": "components/settings/SediManager.tsx"
+    },
+    {
+      "id": "file:components/UpdateBanner.tsx",
+      "type": "file",
+      "path": "components/UpdateBanner.tsx",
+      "label": "UpdateBanner.tsx",
+      "summary": "Client component that polls /api/version every 60 seconds to detect new deployments. When a new build ID is detected it shows a fixed top banner prompting the user to reload. Dismissible via an X button.",
+      "tags": [
+        "version-check",
+        "polling",
+        "banner",
+        "deployment",
+        "ui-component"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 82,
+        "codeLines": 70,
+        "blankLines": 10,
+        "commentLines": 2
+      },
+      "language": "typescript",
+      "name": "components/UpdateBanner.tsx"
+    },
+    {
+      "id": "file:lib/types.ts",
+      "type": "file",
+      "path": "lib/types.ts",
+      "language": "typescript",
+      "summary": "Central TypeScript type definitions for the agenda-aziendale application. Exports shared interfaces used across all layers: Sede (location), Persona (operator/person), PersonaSede (many-to-many link), Appuntamento (appointment), TimeSlot (time display slot), and Agenda (agenda/calendar entity).",
+      "tags": [
+        "types",
+        "interfaces",
+        "domain-model",
+        "shared",
+        "typescript"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 51,
+        "nonEmptyLines": 45,
+        "exportCount": 6,
+        "importCount": 0,
+        "functionCount": 0
+      },
+      "name": "lib/types.ts"
+    },
+    {
+      "id": "fn:NotifichePage",
+      "type": "function",
+      "label": "NotifichePage",
+      "file": "app/impostazioni/notifiche/page.tsx",
+      "startLine": 3,
+      "endLine": 11,
+      "lineCount": 9,
+      "isDefault": true,
+      "params": [],
+      "description": "Default exported page component rendering NotificheManager inside a padded container.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "NotifichePage"
+    },
+    {
+      "id": "fn:ImpostazioniPage",
+      "type": "function",
+      "label": "ImpostazioniPage",
+      "file": "app/impostazioni/page.tsx",
+      "startLine": 6,
+      "endLine": 81,
+      "lineCount": 76,
+      "isDefault": true,
+      "params": [],
+      "description": "Settings hub page component. Client component with useRouter navigation to persone, sedi, agende sub-sections. Contains card-based navigation UI.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "ImpostazioniPage"
+    },
+    {
+      "id": "fn:PersonePage",
+      "type": "function",
+      "label": "PersonePage",
+      "file": "app/impostazioni/persone/page.tsx",
+      "startLine": 3,
+      "endLine": 11,
+      "lineCount": 9,
+      "isDefault": true,
+      "params": [],
+      "description": "Default exported page component rendering PersoneManager inside a padded container.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "PersonePage"
+    },
+    {
+      "id": "fn:SediPage",
+      "type": "function",
+      "label": "SediPage",
+      "file": "app/impostazioni/sedi/page.tsx",
+      "startLine": 3,
+      "endLine": 11,
+      "lineCount": 9,
+      "isDefault": true,
+      "params": [],
+      "description": "Default exported page component rendering SediManager inside a padded container.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "SediPage"
+    },
+    {
+      "id": "fn:RootLayout",
+      "type": "function",
+      "label": "RootLayout",
+      "file": "app/layout.tsx",
+      "startLine": 10,
+      "endLine": 23,
+      "lineCount": 14,
+      "isDefault": true,
+      "params": [
+        "{ children }"
+      ],
+      "description": "Root Next.js layout component. Renders UpdateBanner globally and wraps children in full-height main element. Sets Italian HTML lang attribute.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RootLayout"
+    },
+    {
+      "id": "fn:OperatoreDashboard",
+      "type": "function",
+      "label": "OperatoreDashboard",
+      "file": "app/operatore/[id]/page.tsx",
+      "startLine": 20,
+      "endLine": 378,
+      "lineCount": 359,
+      "isDefault": true,
+      "params": [],
+      "description": "Large operator personal dashboard. Loads data for persona, sedi, personaSede, and appointments via Promise.all. Computes statistics (today, this month, prev month, total, weekly distribution, per-sede). Renders a custom mini-calendar, appointment list for selected day, upcoming appointments, and per-sede bar charts.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "OperatoreDashboard"
+    },
+    {
+      "id": "fn:isReal",
+      "type": "function",
+      "label": "isReal",
+      "file": "app/operatore/[id]/page.tsx",
+      "startLine": 57,
+      "endLine": 86,
+      "lineCount": 30,
+      "isDefault": false,
+      "params": [
+        "a: Appuntamento"
+      ],
+      "description": "Helper predicate filtering out 'UFF CHIUSO' placeholder appointments.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "isReal"
+    },
+    {
+      "id": "fn:getDayCount",
+      "type": "function",
+      "label": "getDayCount",
+      "file": "app/operatore/[id]/page.tsx",
+      "startLine": 105,
+      "endLine": 109,
+      "lineCount": 5,
+      "isDefault": false,
+      "params": [
+        "d: Date"
+      ],
+      "description": "Returns count of operator's appointments on a given day for calendar cell rendering.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getDayCount"
+    },
+    {
+      "id": "fn:OperatoreSelezionePage",
+      "type": "function",
+      "label": "OperatoreSelezionePage",
+      "file": "app/operatore/page.tsx",
+      "startLine": 14,
+      "endLine": 122,
+      "lineCount": 109,
+      "isDefault": true,
+      "params": [],
+      "description": "Operator selection page. Fetches persons, sedi, persona-sede associations and today's appointments, displays operator cards with location labels and appointment count badge.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "OperatoreSelezionePage"
+    },
+    {
+      "id": "fn:getSedi",
+      "type": "function",
+      "label": "getSedi",
+      "file": "app/operatore/page.tsx",
+      "startLine": 38,
+      "endLine": 51,
+      "lineCount": 14,
+      "isDefault": false,
+      "params": [
+        "pid: string"
+      ],
+      "description": "Returns list of Sede objects associated with a persona ID via personaSede join table.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getSedi"
+    },
+    {
+      "id": "fn:getTodayCnt",
+      "type": "function",
+      "label": "getTodayCnt",
+      "file": "app/operatore/page.tsx",
+      "startLine": 41,
+      "endLine": 51,
+      "lineCount": 11,
+      "isDefault": false,
+      "params": [
+        "pid: string"
+      ],
+      "description": "Returns count of real (non-UFF CHIUSO) appointments for a persona on today's date.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getTodayCnt"
+    },
+    {
+      "id": "fn:HomePage",
+      "type": "function",
+      "label": "HomePage",
+      "file": "app/page.tsx",
+      "startLine": 16,
+      "endLine": 150,
+      "lineCount": 135,
+      "isDefault": true,
+      "params": [],
+      "description": "Main landing page. Fetches agenda list from /api/agende and renders clickable agenda cards with color-coded status. Provides links to cronologia, admin query/tables, impostazioni, statistiche/730, and operatore area.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "HomePage"
+    },
+    {
+      "id": "fn:loadAgende",
+      "type": "function",
+      "label": "loadAgende",
+      "file": "app/page.tsx",
+      "startLine": 23,
+      "endLine": 30,
+      "lineCount": 8,
+      "isDefault": false,
+      "params": [],
+      "description": "Async function fetching agenda list from /api/agende and updating component state.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "loadAgende"
+    },
+    {
+      "id": "fn:StatistichePage",
+      "type": "function",
+      "label": "StatistichePage",
+      "file": "app/statistiche/730/page.tsx",
+      "startLine": 23,
+      "endLine": 325,
+      "lineCount": 303,
+      "isDefault": true,
+      "params": [],
+      "description": "Statistics page for 730 agenda. Fetches PersonaStats from /api/statistiche/730. Supports sede filtering via tab bar, shows per-operator capacity/booked bars with collapsible monthly grids. Handles loading and error states.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "StatistichePage"
+    },
+    {
+      "id": "fn:getPerc",
+      "type": "function",
+      "label": "getPerc",
+      "file": "app/statistiche/730/page.tsx",
+      "startLine": 42,
+      "endLine": 42,
+      "lineCount": 1,
+      "isDefault": false,
+      "params": [
+        "p: number",
+        "c: number"
+      ],
+      "description": "Helper computing integer percentage of booked over capacity, guarding against division by zero.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getPerc"
+    },
+    {
+      "id": "fn:getBarColor",
+      "type": "function",
+      "label": "getBarColor",
+      "file": "app/statistiche/730/page.tsx",
+      "startLine": 43,
+      "endLine": 44,
+      "lineCount": 2,
+      "isDefault": false,
+      "params": [
+        "p: number"
+      ],
+      "description": "Returns Tailwind bar color class based on occupancy percentage thresholds (30/60/90).",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getBarColor"
+    },
+    {
+      "id": "fn:getBadgeColor",
+      "type": "function",
+      "label": "getBadgeColor",
+      "file": "app/statistiche/730/page.tsx",
+      "startLine": 45,
+      "endLine": 46,
+      "lineCount": 2,
+      "isDefault": false,
+      "params": [
+        "p: number"
+      ],
+      "description": "Returns Tailwind badge background color class based on occupancy percentage thresholds.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getBadgeColor"
+    },
+    {
+      "id": "fn:getTextColor",
+      "type": "function",
+      "label": "getTextColor",
+      "file": "app/statistiche/730/page.tsx",
+      "startLine": 47,
+      "endLine": 48,
+      "lineCount": 2,
+      "isDefault": false,
+      "params": [
+        "p: number"
+      ],
+      "description": "Returns Tailwind text color class based on occupancy percentage thresholds.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getTextColor"
+    },
+    {
+      "id": "fn:getPerMese",
+      "type": "function",
+      "label": "getPerMese",
+      "file": "app/statistiche/730/page.tsx",
+      "startLine": 57,
+      "endLine": 62,
+      "lineCount": 6,
+      "isDefault": false,
+      "params": [
+        "persona: PersonaStats"
+      ],
+      "description": "Returns the per-month statistics record for a persona, scoped to selected sede if active.",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "getPerMese"
+    },
+    {
+      "id": "file:components/AppointmentModal.tsx",
+      "type": "file",
+      "label": "AppointmentModal.tsx",
+      "path": "components/AppointmentModal.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 418,
+        "nonEmptyLines": 340,
+        "functionCount": 8,
+        "importCount": 5,
+        "exportCount": 3
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/AppointmentModal.tsx"
+    },
+    {
+      "id": "file:components/Calendar.tsx",
+      "type": "file",
+      "label": "Calendar.tsx",
+      "path": "components/Calendar.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 1062,
+        "nonEmptyLines": 860,
+        "functionCount": 18,
+        "importCount": 7,
+        "exportCount": 1
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/Calendar.tsx"
+    },
+    {
+      "id": "file:components/EpasaAppointmentModal.tsx",
+      "type": "file",
+      "label": "EpasaAppointmentModal.tsx",
+      "path": "components/EpasaAppointmentModal.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 260,
+        "nonEmptyLines": 205,
+        "functionCount": 4,
+        "importCount": 2,
+        "exportCount": 2
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/EpasaAppointmentModal.tsx"
+    },
+    {
+      "id": "file:components/EpasaCalendar.tsx",
+      "type": "file",
+      "label": "EpasaCalendar.tsx",
+      "path": "components/EpasaCalendar.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 1204,
+        "nonEmptyLines": 960,
+        "functionCount": 22,
+        "importCount": 5,
+        "exportCount": 1
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/EpasaCalendar.tsx"
+    },
+    {
+      "id": "file:components/LoredanaView.tsx",
+      "type": "file",
+      "label": "LoredanaView.tsx",
+      "path": "components/LoredanaView.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 571,
+        "nonEmptyLines": 460,
+        "functionCount": 14,
+        "importCount": 4,
+        "exportCount": 2
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/LoredanaView.tsx"
+    },
+    {
+      "id": "file:components/OperatorePannello.tsx",
+      "type": "file",
+      "label": "OperatorePannello.tsx",
+      "path": "components/OperatorePannello.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 355,
+        "nonEmptyLines": 290,
+        "functionCount": 6,
+        "importCount": 4,
+        "exportCount": 1
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/OperatorePannello.tsx"
+    },
+    {
+      "id": "file:components/RoomAppointmentModal.tsx",
+      "type": "file",
+      "label": "RoomAppointmentModal.tsx",
+      "path": "components/RoomAppointmentModal.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 289,
+        "nonEmptyLines": 230,
+        "functionCount": 4,
+        "importCount": 3,
+        "exportCount": 1
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/RoomAppointmentModal.tsx"
+    },
+    {
+      "id": "file:components/RoomCalendar.tsx",
+      "type": "file",
+      "label": "RoomCalendar.tsx",
+      "path": "components/RoomCalendar.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 489,
+        "nonEmptyLines": 390,
+        "functionCount": 14,
+        "importCount": 3,
+        "exportCount": 1
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/RoomCalendar.tsx"
+    },
+    {
+      "id": "file:components/StatisticheModal.tsx",
+      "type": "file",
+      "label": "StatisticheModal.tsx",
+      "path": "components/StatisticheModal.tsx",
+      "language": "typescript",
+      "metrics": {
+        "totalLines": 288,
+        "nonEmptyLines": 230,
+        "functionCount": 4,
+        "importCount": 2,
+        "exportCount": 1
+      },
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "components/StatisticheModal.tsx"
+    },
+    {
+      "id": "file:utils/dateUtils.ts",
+      "type": "file",
+      "path": "utils/dateUtils.ts",
+      "language": "typescript",
+      "summary": "Core date and time-slot utility module for the agenda. Provides week generation, date formatting (ISO and Italian locale display), and sede-aware time-slot resolution. Defines time slot arrays for each location (Imola, Borgo, CSPT) with day-of-week variations (Mon-Thu vs Fri) and special Saturday exceptions for the Agenda 730 workflow. Exports 17 named symbols consumed broadly by calendar components and API routes.",
+      "tags": [
+        "date-utils",
+        "time-slots",
+        "business-logic",
+        "locale",
+        "sede-scheduling"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 194,
+        "nonEmptyLines": 148,
+        "exportCount": 17,
+        "importCount": 2,
+        "functionCount": 8
+      },
+      "name": "utils/dateUtils.ts"
+    },
+    {
+      "id": "file:components/TimeSlot.tsx",
+      "type": "file",
+      "path": "components/TimeSlot.tsx",
+      "label": "TimeSlot.tsx",
+      "summary": "Client component that renders a single time slot cell in the calendar grid. Handles appointment display with color-coded highlights, drag-and-drop reordering, multi-column layout for overlapping appointments, and a portal-based tooltip for appointment notes.",
+      "tags": [
+        "calendar",
+        "drag-and-drop",
+        "appointment-rendering",
+        "ui-component",
+        "portal"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 309,
+        "codeLines": 283,
+        "blankLines": 21,
+        "commentLines": 5
+      },
+      "language": "typescript",
+      "name": "components/TimeSlot.tsx"
+    },
+    {
+      "id": "fn:AppointmentModal.AppointmentModal",
+      "type": "function",
+      "label": "AppointmentModal",
+      "file": "components/AppointmentModal.tsx",
+      "startLine": 64,
+      "endLine": 415,
+      "params": "ref",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Main appointment creation/edit modal with multi-date selection, color highlighting and forwardRef handle",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "AppointmentModal.AppointmentModal"
+    },
+    {
+      "id": "fn:AppointmentModal.autoResize",
+      "type": "function",
+      "label": "autoResize",
+      "file": "components/AppointmentModal.tsx",
+      "startLine": 86,
+      "endLine": 90,
+      "params": "el: HTMLTextAreaElement | null",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "AppointmentModal.autoResize"
+    },
+    {
+      "id": "fn:AppointmentModal.handleSubmit",
+      "type": "function",
+      "label": "handleSubmit",
+      "file": "components/AppointmentModal.tsx",
+      "startLine": 142,
+      "endLine": 169,
+      "params": "e: React.FormEvent",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "AppointmentModal.handleSubmit"
+    },
+    {
+      "id": "fn:AppointmentModal.handleDelete",
+      "type": "function",
+      "label": "handleDelete",
+      "file": "components/AppointmentModal.tsx",
+      "startLine": 171,
+      "endLine": 177,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "AppointmentModal.handleDelete"
+    },
+    {
+      "id": "fn:AppointmentModal.generateCalendarDays",
+      "type": "function",
+      "label": "generateCalendarDays",
+      "file": "components/AppointmentModal.tsx",
+      "startLine": 188,
+      "endLine": 195,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "AppointmentModal.generateCalendarDays"
+    },
+    {
+      "id": "fn:Calendar.Calendar",
+      "type": "function",
+      "label": "Calendar",
+      "file": "components/Calendar.tsx",
+      "startLine": 62,
+      "endLine": 1062,
+      "params": "{ agendaId = '730' }: CalendarProps",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Main daily/monthly calendar view for 730 agenda with infinite scroll, SSE real-time updates, drag-drop, and print support",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.Calendar"
+    },
+    {
+      "id": "fn:Calendar.isDayClosedForSede",
+      "type": "function",
+      "label": "isDayClosedForSede",
+      "file": "components/Calendar.tsx",
+      "startLine": 112,
+      "endLine": 121,
+      "params": "day: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.isDayClosedForSede"
+    },
+    {
+      "id": "fn:Calendar.scrollToDate",
+      "type": "function",
+      "label": "scrollToDate",
+      "file": "components/Calendar.tsx",
+      "startLine": 132,
+      "endLine": 140,
+      "params": "date: Date, behavior: ScrollBehavior",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.scrollToDate"
+    },
+    {
+      "id": "fn:Calendar.buildWindowAround",
+      "type": "function",
+      "label": "buildWindowAround",
+      "file": "components/Calendar.tsx",
+      "startLine": 142,
+      "endLine": 151,
+      "params": "center: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.buildWindowAround"
+    },
+    {
+      "id": "fn:Calendar.navigateToDate",
+      "type": "function",
+      "label": "navigateToDate",
+      "file": "components/Calendar.tsx",
+      "startLine": 153,
+      "endLine": 161,
+      "params": "date: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.navigateToDate"
+    },
+    {
+      "id": "fn:Calendar.loadMoreDaysForward",
+      "type": "function",
+      "label": "loadMoreDaysForward",
+      "file": "components/Calendar.tsx",
+      "startLine": 163,
+      "endLine": 173,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.loadMoreDaysForward"
+    },
+    {
+      "id": "fn:Calendar.loadMoreDaysBackward",
+      "type": "function",
+      "label": "loadMoreDaysBackward",
+      "file": "components/Calendar.tsx",
+      "startLine": 175,
+      "endLine": 195,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "Calendar.loadMoreDaysBackward"
+    },
+    {
+      "id": "fn:EpasaAppointmentModal.EpasaAppointmentModal",
+      "type": "function",
+      "label": "EpasaAppointmentModal",
+      "file": "components/EpasaAppointmentModal.tsx",
+      "startLine": 44,
+      "endLine": 259,
+      "params": "EpasaAppointmentModalProps",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Appointment modal for EPASA calendar system with operator/sede selection and color highlighting",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaAppointmentModal.EpasaAppointmentModal"
+    },
+    {
+      "id": "fn:EpasaAppointmentModal.autoResize",
+      "type": "function",
+      "label": "autoResize",
+      "file": "components/EpasaAppointmentModal.tsx",
+      "startLine": 71,
+      "endLine": 75,
+      "params": "el: HTMLTextAreaElement | null",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaAppointmentModal.autoResize"
+    },
+    {
+      "id": "fn:EpasaAppointmentModal.handleSubmit",
+      "type": "function",
+      "label": "handleSubmit",
+      "file": "components/EpasaAppointmentModal.tsx",
+      "startLine": 105,
+      "endLine": 128,
+      "params": "e: React.FormEvent",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaAppointmentModal.handleSubmit"
+    },
+    {
+      "id": "fn:EpasaAppointmentModal.handleDelete",
+      "type": "function",
+      "label": "handleDelete",
+      "file": "components/EpasaAppointmentModal.tsx",
+      "startLine": 130,
+      "endLine": 136,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaAppointmentModal.handleDelete"
+    },
+    {
+      "id": "fn:EpasaCalendar.EpasaCalendar",
+      "type": "function",
+      "label": "EpasaCalendar",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 157,
+      "endLine": 1204,
+      "params": "{ agendaId, initialLoredana = false }: EpasaCalendarProps",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Full EPASA calendar view with daily/monthly modes, real-time SSE, Loredana sub-view, closed-day management, and search",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.EpasaCalendar"
+    },
+    {
+      "id": "fn:EpasaCalendar.getTimeSlotsForSede",
+      "type": "function",
+      "label": "getTimeSlotsForSede",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 93,
+      "endLine": 97,
+      "params": "sedeId: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.getTimeSlotsForSede"
+    },
+    {
+      "id": "fn:EpasaCalendar.getOperatorsForSedeId",
+      "type": "function",
+      "label": "getOperatorsForSedeId",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 99,
+      "endLine": 103,
+      "params": "sedeId: string, allOperators: string[]",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.getOperatorsForSedeId"
+    },
+    {
+      "id": "fn:EpasaCalendar.dateStrToLocal",
+      "type": "function",
+      "label": "dateStrToLocal",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 108,
+      "endLine": 111,
+      "params": "dateStr: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.dateStrToLocal"
+    },
+    {
+      "id": "fn:EpasaCalendar.getWeekOfMonthFromFirstMonday",
+      "type": "function",
+      "label": "getWeekOfMonthFromFirstMonday",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 113,
+      "endLine": 123,
+      "params": "date: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.getWeekOfMonthFromFirstMonday"
+    },
+    {
+      "id": "fn:EpasaCalendar.isBorgoWorkingDay",
+      "type": "function",
+      "label": "isBorgoWorkingDay",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 131,
+      "endLine": 139,
+      "params": "date: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.isBorgoWorkingDay"
+    },
+    {
+      "id": "fn:EpasaCalendar.handleSearch",
+      "type": "function",
+      "label": "handleSearch",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 212,
+      "endLine": 227,
+      "params": "query: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.handleSearch"
+    },
+    {
+      "id": "fn:EpasaCalendar.navigateToDate",
+      "type": "function",
+      "label": "navigateToDate",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 231,
+      "endLine": 237,
+      "params": "apt: Appointment",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.navigateToDate"
+    },
+    {
+      "id": "fn:EpasaCalendar.isMileceTimeBlocked",
+      "type": "function",
+      "label": "isMileceTimeBlocked",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 239,
+      "endLine": 243,
+      "params": "operator: string, day: Date, time: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.isMileceTimeBlocked"
+    },
+    {
+      "id": "fn:EpasaCalendar.isSedeOperatorDayClosed",
+      "type": "function",
+      "label": "isSedeOperatorDayClosed",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 245,
+      "endLine": 251,
+      "params": "sedeId: string, operator: string, day: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.isSedeOperatorDayClosed"
+    },
+    {
+      "id": "fn:EpasaCalendar.isGiornoChiuso",
+      "type": "function",
+      "label": "isGiornoChiuso",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 253,
+      "endLine": 254,
+      "params": "dateStr: string, operatoreId: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.isGiornoChiuso"
+    },
+    {
+      "id": "fn:EpasaCalendar.isUffChiusoSlot",
+      "type": "function",
+      "label": "isUffChiusoSlot",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 265,
+      "endLine": 272,
+      "params": "dateStr: string, time: string, operatoreId: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.isUffChiusoSlot"
+    },
+    {
+      "id": "fn:EpasaCalendar.getRealAppointmentsCount",
+      "type": "function",
+      "label": "getRealAppointmentsCount",
+      "file": "components/EpasaCalendar.tsx",
+      "startLine": 274,
+      "endLine": 280,
+      "params": "dateStr: string, operatoreId: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "EpasaCalendar.getRealAppointmentsCount"
+    },
+    {
+      "id": "fn:LoredanaView.useRowHeight",
+      "type": "function",
+      "label": "useRowHeight",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 141,
+      "endLine": 154,
+      "params": "slotCount: number",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.useRowHeight"
+    },
+    {
+      "id": "fn:LoredanaView.LoredanaView",
+      "type": "function",
+      "label": "LoredanaView",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 157,
+      "endLine": 571,
+      "params": "LoredanaViewProps",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Specialized monthly grid view for LOREDANA operator across imola/cspt/borgo sedi with inline lock/unlock slots and portal-rendered modal",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.LoredanaView"
+    },
+    {
+      "id": "fn:LoredanaView.isBorgoWorkingDay",
+      "type": "function",
+      "label": "isBorgoWorkingDay",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 106,
+      "endLine": 128,
+      "params": "date: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.isBorgoWorkingDay"
+    },
+    {
+      "id": "fn:LoredanaView.isSedeOpenOnDay",
+      "type": "function",
+      "label": "isSedeOpenOnDay",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 130,
+      "endLine": 136,
+      "params": "sedeId: string, date: Date",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.isSedeOpenOnDay"
+    },
+    {
+      "id": "fn:LoredanaView.isGiornoChiuso",
+      "type": "function",
+      "label": "isGiornoChiuso",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 208,
+      "endLine": 212,
+      "params": "dateStr: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.isGiornoChiuso"
+    },
+    {
+      "id": "fn:LoredanaView.getAppointmentForSlot",
+      "type": "function",
+      "label": "getAppointmentForSlot",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 214,
+      "endLine": 221,
+      "params": "sedeId: string, dateStr: string, time: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.getAppointmentForSlot"
+    },
+    {
+      "id": "fn:LoredanaView.handleEditModeSlotClick",
+      "type": "function",
+      "label": "handleEditModeSlotClick",
+      "file": "components/LoredanaView.tsx",
+      "startLine": 226,
+      "endLine": 267,
+      "params": "sedeId: string, dateStr: string, time: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "LoredanaView.handleEditModeSlotClick"
+    },
+    {
+      "id": "fn:OperatorePannello.OperatorePannello",
+      "type": "function",
+      "label": "OperatorePannello",
+      "file": "components/OperatorePannello.tsx",
+      "startLine": 18,
+      "endLine": 355,
+      "params": "{ onClose }: Props",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Operator personal dashboard panel showing today/week/month appointment counts and sede performance breakdown",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "OperatorePannello.OperatorePannello"
+    },
+    {
+      "id": "fn:OperatorePannello.renderChoose",
+      "type": "function",
+      "label": "renderChoose",
+      "file": "components/OperatorePannello.tsx",
+      "startLine": 51,
+      "endLine": 122,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "OperatorePannello.renderChoose"
+    },
+    {
+      "id": "fn:OperatorePannello.renderDashboard",
+      "type": "function",
+      "label": "renderDashboard",
+      "file": "components/OperatorePannello.tsx",
+      "startLine": 125,
+      "endLine": 320,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "OperatorePannello.renderDashboard"
+    },
+    {
+      "id": "fn:RoomAppointmentModal.RoomAppointmentModal",
+      "type": "function",
+      "label": "RoomAppointmentModal",
+      "file": "components/RoomAppointmentModal.tsx",
+      "startLine": 36,
+      "endLine": 288,
+      "params": "RoomAppointmentModalProps",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Room booking modal with predefined appointment type selection or custom title entry and end-time duration picker",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomAppointmentModal.RoomAppointmentModal"
+    },
+    {
+      "id": "fn:RoomAppointmentModal.getAvailableEndTimes",
+      "type": "function",
+      "label": "getAvailableEndTimes",
+      "file": "components/RoomAppointmentModal.tsx",
+      "startLine": 87,
+      "endLine": 91,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomAppointmentModal.getAvailableEndTimes"
+    },
+    {
+      "id": "fn:RoomAppointmentModal.handleSubmit",
+      "type": "function",
+      "label": "handleSubmit",
+      "file": "components/RoomAppointmentModal.tsx",
+      "startLine": 93,
+      "endLine": 107,
+      "params": "e: React.FormEvent",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomAppointmentModal.handleSubmit"
+    },
+    {
+      "id": "fn:RoomAppointmentModal.handleDelete",
+      "type": "function",
+      "label": "handleDelete",
+      "file": "components/RoomAppointmentModal.tsx",
+      "startLine": 109,
+      "endLine": 114,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomAppointmentModal.handleDelete"
+    },
+    {
+      "id": "fn:RoomAppointmentModal.calculateDuration",
+      "type": "function",
+      "label": "calculateDuration",
+      "file": "components/RoomAppointmentModal.tsx",
+      "startLine": 122,
+      "endLine": 132,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomAppointmentModal.calculateDuration"
+    },
+    {
+      "id": "fn:RoomCalendar.RoomCalendar",
+      "type": "function",
+      "label": "RoomCalendar",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 73,
+      "endLine": 489,
+      "params": "{ agendaId }: RoomCalendarProps",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Monthly grid calendar for meeting-room booking with SSE real-time updates, optimistic UI, and multi-slot span rendering",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.RoomCalendar"
+    },
+    {
+      "id": "fn:RoomCalendar.getColorForAppointment",
+      "type": "function",
+      "label": "getColorForAppointment",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 58,
+      "endLine": 64,
+      "params": "title: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.getColorForAppointment"
+    },
+    {
+      "id": "fn:RoomCalendar.getSlotSpan",
+      "type": "function",
+      "label": "getSlotSpan",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 66,
+      "endLine": 71,
+      "params": "startTime: string, endTime: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.getSlotSpan"
+    },
+    {
+      "id": "fn:RoomCalendar.loadData",
+      "type": "function",
+      "label": "loadData",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 127,
+      "endLine": 143,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.loadData"
+    },
+    {
+      "id": "fn:RoomCalendar.processRoomData",
+      "type": "function",
+      "label": "processRoomData",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 145,
+      "endLine": 174,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.processRoomData"
+    },
+    {
+      "id": "fn:RoomCalendar.handleCellClick",
+      "type": "function",
+      "label": "handleCellClick",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 176,
+      "endLine": 179,
+      "params": "date: string, time: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.handleCellClick"
+    },
+    {
+      "id": "fn:RoomCalendar.handleSaveAppointment",
+      "type": "function",
+      "label": "handleSaveAppointment",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 181,
+      "endLine": 238,
+      "params": "data: { date: string; time: string; title: string; endTime?: string }",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.handleSaveAppointment"
+    },
+    {
+      "id": "fn:RoomCalendar.handleDeleteAppointment",
+      "type": "function",
+      "label": "handleDeleteAppointment",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 240,
+      "endLine": 263,
+      "params": "",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.handleDeleteAppointment"
+    },
+    {
+      "id": "fn:RoomCalendar.processRoomData2",
+      "type": "function",
+      "label": "isCellCovered",
+      "file": "components/RoomCalendar.tsx",
+      "startLine": 270,
+      "endLine": 281,
+      "params": "dateKey: string, timeSlot: string",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "RoomCalendar.processRoomData2"
+    },
+    {
+      "id": "fn:StatisticheModal.StatisticheModal",
+      "type": "function",
+      "label": "StatisticheModal",
+      "file": "components/StatisticheModal.tsx",
+      "startLine": 25,
+      "endLine": 287,
+      "params": "{ onClose }: Props",
+      "isDefaultExport": true,
+      "isReactComponent": true,
+      "description": "Statistics modal displaying capacity vs booked slots per operator per month for the 730 agenda, with sede tab filters and monthly breakdown",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "StatisticheModal.StatisticheModal"
+    },
+    {
+      "id": "fn:StatisticheModal.getPerc",
+      "type": "function",
+      "label": "getPerc",
+      "file": "components/StatisticheModal.tsx",
+      "startLine": 47,
+      "endLine": 47,
+      "params": "p: number, c: number",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "StatisticheModal.getPerc"
+    },
+    {
+      "id": "fn:StatisticheModal.getColor",
+      "type": "function",
+      "label": "getColor",
+      "file": "components/StatisticheModal.tsx",
+      "startLine": 48,
+      "endLine": 49,
+      "params": "p: number",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "StatisticheModal.getColor"
+    },
+    {
+      "id": "fn:StatisticheModal.getTextColor",
+      "type": "function",
+      "label": "getTextColor",
+      "file": "components/StatisticheModal.tsx",
+      "startLine": 50,
+      "endLine": 51,
+      "params": "p: number",
+      "tags": [
+        "untagged"
+      ],
+      "summary": "No summary available",
+      "complexity": "simple",
+      "name": "StatisticheModal.getTextColor"
+    },
+    {
+      "id": "file:components/settings/AgendeManager.tsx",
+      "type": "file",
+      "path": "components/settings/AgendeManager.tsx",
+      "label": "AgendeManager.tsx",
+      "summary": "Settings panel component for managing persona-sede associations (agendas). Loads persons, locations and their links from the API, renders them in a table, and provides a modal form to create or delete associations via /api/persona-sede.",
+      "tags": [
+        "settings",
+        "agenda-management",
+        "crud",
+        "persona-sede",
+        "ui-component"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 262,
+        "codeLines": 226,
+        "blankLines": 36,
+        "commentLines": 0
+      },
+      "language": "typescript",
+      "name": "components/settings/AgendeManager.tsx"
+    },
+    {
+      "id": "file:lib/log.ts",
+      "type": "file",
+      "path": "lib/log.ts",
+      "label": "log.ts",
+      "summary": "Server-side activity logging utility. Exports LogAction and LogSource types, and the logActivity function which auto-creates the activity_log table if absent and inserts structured records. Errors are swallowed to avoid blocking the caller.",
+      "tags": [
+        "logging",
+        "postgresql",
+        "activity-log",
+        "server-util",
+        "types"
+      ],
+      "complexity": "moderate",
+      "metrics": {
+        "totalLines": 51,
+        "codeLines": 34,
+        "blankLines": 5,
+        "commentLines": 12
+      },
+      "language": "typescript",
+      "name": "lib/log.ts"
+    },
+    {
+      "id": "file:lib/postgres.ts",
+      "type": "file",
+      "path": "lib/postgres.ts",
+      "label": "postgres.ts",
+      "summary": "PostgreSQL connection pool module using the pg library. Configures a pool of 5–20 connections from environment variables, exports a typed query() helper with timing logs, a getClient() for manual transactions, and the pool itself as default export.",
+      "tags": [
+        "postgresql",
+        "database",
+        "connection-pool",
+        "server-util",
+        "infrastructure"
+      ],
+      "complexity": "moderate",
+      "metrics": {
+        "totalLines": 39,
+        "codeLines": 29,
+        "blankLines": 10,
+        "commentLines": 0
+      },
+      "language": "typescript",
+      "name": "lib/postgres.ts"
+    },
+    {
+      "id": "file:lib/sse.ts",
+      "type": "file",
+      "path": "lib/sse.ts",
+      "label": "sse.ts",
+      "summary": "Global SSE (Server-Sent Events) manager for three independent channels: EPASA agenda, Sala Riunioni (meeting room), and Agenda 730. Uses global Sets of ReadableStreamDefaultController to survive hot-reload; exports add/remove/broadcast helpers for each channel.",
+      "tags": [
+        "sse",
+        "real-time",
+        "server-util",
+        "broadcast",
+        "infrastructure"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 57,
+        "codeLines": 39,
+        "blankLines": 9,
+        "commentLines": 9
+      },
+      "language": "typescript",
+      "name": "lib/sse.ts"
+    },
+    {
+      "id": "fn:AppointmentCell",
+      "type": "function",
+      "path": "components/TimeSlot.tsx",
+      "label": "AppointmentCell",
+      "startLine": 32,
+      "endLine": 146,
+      "params": [
+        "apt: Appuntamento",
+        "style",
+        "className",
+        "onDragStart",
+        "onDrop",
+        "onDragOver",
+        "onClick"
+      ],
+      "summary": "Internal sub-component rendering a single draggable appointment card with color highlighting, time range display, and a portal-rendered tooltip for notes on hover.",
+      "isExported": false,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "AppointmentCell"
+    },
+    {
+      "id": "fn:TimeSlot",
+      "type": "function",
+      "path": "components/TimeSlot.tsx",
+      "label": "TimeSlot",
+      "startLine": 148,
+      "endLine": 308,
+      "params": [
+        "time",
+        "appointments",
+        "allDayAppointments",
+        "onClick",
+        "onDragStart",
+        "onDrop",
+        "onDragOver",
+        "daySlots"
+      ],
+      "summary": "Main exported component. Computes column layout for overlapping appointments, calculates slot heights based on time range, and delegates rendering to AppointmentCell. Falls back to a clickable empty cell when no appointments start at this time.",
+      "isExported": true,
+      "isDefault": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "TimeSlot"
+    },
+    {
+      "id": "fn:UpdateBanner",
+      "type": "function",
+      "path": "components/UpdateBanner.tsx",
+      "label": "UpdateBanner",
+      "startLine": 8,
+      "endLine": 81,
+      "params": [],
+      "summary": "React component that sets up a 60-second polling interval to compare buildId from /api/version and shows a dismissible update banner when a new version is detected.",
+      "isExported": true,
+      "isDefault": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "UpdateBanner"
+    },
+    {
+      "id": "fn:AgendeManager",
+      "type": "function",
+      "path": "components/settings/AgendeManager.tsx",
+      "label": "AgendeManager",
+      "startLine": 12,
+      "endLine": 261,
+      "params": [],
+      "summary": "Settings component managing persona-sede agenda associations. Fetches and joins data from three APIs (/api/persona-sede, /api/persone, /api/sedi), renders a table, and provides modal-driven create/delete operations.",
+      "isExported": true,
+      "isDefault": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "AgendeManager"
+    },
+    {
+      "id": "fn:NotificheManager",
+      "type": "function",
+      "path": "components/settings/NotificheManager.tsx",
+      "label": "NotificheManager",
+      "startLine": 14,
+      "endLine": 202,
+      "params": [],
+      "summary": "Settings component for notification management. Displays a hardcoded list of past notifications with type-based icons and colors, plus a modal form for composing new ones (send is stubbed).",
+      "isExported": true,
+      "isDefault": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "NotificheManager"
+    },
+    {
+      "id": "fn:PersoneManager",
+      "type": "function",
+      "path": "components/settings/PersoneManager.tsx",
+      "label": "PersoneManager",
+      "startLine": 7,
+      "endLine": 229,
+      "params": [],
+      "summary": "Settings component for CRUD operations on Persona records. Distinguishes create vs. update mode by checking editingPersona state, calls appropriate HTTP method on /api/persone or /api/persone/:id.",
+      "isExported": true,
+      "isDefault": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "PersoneManager"
+    },
+    {
+      "id": "fn:SediManager",
+      "type": "function",
+      "path": "components/settings/SediManager.tsx",
+      "label": "SediManager",
+      "startLine": 7,
+      "endLine": 249,
+      "params": [],
+      "summary": "Settings component for CRUD operations on Sede records. Includes detailed error parsing from API responses and debug logging. Calls /api/sedi and /api/sedi/:id for all operations.",
+      "isExported": true,
+      "isDefault": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "SediManager"
+    },
+    {
+      "id": "fn:logActivity",
+      "type": "function",
+      "path": "lib/log.ts",
+      "label": "logActivity",
+      "startLine": 17,
+      "endLine": 50,
+      "params": [
+        "params: { source: LogSource; action: LogAction; descrizione: string; dettagli?: object; }"
+      ],
+      "summary": "Async function that idempotently creates the activity_log table and inserts a structured log entry. All errors are caught and logged to console to prevent disruption of the calling operation.",
+      "isExported": true,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "logActivity"
+    },
+    {
+      "id": "fn:query",
+      "type": "function",
+      "path": "lib/postgres.ts",
+      "label": "query",
+      "startLine": 22,
+      "endLine": 33,
+      "params": [
+        "text: string",
+        "params?: any[]"
+      ],
+      "summary": "Typed async query wrapper around pool.query() that logs query text, duration and row count on success, or re-throws on error.",
+      "isExported": true,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "query"
+    },
+    {
+      "id": "fn:getClient",
+      "type": "function",
+      "path": "lib/postgres.ts",
+      "label": "getClient",
+      "startLine": 36,
+      "endLine": 36,
+      "params": [],
+      "summary": "Returns a raw pg PoolClient for use in manual transactions.",
+      "isExported": true,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "getClient"
+    },
+    {
+      "id": "fn:broadcastEpasaUpdate",
+      "type": "function",
+      "path": "lib/sse.ts",
+      "label": "broadcastEpasaUpdate",
+      "startLine": 22,
+      "endLine": 28,
+      "params": [
+        "eventType: string = 'update'",
+        "data: object = {}"
+      ],
+      "summary": "Encodes and enqueues an SSE message to all connected EPASA clients. Automatically removes stale controllers that throw on enqueue.",
+      "isExported": true,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "broadcastEpasaUpdate"
+    },
+    {
+      "id": "fn:broadcastRoomUpdate",
+      "type": "function",
+      "path": "lib/sse.ts",
+      "label": "broadcastRoomUpdate",
+      "startLine": 36,
+      "endLine": 42,
+      "params": [
+        "eventType: string = 'update'",
+        "data: object = {}"
+      ],
+      "summary": "Encodes and enqueues an SSE message to all connected Sala Riunioni clients. Stale controllers are pruned after iteration.",
+      "isExported": true,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "broadcastRoomUpdate"
+    },
+    {
+      "id": "fn:broadcast730Update",
+      "type": "function",
+      "path": "lib/sse.ts",
+      "label": "broadcast730Update",
+      "startLine": 50,
+      "endLine": 56,
+      "params": [
+        "eventType: string = 'update'",
+        "data: object = {}"
+      ],
+      "summary": "Encodes and enqueues an SSE message to all connected Agenda 730 clients. Stale controllers are pruned after iteration.",
+      "isExported": true,
+      "isDefault": false,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple",
+      "name": "broadcast730Update"
+    },
+    {
+      "id": "file:next.config.js",
+      "type": "file",
+      "path": "next.config.js",
+      "language": "javascript",
+      "summary": "Minimal Next.js configuration file. Enables React strict mode. No custom webpack, redirects, or environment variable configuration — the project uses defaults for all other Next.js settings.",
+      "tags": [
+        "config",
+        "nextjs",
+        "build",
+        "react-strict-mode"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 7,
+        "nonEmptyLines": 4,
+        "exportCount": 0,
+        "importCount": 0,
+        "functionCount": 0
+      },
+      "name": "next.config.js"
+    },
+    {
+      "id": "file:postcss.config.js",
+      "type": "file",
+      "path": "postcss.config.js",
+      "language": "javascript",
+      "summary": "PostCSS configuration enabling Tailwind CSS and Autoprefixer plugins. Standard boilerplate for Next.js projects using Tailwind CSS for styling.",
+      "tags": [
+        "config",
+        "postcss",
+        "tailwind",
+        "css",
+        "build"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 7,
+        "nonEmptyLines": 6,
+        "exportCount": 0,
+        "importCount": 0,
+        "functionCount": 0
+      },
+      "name": "postcss.config.js"
+    },
+    {
+      "id": "file:tailwind.config.ts",
+      "type": "file",
+      "path": "tailwind.config.ts",
+      "language": "typescript",
+      "summary": "Tailwind CSS configuration defining content scan paths for app/, components/, and pages/ directories. Extends the default theme with Inter as the primary sans-serif font family. No custom plugins.",
+      "tags": [
+        "config",
+        "tailwind",
+        "css",
+        "typography",
+        "theme"
+      ],
+      "complexity": "simple",
+      "metrics": {
+        "totalLines": 19,
+        "nonEmptyLines": 17,
+        "exportCount": 1,
+        "importCount": 1,
+        "functionCount": 0
+      },
+      "name": "tailwind.config.ts"
+    },
+    {
+      "id": "fn:utils/dateUtils.ts::getWeekDays",
+      "type": "function",
+      "path": "utils/dateUtils.ts",
+      "name": "getWeekDays",
+      "startLine": 4,
+      "endLine": 7,
+      "params": [
+        "date"
+      ],
+      "summary": "Returns an array of 7 Date objects representing a full week (Mon–Sun) for the week containing the given date, using Monday as week start.",
+      "exported": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:utils/dateUtils.ts::formatDate",
+      "type": "function",
+      "path": "utils/dateUtils.ts",
+      "name": "formatDate",
+      "startLine": 9,
+      "endLine": 11,
+      "params": [
+        "date"
+      ],
+      "summary": "Formats a Date to ISO yyyy-MM-dd string for use as a database/API key.",
+      "exported": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:utils/dateUtils.ts::formatDateDisplay",
+      "type": "function",
+      "path": "utils/dateUtils.ts",
+      "name": "formatDateDisplay",
+      "startLine": 13,
+      "endLine": 15,
+      "params": [
+        "date"
+      ],
+      "summary": "Formats a Date to Italian locale display string (e.g. 'lunedì 23/03') for calendar headers.",
+      "exported": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:utils/dateUtils.ts::getTimeSlotsForSede",
+      "type": "function",
+      "path": "utils/dateUtils.ts",
+      "name": "getTimeSlotsForSede",
+      "startLine": 124,
+      "endLine": 145,
+      "params": [
+        "nomeSedeOrId",
+        "date?",
+        "agendaId?"
+      ],
+      "summary": "Returns the correct start-time slot array for a given location name/id, date, and optional agenda context. Handles Imola (LMM/Thu/Fri splits), Borgo/CSPT (weekday-only), and special Saturday exception slots for Agenda 730.",
+      "exported": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:utils/dateUtils.ts::getEndTimeSlotsForSede",
+      "type": "function",
+      "path": "utils/dateUtils.ts",
+      "name": "getEndTimeSlotsForSede",
+      "startLine": 147,
+      "endLine": 168,
+      "params": [
+        "nomeSedeOrId",
+        "date?",
+        "agendaId?"
+      ],
+      "summary": "Returns the correct end-time slot array for a given location, mirroring getTimeSlotsForSede but including the closing slot (e.g. 18:00 or 12:30).",
+      "exported": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "fn:utils/dateUtils.ts::isSedeWorkingDay",
+      "type": "function",
+      "path": "utils/dateUtils.ts",
+      "name": "isSedeWorkingDay",
+      "startLine": 174,
+      "endLine": 193,
+      "params": [
+        "nomeSedeOrId",
+        "date",
+        "agendaId?",
+        "_personaNome?"
+      ],
+      "summary": "Determines whether a given date is a working day for a sede. Normally Mon–Fri only; for Agenda 730 allows the three exceptional Saturdays defined in SABATI_730_ECCEZIONE.",
+      "exported": true,
+      "tags": [
+        "untagged"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:app/admin/query/page.tsx",
+      "target": "fn:app/admin/query/page.tsx:QueryPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/admin/tables/page.tsx",
+      "target": "fn:app/admin/tables/page.tsx:TablesPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "target": "fn:app/api/admin/blocca-fino-aprile/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "target": "fn:app/api/admin/blocca-maggio-dicembre/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "target": "fn:app/api/admin/blocca-maggio-dicembre/route.ts:deveEssereBloccato",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/admin/query/route.ts",
+      "target": "fn:app/api/admin/query/route.ts:POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/admin/tables/[table]/route.ts",
+      "target": "fn:app/api/admin/tables/[table]/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/admin/tables/route.ts",
+      "target": "fn:app/api/admin/tables/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/admin/query/page.tsx",
+      "target": "fn:app/admin/query/page.tsx:QueryPage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/admin/tables/page.tsx",
+      "target": "fn:app/admin/tables/page.tsx:TablesPage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "target": "fn:app/api/admin/blocca-fino-aprile/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "target": "fn:app/api/admin/blocca-maggio-dicembre/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/admin/query/route.ts",
+      "target": "fn:app/api/admin/query/route.ts:POST",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/admin/tables/[table]/route.ts",
+      "target": "fn:app/api/admin/tables/[table]/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/admin/tables/route.ts",
+      "target": "fn:app/api/admin/tables/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "target": "file:utils/dateUtils.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "target": "file:utils/dateUtils.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/admin/query/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/admin/tables/[table]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/admin/tables/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/agenda/[id]/page.tsx",
+      "target": "file:components/Calendar.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/agenda/[id]/page.tsx",
+      "target": "file:components/RoomCalendar.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/agenda/[id]/page.tsx",
+      "target": "file:components/EpasaCalendar.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/admin/query/page.tsx",
+      "target": "file:app/api/admin/query/route.ts",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/admin/tables/page.tsx",
+      "target": "file:app/api/admin/tables/route.ts",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/admin/tables/page.tsx",
+      "target": "file:app/api/admin/tables/[table]/route.ts",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/api/agende/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/agende/route.ts",
+      "target": "fn:app/api/agende/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/agende/route.ts",
+      "target": "fn:app/api/agende/route.ts::POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/agende/route.ts",
+      "target": "fn:app/api/agende/route.ts::PUT",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/appuntamenti/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/appuntamenti/[id]/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/appuntamenti/[id]/route.ts::PUT",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/appuntamenti/[id]/route.ts::DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/appuntamenti/events/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/appuntamenti/events/route.ts",
+      "target": "fn:app/api/appuntamenti/events/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/appuntamenti/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/appuntamenti/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/appuntamenti/route.ts",
+      "target": "fn:app/api/appuntamenti/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/appuntamenti/route.ts",
+      "target": "fn:app/api/appuntamenti/route.ts::POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/cronologia/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/cronologia/route.ts",
+      "target": "fn:app/api/cronologia/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "file:lib/log.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/epasa/appuntamenti/[id]/route.ts::normalizeApt",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/epasa/appuntamenti/[id]/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/epasa/appuntamenti/[id]/route.ts::PUT",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/epasa/appuntamenti/[id]/route.ts::DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "fn:app/api/epasa/appuntamenti/[id]/route.ts::GET",
+      "target": "fn:app/api/epasa/appuntamenti/[id]/route.ts::normalizeApt",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "fn:app/api/epasa/appuntamenti/[id]/route.ts::PUT",
+      "target": "fn:app/api/epasa/appuntamenti/[id]/route.ts::normalizeApt",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/route.ts",
+      "target": "file:lib/log.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/route.ts",
+      "target": "fn:app/api/epasa/appuntamenti/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/appuntamenti/route.ts",
+      "target": "fn:app/api/epasa/appuntamenti/route.ts::POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/events/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/events/route.ts",
+      "target": "fn:app/api/epasa/events/route.ts::GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "target": "fn:app/api/epasa/giorni-chiusi/[id]/route.ts::DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "target": "fn:app/api/epasa/giorni-chiusi/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "target": "fn:app/api/epasa/giorni-chiusi/route.ts:POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "target": "fn:app/api/epasa/giorni-chiusi/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "target": "fn:app/api/epasa/giorni-chiusi/route.ts:POST",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/operatori/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/operatori/route.ts",
+      "target": "fn:app/api/epasa/operatori/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/operatori/route.ts",
+      "target": "fn:app/api/epasa/operatori/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/sedi/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/sedi/[id]/route.ts",
+      "target": "fn:app/api/epasa/sedi/[id]/route.ts:PUT",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/sedi/[id]/route.ts",
+      "target": "fn:app/api/epasa/sedi/[id]/route.ts:DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/sedi/[id]/route.ts",
+      "target": "fn:app/api/epasa/sedi/[id]/route.ts:PUT",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/sedi/[id]/route.ts",
+      "target": "fn:app/api/epasa/sedi/[id]/route.ts:DELETE",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/epasa/sedi/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/epasa/sedi/route.ts",
+      "target": "fn:app/api/epasa/sedi/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/epasa/sedi/route.ts",
+      "target": "fn:app/api/epasa/sedi/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persona-sede/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/persona-sede/[id]/route.ts",
+      "target": "fn:app/api/persona-sede/[id]/route.ts:DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persona-sede/[id]/route.ts",
+      "target": "fn:app/api/persona-sede/[id]/route.ts:DELETE",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persona-sede/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/persona-sede/route.ts",
+      "target": "fn:app/api/persona-sede/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persona-sede/route.ts",
+      "target": "fn:app/api/persona-sede/route.ts:POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persona-sede/route.ts",
+      "target": "fn:app/api/persona-sede/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persona-sede/route.ts",
+      "target": "fn:app/api/persona-sede/route.ts:POST",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persone/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/persone/[id]/route.ts",
+      "target": "fn:app/api/persone/[id]/route.ts:PUT",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persone/[id]/route.ts",
+      "target": "fn:app/api/persone/[id]/route.ts:DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persone/[id]/route.ts",
+      "target": "fn:app/api/persone/[id]/route.ts:PUT",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persone/[id]/route.ts",
+      "target": "fn:app/api/persone/[id]/route.ts:DELETE",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persone/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/persone/route.ts",
+      "target": "fn:app/api/persone/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persone/route.ts",
+      "target": "fn:app/api/persone/route.ts:POST",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/persone/route.ts",
+      "target": "fn:app/api/persone/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/persone/route.ts",
+      "target": "fn:app/api/persone/route.ts:POST",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "file:lib/log.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/room-appuntamenti/[id]/route.ts:GET",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/room-appuntamenti/[id]/route.ts:PUT",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/room-appuntamenti/[id]/route.ts:DELETE",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/room-appuntamenti/[id]/route.ts:GET",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/room-appuntamenti/[id]/route.ts:PUT",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "target": "fn:app/api/room-appuntamenti/[id]/route.ts:DELETE",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/events/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "file:lib/sse.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "file:lib/log.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-sale/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/sedi/[id]/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/sedi/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/statistiche/730/route.ts",
+      "target": "file:lib/postgres.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/statistiche/730/route.ts",
+      "target": "file:utils/dateUtils.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/impostazioni/agende/page.tsx",
+      "target": "file:components/settings/AgendeManager.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/events/route.ts",
+      "target": "fn:app/api/room-appuntamenti/events/route.ts:GET",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "fn:app/api/room-appuntamenti/route.ts:GET",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "fn:app/api/room-appuntamenti/route.ts:POST",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-sale/route.ts",
+      "target": "fn:app/api/room-sale/route.ts:GET",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-sale/route.ts",
+      "target": "fn:app/api/room-sale/route.ts:POST",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/sedi/route.ts",
+      "target": "fn:app/api/sedi/route.ts:GET",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/sedi/route.ts",
+      "target": "fn:app/api/sedi/route.ts:POST",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/statistiche/730/route.ts",
+      "target": "fn:app/api/statistiche/730/route.ts:GET",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/version/route.ts",
+      "target": "fn:app/api/version/route.ts:GET",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/cronologia/page.tsx",
+      "target": "fn:app/cronologia/page.tsx:CronologiaInner",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/cronologia/page.tsx",
+      "target": "fn:app/cronologia/page.tsx:formatDateGroup",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/cronologia/page.tsx",
+      "target": "fn:app/cronologia/page.tsx:groupByDate",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/cronologia/page.tsx",
+      "target": "fn:app/cronologia/page.tsx:getPaginationItems",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/cronologia/page.tsx",
+      "target": "fn:app/cronologia/page.tsx:loadLogs",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/events/route.ts",
+      "target": "fn:app/api/room-appuntamenti/events/route.ts:GET",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "fn:app/api/room-appuntamenti/route.ts:GET",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-appuntamenti/route.ts",
+      "target": "fn:app/api/room-appuntamenti/route.ts:POST",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-sale/route.ts",
+      "target": "fn:app/api/room-sale/route.ts:GET",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/room-sale/route.ts",
+      "target": "fn:app/api/room-sale/route.ts:POST",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/sedi/route.ts",
+      "target": "fn:app/api/sedi/route.ts:GET",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/sedi/route.ts",
+      "target": "fn:app/api/sedi/route.ts:POST",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/statistiche/730/route.ts",
+      "target": "fn:app/api/statistiche/730/route.ts:GET",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:app/api/version/route.ts",
+      "target": "fn:app/api/version/route.ts:GET",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "file:lib/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "Persona",
+          "Sede",
+          "PersonaSede",
+          "Appuntamento"
+        ],
+        "line": 15
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "file:utils/dateUtils.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "TIME_SLOTS",
+          "END_TIME_SLOTS"
+        ],
+        "line": 16
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "file:lib/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "Appuntamento",
+          "Persona",
+          "Sede",
+          "PersonaSede"
+        ],
+        "line": 38
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "file:utils/dateUtils.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "formatDate",
+          "getTimeSlotsForSede",
+          "getEndTimeSlotsForSede",
+          "isSedeWorkingDay",
+          "TIME_SLOTS",
+          "SABATI_730_ECCEZIONE"
+        ],
+        "line": 39
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "file:components/TimeSlot.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "TimeSlot"
+        ],
+        "line": 40
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "file:components/AppointmentModal.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "AppointmentModal",
+          "AppointmentModalHandle"
+        ],
+        "line": 41
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "file:components/EpasaAppointmentModal.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "EpasaAppointmentModal",
+          "HIGHLIGHT_STYLE"
+        ],
+        "line": 43
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "file:components/LoredanaView.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "LoredanaView"
+        ],
+        "line": 44
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "file:components/EpasaAppointmentModal.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "EpasaAppointmentModal",
+          "HIGHLIGHT_STYLE"
+        ],
+        "line": 19
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/OperatorePannello.tsx",
+      "target": "file:lib/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "Persona",
+          "Appuntamento",
+          "Sede",
+          "PersonaSede"
+        ],
+        "line": 11
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "file:components/RoomAppointmentModal.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "meta": {
+        "specifiers": [
+          "RoomAppointmentModal"
+        ],
+        "line": 5
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "fn:AppointmentModal.AppointmentModal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "fn:AppointmentModal.autoResize",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "fn:AppointmentModal.handleSubmit",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "fn:AppointmentModal.handleDelete",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "fn:AppointmentModal.generateCalendarDays",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.Calendar",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.isDayClosedForSede",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.scrollToDate",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.buildWindowAround",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.navigateToDate",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.loadMoreDaysForward",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.loadMoreDaysBackward",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaAppointmentModal.tsx",
+      "target": "fn:EpasaAppointmentModal.EpasaAppointmentModal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaAppointmentModal.tsx",
+      "target": "fn:EpasaAppointmentModal.autoResize",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaAppointmentModal.tsx",
+      "target": "fn:EpasaAppointmentModal.handleSubmit",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaAppointmentModal.tsx",
+      "target": "fn:EpasaAppointmentModal.handleDelete",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.EpasaCalendar",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.getTimeSlotsForSede",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.getOperatorsForSedeId",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.dateStrToLocal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.getWeekOfMonthFromFirstMonday",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.isBorgoWorkingDay",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.handleSearch",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.navigateToDate",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.isMileceTimeBlocked",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.isSedeOperatorDayClosed",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.isGiornoChiuso",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.isUffChiusoSlot",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.getRealAppointmentsCount",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.useRowHeight",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.LoredanaView",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.isBorgoWorkingDay",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.isSedeOpenOnDay",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.isGiornoChiuso",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.getAppointmentForSlot",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.handleEditModeSlotClick",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/OperatorePannello.tsx",
+      "target": "fn:OperatorePannello.OperatorePannello",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/OperatorePannello.tsx",
+      "target": "fn:OperatorePannello.renderChoose",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/OperatorePannello.tsx",
+      "target": "fn:OperatorePannello.renderDashboard",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomAppointmentModal.tsx",
+      "target": "fn:RoomAppointmentModal.RoomAppointmentModal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomAppointmentModal.tsx",
+      "target": "fn:RoomAppointmentModal.getAvailableEndTimes",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomAppointmentModal.tsx",
+      "target": "fn:RoomAppointmentModal.handleSubmit",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomAppointmentModal.tsx",
+      "target": "fn:RoomAppointmentModal.handleDelete",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomAppointmentModal.tsx",
+      "target": "fn:RoomAppointmentModal.calculateDuration",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.RoomCalendar",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.getColorForAppointment",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.getSlotSpan",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.loadData",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.processRoomData",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.handleCellClick",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.handleSaveAppointment",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.handleDeleteAppointment",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.processRoomData2",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/StatisticheModal.tsx",
+      "target": "fn:StatisticheModal.StatisticheModal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/StatisticheModal.tsx",
+      "target": "fn:StatisticheModal.getPerc",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/StatisticheModal.tsx",
+      "target": "fn:StatisticheModal.getColor",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/StatisticheModal.tsx",
+      "target": "fn:StatisticheModal.getTextColor",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/AppointmentModal.tsx",
+      "target": "fn:AppointmentModal.AppointmentModal",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "AppointmentModal"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaAppointmentModal.tsx",
+      "target": "fn:EpasaAppointmentModal.EpasaAppointmentModal",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "EpasaAppointmentModal"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/EpasaCalendar.tsx",
+      "target": "fn:EpasaCalendar.EpasaCalendar",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "EpasaCalendar"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/Calendar.tsx",
+      "target": "fn:Calendar.Calendar",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "Calendar"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/LoredanaView.tsx",
+      "target": "fn:LoredanaView.LoredanaView",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "LoredanaView"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/OperatorePannello.tsx",
+      "target": "fn:OperatorePannello.OperatorePannello",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "OperatorePannello"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomAppointmentModal.tsx",
+      "target": "fn:RoomAppointmentModal.RoomAppointmentModal",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "RoomAppointmentModal"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/RoomCalendar.tsx",
+      "target": "fn:RoomCalendar.RoomCalendar",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "RoomCalendar"
+      },
+      "direction": "forward"
+    },
+    {
+      "source": "file:components/StatisticheModal.tsx",
+      "target": "fn:StatisticheModal.StatisticheModal",
+      "type": "exports",
+      "weight": 0.8,
+      "meta": {
+        "isDefault": true,
+        "name": "StatisticheModal"
+      },
+      "direction": "forward"
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:api",
+      "name": "API Layer",
+      "description": "Next.js App Router API route handlers that process HTTP requests, perform CRUD operations against PostgreSQL, and stream Server-Sent Events for appointments, rooms, EPASA data, and admin utilities.",
+      "nodeIds": [
+        "file:app/api/admin/blocca-fino-aprile/route.ts",
+        "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+        "file:app/api/admin/query/route.ts",
+        "file:app/api/admin/tables/[table]/route.ts",
+        "file:app/api/admin/tables/route.ts",
+        "file:app/api/agende/route.ts",
+        "file:app/api/appuntamenti/[id]/route.ts",
+        "file:app/api/appuntamenti/events/route.ts",
+        "file:app/api/appuntamenti/route.ts",
+        "file:app/api/cronologia/route.ts",
+        "file:app/api/epasa/appuntamenti/[id]/route.ts",
+        "file:app/api/epasa/appuntamenti/route.ts",
+        "file:app/api/epasa/events/route.ts",
+        "file:app/api/epasa/giorni-chiusi/[id]/route.ts",
+        "file:app/api/epasa/giorni-chiusi/route.ts",
+        "file:app/api/epasa/operatori/route.ts",
+        "file:app/api/epasa/sedi/[id]/route.ts",
+        "file:app/api/epasa/sedi/route.ts",
+        "file:app/api/persona-sede/[id]/route.ts",
+        "file:app/api/persona-sede/route.ts",
+        "file:app/api/persone/[id]/route.ts",
+        "file:app/api/persone/route.ts",
+        "file:app/api/room-appuntamenti/[id]/route.ts",
+        "file:app/api/room-appuntamenti/events/route.ts",
+        "file:app/api/room-appuntamenti/route.ts",
+        "file:app/api/room-sale/route.ts",
+        "file:app/api/sedi/[id]/route.ts",
+        "file:app/api/sedi/route.ts",
+        "file:app/api/statistiche/730/route.ts",
+        "file:app/api/version/route.ts"
+      ]
+    },
+    {
+      "id": "layer:ui-pages",
+      "name": "UI Pages Layer",
+      "description": "Next.js App Router page components that render full application views including the main agenda, operator panels, settings screens, statistics, admin tools, and the root layout.",
+      "nodeIds": [
+        "file:app/admin/page.tsx",
+        "file:app/admin/query/page.tsx",
+        "file:app/admin/tables/page.tsx",
+        "file:app/agenda/[id]/page.tsx",
+        "file:app/cronologia/page.tsx",
+        "file:app/impostazioni/agende/page.tsx",
+        "file:app/impostazioni/notifiche/page.tsx",
+        "file:app/impostazioni/page.tsx",
+        "file:app/impostazioni/persone/page.tsx",
+        "file:app/impostazioni/sedi/page.tsx",
+        "file:app/layout.tsx",
+        "file:app/operatore/[id]/page.tsx",
+        "file:app/operatore/page.tsx",
+        "file:app/page.tsx",
+        "file:app/statistiche/730/page.tsx"
+      ]
+    },
+    {
+      "id": "layer:ui-components",
+      "name": "UI Component Layer",
+      "description": "Reusable React components that implement the calendar views, appointment modals, operator panels, room booking UI, statistics dialogs, and settings management forms used across multiple pages.",
+      "nodeIds": [
+        "file:components/AppointmentModal.tsx",
+        "file:components/Calendar.tsx",
+        "file:components/EpasaAppointmentModal.tsx",
+        "file:components/EpasaCalendar.tsx",
+        "file:components/LoredanaView.tsx",
+        "file:components/OperatorePannello.tsx",
+        "file:components/RoomAppointmentModal.tsx",
+        "file:components/RoomCalendar.tsx",
+        "file:components/StatisticheModal.tsx",
+        "file:components/TimeSlot.tsx",
+        "file:components/UpdateBanner.tsx",
+        "file:components/settings/AgendeManager.tsx",
+        "file:components/settings/NotificheManager.tsx",
+        "file:components/settings/PersoneManager.tsx",
+        "file:components/settings/SediManager.tsx"
+      ]
+    },
+    {
+      "id": "layer:infrastructure",
+      "name": "Infrastructure Layer",
+      "description": "Backend infrastructure modules providing the PostgreSQL database client, Server-Sent Events helper, structured logging, and shared TypeScript type definitions used by API route handlers.",
+      "nodeIds": [
+        "file:lib/log.ts",
+        "file:lib/postgres.ts",
+        "file:lib/sse.ts",
+        "file:lib/types.ts"
+      ]
+    },
+    {
+      "id": "layer:utility",
+      "name": "Utility Layer",
+      "description": "Frontend utility functions for date formatting and manipulation shared across calendar components and UI pages.",
+      "nodeIds": [
+        "file:utils/dateUtils.ts"
+      ]
+    },
+    {
+      "id": "layer:config",
+      "name": "Config Layer",
+      "description": "Project-level configuration files for Next.js build settings, PostCSS processing pipeline, and Tailwind CSS theme customization.",
+      "nodeIds": [
+        "file:next.config.js",
+        "file:postcss.config.js",
+        "file:tailwind.config.ts"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Domain Types — The Core Model",
+      "description": "lib/types.ts is the shared vocabulary of the entire application. It defines the 6 core interfaces — Appuntamento, Operatore, Sede, Agenda, RoomAppuntamento, and EpasaAppuntamento — that flow through every layer from API routes to UI components. Despite having a fan-in of only 3 direct graph edges (the graph captures explicit imports), virtually every meaningful file in the project depends on these shapes. Reading this file first gives you a mental model of the domain before touching any logic.",
+      "nodeIds": [
+        "file:lib/types.ts"
+      ],
+      "languageLesson": "TypeScript interfaces are used here as pure data contracts with no runtime cost. Notice how discriminated unions and optional fields encode business rules (e.g. nullable operator slots) directly in the type system."
+    },
+    {
+      "order": 2,
+      "title": "Date Utilities — Sede-Aware Time Slots",
+      "description": "utils/dateUtils.ts is the second most-imported utility (fan-in: 5) and encodes scheduling rules that are invisible from the UI. It computes available time slots differently per office location (sede), and contains a special Saturday exception for the '730' tax-declaration domain. Understanding these rules is essential before reading any calendar component, because slot availability is pre-computed here rather than inside the components.",
+      "nodeIds": [
+        "file:utils/dateUtils.ts"
+      ],
+      "languageLesson": "The file demonstrates a common pattern: pure functions that accept configuration parameters (sede, domain type) and return derived data, keeping business logic out of React components and making it independently testable."
+    },
+    {
+      "order": 3,
+      "title": "Database Layer — The Single Query Gateway",
+      "description": "lib/postgres.ts is the most depended-on file in the entire codebase with a fan-in of 26 — every single API route calls through it. It exposes a single query() function that wraps the pg client, providing a unified point for connection pooling, error handling, and logging. This centralisation means that all database access patterns, credentials, and retry logic live in one place rather than being scattered across dozens of routes.",
+      "nodeIds": [
+        "file:lib/postgres.ts"
+      ],
+      "languageLesson": "A thin database adapter like this is a classic application of the Facade pattern: it hides pg-driver specifics behind a stable interface, so changing the underlying driver or adding connection pooling only requires changes in one file."
+    },
+    {
+      "order": 4,
+      "title": "Logging & Real-Time SSE Infrastructure",
+      "description": "lib/log.ts provides structured logging used throughout the API layer. lib/sse.ts is the real-time backbone of the app: it manages three named Server-Sent Event channels (one each for EPASA, Room, and 730 appointments) so that when any client writes a new appointment the other connected browsers update immediately without polling. SSE was chosen over WebSockets because it is unidirectional (server-to-client) and works natively through Next.js API routes without a separate WebSocket server.",
+      "nodeIds": [
+        "file:lib/log.ts",
+        "file:lib/sse.ts"
+      ],
+      "languageLesson": "SSE channels are implemented as in-memory sets of Response writers. Each GET /events route registers a new writer; POST routes that mutate data call broadcast() on the matching channel. This is a stateful server pattern that requires the Node process to stay alive — important to understand for deployment."
+    },
+    {
+      "order": 5,
+      "title": "App Entry — Root Layout and Main Page",
+      "description": "app/layout.tsx is the Next.js root layout that wraps every page with shared providers, fonts, and the UpdateBanner component. app/page.tsx is the home screen which lists available agendas and routes the user to app/agenda/[id]/page.tsx — the dispatcher that selects between three calendar views (Calendar, EpasaCalendar, or RoomCalendar) based on agenda ID. This page acts as the single entry point for all three appointment domains.",
+      "nodeIds": [
+        "file:app/layout.tsx",
+        "file:app/page.tsx",
+        "file:app/agenda/[id]/page.tsx"
+      ],
+      "languageLesson": "app/agenda/[id]/page.tsx is a classic dynamic route dispatcher in Next.js App Router. The [id] segment is passed as a prop and used to select the correct sub-component, avoiding duplicated routing logic across three separate routes."
+    },
+    {
+      "order": 6,
+      "title": "Core API Layer — Appuntamenti, Agende, and Persone",
+      "description": "The API routes under app/api/appuntamenti/ implement full CRUD for the primary '730' appointment domain, including a /events route that feeds the SSE channel. app/api/agende/route.ts and app/api/persone/route.ts handle the master-data entities (agendas and people) that appointments reference. All routes follow the same pattern: validate input, call postgres.query(), optionally broadcast via sse, and return JSON — keeping each route file short and uniform.",
+      "nodeIds": [
+        "file:app/api/appuntamenti/route.ts",
+        "file:app/api/appuntamenti/[id]/route.ts",
+        "file:app/api/appuntamenti/events/route.ts",
+        "file:app/api/agende/route.ts",
+        "file:app/api/persone/route.ts"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Main Calendar Component — The 730 Domain UI",
+      "description": "components/Calendar.tsx is 1062 lines and has the highest fan-out among components (12 outgoing edges). It manages the full appointment booking UI for the '730' tax-declaration domain: it fetches slots from dateUtils, renders a weekly grid, handles create/edit/delete via AppointmentModal, and listens to the SSE /events stream for live updates from other users. components/AppointmentModal.tsx handles the form for creating and editing individual appointments.",
+      "nodeIds": [
+        "file:components/Calendar.tsx",
+        "file:components/AppointmentModal.tsx"
+      ],
+      "languageLesson": "Calendar.tsx demonstrates the 'fat component' pattern common in large React apps: it owns all local state for the week view, derives display data via useMemo, and delegates mutation concerns to the modal. The SSE subscription is set up in a useEffect with proper cleanup to avoid memory leaks."
+    },
+    {
+      "order": 8,
+      "title": "EPASA Domain — Operators and Closed Days",
+      "description": "The EPASA domain is a parallel appointment system for operator scheduling, entirely separate from '730'. components/EpasaCalendar.tsx (1204 lines, fan-out: 16) is the most structurally complex file in the project. Its API layer includes dedicated routes for operators, office locations, appointments, and giorni-chiusi (closed days). EpasaAppointmentModal.tsx handles the EPASA-specific booking form with operator assignment logic.",
+      "nodeIds": [
+        "file:components/EpasaCalendar.tsx",
+        "file:components/EpasaAppointmentModal.tsx",
+        "file:app/api/epasa/appuntamenti/route.ts",
+        "file:app/api/epasa/giorni-chiusi/route.ts",
+        "file:app/api/epasa/operatori/route.ts"
+      ],
+      "languageLesson": "The EPASA domain replicates the same architectural patterns as the 730 domain (SSE channel, modal, CRUD routes) but with an additional closed-days dimension. This intentional duplication rather than abstraction reflects a domain decision: the two appointment types have divergent business rules that would make a shared abstraction brittle."
+    },
+    {
+      "order": 9,
+      "title": "Room Booking — RoomCalendar and RoomAppointmentModal",
+      "description": "The third appointment domain handles room reservations. components/RoomCalendar.tsx (fan-out: 11) and components/RoomAppointmentModal.tsx together provide a room-booking UI distinct from both Calendar and EpasaCalendar. The API routes under app/api/room-appuntamenti/ and app/api/room-sale/ back this domain with their own SSE channel. app/api/room-appuntamenti/[id]/route.ts has a fan-out of 9, making it the most complex single API route in the project.",
+      "nodeIds": [
+        "file:components/RoomCalendar.tsx",
+        "file:components/RoomAppointmentModal.tsx",
+        "file:app/api/room-appuntamenti/route.ts",
+        "file:app/api/room-appuntamenti/[id]/route.ts",
+        "file:app/api/room-sale/route.ts"
+      ]
+    },
+    {
+      "order": 10,
+      "title": "Settings — Managing Agendas, People, and Offices",
+      "description": "The settings section is composed of four manager components under components/settings/: AgendeManager, PersoneManager, SediManager, and NotificheManager. Each is a self-contained CRUD UI for one master-data entity, backed by the corresponding API routes. The top-level app/impostazioni/page.tsx acts as a hub that links to sub-pages for each manager. components/UpdateBanner.tsx is also initialized in the layout and polls /api/version to detect new deployments and prompt a page reload.",
+      "nodeIds": [
+        "file:components/settings/AgendeManager.tsx",
+        "file:components/settings/PersoneManager.tsx",
+        "file:components/settings/SediManager.tsx",
+        "file:components/settings/NotificheManager.tsx",
+        "file:components/UpdateBanner.tsx"
+      ],
+      "languageLesson": "Each manager component follows the same contract: fetch list on mount, render a table with inline edit/delete, and provide a creation form. Extracting these into components/settings/ rather than co-locating them with pages keeps page files thin and the component folder scannable."
+    },
+    {
+      "order": 11,
+      "title": "Admin Tools — SQL Runner and Bulk Operations",
+      "description": "The admin section provides escape hatches for power users. app/admin/page.tsx links to a free-form SQL query runner (app/admin/query/page.tsx) and a table browser (app/admin/tables/page.tsx), both backed by API routes that execute queries directly on the database. The two bulk-operation routes — app/api/admin/blocca-fino-aprile/route.ts and app/api/admin/blocca-maggio-dicembre/route.ts — are one-shot endpoints that mass-insert 'UFF CHIUSO' blocks across all operator/location pairs for configurable date ranges.",
+      "nodeIds": [
+        "file:app/admin/page.tsx",
+        "file:app/admin/query/page.tsx",
+        "file:app/admin/tables/page.tsx",
+        "file:app/api/admin/blocca-fino-aprile/route.ts",
+        "file:app/api/admin/blocca-maggio-dicembre/route.ts"
+      ],
+      "languageLesson": "The bulk-block routes are idempotent by design: they check for existing appointments before inserting, so re-running them is safe. This is a good pattern for administrative operations that may need to be re-applied after data corrections."
+    },
+    {
+      "order": 12,
+      "title": "Statistics & History — The 730 Reporting Layer",
+      "description": "app/statistiche/730/page.tsx and app/api/statistiche/730/route.ts provide aggregate statistics for the 730 domain, visualised through components/StatisticheModal.tsx which uses percentage and color-coding helpers. app/cronologia/page.tsx presents a paginated, date-grouped audit log of appointment history, backed by app/api/cronologia/route.ts. These two pages represent the read-only reporting tier of the application — they consume data but never mutate it.",
+      "nodeIds": [
+        "file:app/statistiche/730/page.tsx",
+        "file:app/api/statistiche/730/route.ts",
+        "file:components/StatisticheModal.tsx",
+        "file:app/cronologia/page.tsx",
+        "file:app/api/cronologia/route.ts"
+      ]
+    }
+  ]
+}

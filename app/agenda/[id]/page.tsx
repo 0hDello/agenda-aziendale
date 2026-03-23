@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Calendar from '@/components/Calendar';
 import RoomCalendar from '@/components/RoomCalendar';
 import EpasaCalendar from '@/components/EpasaCalendar';
+import AudioMedicalCalendar from '@/components/AudioMedicalCalendar';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -18,6 +19,14 @@ export default function AgendaPage({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-gray-50">
         <RoomCalendar agendaId={id} />
+      </div>
+    );
+  }
+
+  if (id === 'audio-medical') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <AudioMedicalCalendar />
       </div>
     );
   }

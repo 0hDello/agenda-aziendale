@@ -1,0 +1,2207 @@
+{
+  "dirGroups": {
+    "app": [
+      "file:app/admin/page.tsx",
+      "file:app/admin/query/page.tsx",
+      "file:app/admin/tables/page.tsx",
+      "file:app/agenda/[id]/page.tsx",
+      "func:app/admin/query/page.tsx:QueryPage",
+      "func:app/admin/tables/page.tsx:TablesPage",
+      "file:app/cronologia/page.tsx",
+      "file:app/impostazioni/agende/page.tsx",
+      "func:app/cronologia/page.tsx:CronologiaInner",
+      "func:app/cronologia/page.tsx:formatDateGroup",
+      "func:app/cronologia/page.tsx:groupByDate",
+      "func:app/cronologia/page.tsx:getPaginationItems",
+      "func:app/cronologia/page.tsx:loadLogs"
+    ],
+    "app/api": [
+      "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "file:app/api/admin/query/route.ts",
+      "file:app/api/admin/tables/[table]/route.ts",
+      "file:app/api/admin/tables/route.ts",
+      "func:app/api/admin/blocca-fino-aprile/route.ts:GET",
+      "func:app/api/admin/blocca-maggio-dicembre/route.ts:GET",
+      "func:app/api/admin/blocca-maggio-dicembre/route.ts:deveEssereBloccato",
+      "func:app/api/admin/query/route.ts:POST",
+      "func:app/api/admin/tables/[table]/route.ts:GET",
+      "func:app/api/admin/tables/route.ts:GET",
+      "file:app/api/agende/route.ts",
+      "func:app/api/agende/route.ts::GET",
+      "func:app/api/agende/route.ts::POST",
+      "func:app/api/agende/route.ts::PUT",
+      "file:app/api/appuntamenti/[id]/route.ts",
+      "func:app/api/appuntamenti/[id]/route.ts::PUT",
+      "func:app/api/appuntamenti/[id]/route.ts::DELETE",
+      "file:app/api/appuntamenti/events/route.ts",
+      "func:app/api/appuntamenti/events/route.ts::GET",
+      "file:app/api/appuntamenti/route.ts",
+      "func:app/api/appuntamenti/route.ts::GET",
+      "func:app/api/appuntamenti/route.ts::POST",
+      "file:app/api/cronologia/route.ts",
+      "func:app/api/cronologia/route.ts::GET",
+      "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "func:app/api/epasa/appuntamenti/[id]/route.ts::normalizeApt",
+      "func:app/api/epasa/appuntamenti/[id]/route.ts::GET",
+      "func:app/api/epasa/appuntamenti/[id]/route.ts::PUT",
+      "func:app/api/epasa/appuntamenti/[id]/route.ts::DELETE",
+      "file:app/api/epasa/appuntamenti/route.ts",
+      "func:app/api/epasa/appuntamenti/route.ts::GET",
+      "func:app/api/epasa/appuntamenti/route.ts::POST",
+      "file:app/api/epasa/events/route.ts",
+      "func:app/api/epasa/events/route.ts::GET",
+      "file:app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "func:app/api/epasa/giorni-chiusi/[id]/route.ts::DELETE",
+      "file:app/api/epasa/giorni-chiusi/route.ts",
+      "file:app/api/epasa/operatori/route.ts",
+      "file:app/api/epasa/sedi/[id]/route.ts",
+      "file:app/api/epasa/sedi/route.ts",
+      "file:app/api/persona-sede/[id]/route.ts",
+      "file:app/api/persona-sede/route.ts",
+      "file:app/api/persone/[id]/route.ts",
+      "file:app/api/persone/route.ts",
+      "file:app/api/room-appuntamenti/[id]/route.ts",
+      "file:app/api/room-appuntamenti/events/route.ts",
+      "file:app/api/room-appuntamenti/route.ts",
+      "file:app/api/room-sale/route.ts",
+      "file:app/api/sedi/[id]/route.ts",
+      "file:app/api/sedi/route.ts",
+      "file:app/api/statistiche/730/route.ts",
+      "file:app/api/version/route.ts",
+      "func:app/api/room-appuntamenti/events/route.ts:GET",
+      "func:app/api/room-appuntamenti/route.ts:GET",
+      "func:app/api/room-appuntamenti/route.ts:POST",
+      "func:app/api/room-sale/route.ts:GET",
+      "func:app/api/room-sale/route.ts:POST",
+      "func:app/api/sedi/route.ts:GET",
+      "func:app/api/sedi/route.ts:POST",
+      "func:app/api/statistiche/730/route.ts:GET",
+      "func:app/api/version/route.ts:GET"
+    ]
+  },
+  "dirFanOut": {
+    "app": 16,
+    "app/api": 123
+  },
+  "dirFanIn": {
+    "app": 9,
+    "app/api": 51
+  },
+  "interGroupFrequency": {
+    "app/api -> unknown": 75,
+    "app -> unknown": 4,
+    "app -> app/api": 3
+  },
+  "intraGroupDensity": {
+    "app": {
+      "edges": 9,
+      "density": 0.057692307692307696
+    },
+    "app/api": {
+      "edges": 48,
+      "density": 0.01269169751454257
+    }
+  },
+  "dirPatterns": {
+    "app": "ui",
+    "app/api": "api"
+  },
+  "dependencyDirection": [
+    [
+      "app/api -> unknown",
+      75
+    ],
+    [
+      "app -> unknown",
+      4
+    ],
+    [
+      "app -> app/api",
+      3
+    ]
+  ],
+  "fileMetrics": [
+    {
+      "id": "file:app/admin/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "component",
+        "entry-point",
+        "api-handler"
+      ]
+    },
+    {
+      "id": "file:app/admin/query/page.tsx",
+      "fanOut": 3,
+      "fanIn": 0,
+      "tags": [
+        "component",
+        "api-handler",
+        "utility"
+      ]
+    },
+    {
+      "id": "file:app/admin/tables/page.tsx",
+      "fanOut": 4,
+      "fanIn": 0,
+      "tags": [
+        "component",
+        "api-handler",
+        "utility"
+      ]
+    },
+    {
+      "id": "file:app/agenda/[id]/page.tsx",
+      "fanOut": 3,
+      "fanIn": 0,
+      "tags": [
+        "component",
+        "entry-point",
+        "event-handler"
+      ]
+    },
+    {
+      "id": "file:app/api/admin/blocca-fino-aprile/route.ts",
+      "fanOut": 4,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ]
+    },
+    {
+      "id": "file:app/api/admin/blocca-maggio-dicembre/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ]
+    },
+    {
+      "id": "file:app/api/admin/query/route.ts",
+      "fanOut": 3,
+      "fanIn": 1,
+      "tags": [
+        "api-handler",
+        "service"
+      ]
+    },
+    {
+      "id": "file:app/api/admin/tables/[table]/route.ts",
+      "fanOut": 3,
+      "fanIn": 1,
+      "tags": [
+        "api-handler",
+        "service"
+      ]
+    },
+    {
+      "id": "file:app/api/admin/tables/route.ts",
+      "fanOut": 3,
+      "fanIn": 1,
+      "tags": [
+        "api-handler",
+        "service"
+      ]
+    },
+    {
+      "id": "func:app/admin/query/page.tsx:QueryPage",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "component",
+        "api-handler"
+      ]
+    },
+    {
+      "id": "func:app/admin/tables/page.tsx:TablesPage",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "component",
+        "api-handler"
+      ]
+    },
+    {
+      "id": "func:app/api/admin/blocca-fino-aprile/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ]
+    },
+    {
+      "id": "func:app/api/admin/blocca-maggio-dicembre/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "service",
+        "utility"
+      ]
+    },
+    {
+      "id": "func:app/api/admin/blocca-maggio-dicembre/route.ts:deveEssereBloccato",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "utility",
+        "validation"
+      ]
+    },
+    {
+      "id": "func:app/api/admin/query/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "service"
+      ]
+    },
+    {
+      "id": "func:app/api/admin/tables/[table]/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "service"
+      ]
+    },
+    {
+      "id": "func:app/api/admin/tables/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "service"
+      ]
+    },
+    {
+      "id": "file:app/api/agende/route.ts",
+      "fanOut": 4,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "database",
+        "postgres",
+        "agende"
+      ]
+    },
+    {
+      "id": "func:app/api/agende/route.ts::GET",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "query",
+        "fallback"
+      ]
+    },
+    {
+      "id": "func:app/api/agende/route.ts::POST",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-post",
+        "insert",
+        "validation"
+      ]
+    },
+    {
+      "id": "func:app/api/agende/route.ts::PUT",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-put",
+        "update"
+      ]
+    },
+    {
+      "id": "file:app/api/appuntamenti/[id]/route.ts",
+      "fanOut": 4,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log",
+        "appuntamenti",
+        "730"
+      ]
+    },
+    {
+      "id": "func:app/api/appuntamenti/[id]/route.ts::PUT",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-put",
+        "update",
+        "sse",
+        "activity-log",
+        "date-normalization"
+      ]
+    },
+    {
+      "id": "func:app/api/appuntamenti/[id]/route.ts::DELETE",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-delete",
+        "delete",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "file:app/api/appuntamenti/events/route.ts",
+      "fanOut": 2,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "sse",
+        "streaming",
+        "real-time",
+        "appuntamenti",
+        "730"
+      ]
+    },
+    {
+      "id": "func:app/api/appuntamenti/events/route.ts::GET",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "sse",
+        "streaming"
+      ]
+    },
+    {
+      "id": "file:app/api/appuntamenti/route.ts",
+      "fanOut": 4,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log",
+        "appuntamenti",
+        "730"
+      ]
+    },
+    {
+      "id": "func:app/api/appuntamenti/route.ts::GET",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "query",
+        "filtering",
+        "date-normalization"
+      ]
+    },
+    {
+      "id": "func:app/api/appuntamenti/route.ts::POST",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-post",
+        "insert",
+        "validation",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "file:app/api/cronologia/route.ts",
+      "fanOut": 2,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "activity-log",
+        "cronologia",
+        "pagination",
+        "filtering",
+        "database",
+        "postgres"
+      ]
+    },
+    {
+      "id": "func:app/api/cronologia/route.ts::GET",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "pagination",
+        "filtering",
+        "ddl-on-demand"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/appuntamenti/[id]/route.ts",
+      "fanOut": 7,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "epasa",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/appuntamenti/[id]/route.ts::normalizeApt",
+      "fanOut": 0,
+      "fanIn": 3,
+      "tags": [
+        "helper",
+        "date-normalization"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/appuntamenti/[id]/route.ts::GET",
+      "fanOut": 1,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "query"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/appuntamenti/[id]/route.ts::PUT",
+      "fanOut": 1,
+      "fanIn": 1,
+      "tags": [
+        "http-put",
+        "update",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/appuntamenti/[id]/route.ts::DELETE",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-delete",
+        "delete",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/appuntamenti/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "rest",
+        "crud",
+        "epasa",
+        "database",
+        "postgres",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/appuntamenti/route.ts::GET",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "query",
+        "date-normalization"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/appuntamenti/route.ts::POST",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-post",
+        "insert",
+        "validation",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/events/route.ts",
+      "fanOut": 2,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "sse",
+        "streaming",
+        "real-time",
+        "epasa"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/events/route.ts::GET",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-get",
+        "sse",
+        "streaming"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/giorni-chiusi/[id]/route.ts",
+      "fanOut": 2,
+      "fanIn": 0,
+      "tags": [
+        "api-handler",
+        "rest",
+        "epasa",
+        "giorni-chiusi",
+        "database",
+        "postgres"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/giorni-chiusi/[id]/route.ts::DELETE",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "http-delete",
+        "delete"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/giorni-chiusi/route.ts",
+      "fanOut": 6,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "epasa",
+        "giorni-chiusi",
+        "postgresql",
+        "sse"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/giorni-chiusi/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "get",
+        "epasa",
+        "giorni-chiusi",
+        "idempotent-ddl",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/giorni-chiusi/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "post",
+        "epasa",
+        "giorni-chiusi",
+        "sse",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/operatori/route.ts",
+      "fanOut": 3,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "epasa",
+        "operatori",
+        "postgresql",
+        "read-only"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/operatori/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "get",
+        "epasa",
+        "operatori",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/sedi/[id]/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "epasa",
+        "sedi",
+        "crud",
+        "dynamic-segment"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/sedi/[id]/route.ts:PUT",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "put",
+        "sedi",
+        "update",
+        "validation",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/sedi/[id]/route.ts:DELETE",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "delete",
+        "sedi",
+        "postgresql",
+        "constraint-guard"
+      ]
+    },
+    {
+      "id": "file:app/api/epasa/sedi/route.ts",
+      "fanOut": 3,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "epasa",
+        "sedi",
+        "postgresql",
+        "read-only"
+      ]
+    },
+    {
+      "id": "func:app/api/epasa/sedi/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "get",
+        "epasa",
+        "sedi",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/persona-sede/[id]/route.ts",
+      "fanOut": 3,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "persona-sede",
+        "delete",
+        "dynamic-segment",
+        "join-table"
+      ]
+    },
+    {
+      "id": "func:app/api/persona-sede/[id]/route.ts:DELETE",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "delete",
+        "persona-sede",
+        "join-table",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/persona-sede/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "persona-sede",
+        "join-table",
+        "postgresql",
+        "uniqueness-check"
+      ]
+    },
+    {
+      "id": "func:app/api/persona-sede/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "get",
+        "persona-sede",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/persona-sede/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "post",
+        "persona-sede",
+        "duplicate-check",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/persone/[id]/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "persone",
+        "crud",
+        "dynamic-segment",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/persone/[id]/route.ts:PUT",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "put",
+        "persone",
+        "update",
+        "validation",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/persone/[id]/route.ts:DELETE",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "delete",
+        "persone",
+        "postgresql",
+        "constraint-guard"
+      ]
+    },
+    {
+      "id": "file:app/api/persone/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "persone",
+        "crud",
+        "postgresql",
+        "collection"
+      ]
+    },
+    {
+      "id": "func:app/api/persone/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "get",
+        "persone",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/persone/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "post",
+        "persone",
+        "validation",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/room-appuntamenti/[id]/route.ts",
+      "fanOut": 9,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "room-appuntamenti",
+        "crud",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "func:app/api/room-appuntamenti/[id]/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "get",
+        "room-appuntamenti",
+        "normalisation",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/room-appuntamenti/[id]/route.ts:PUT",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "put",
+        "room-appuntamenti",
+        "conflict-check",
+        "sse",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "func:app/api/room-appuntamenti/[id]/route.ts:DELETE",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "delete",
+        "room-appuntamenti",
+        "sse",
+        "activity-log",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "file:app/api/room-appuntamenti/events/route.ts",
+      "fanOut": 3,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "sse",
+        "room-appointments",
+        "real-time",
+        "next-js"
+      ]
+    },
+    {
+      "id": "file:app/api/room-appuntamenti/route.ts",
+      "fanOut": 7,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "room-appointments",
+        "postgresql",
+        "sse",
+        "logging"
+      ]
+    },
+    {
+      "id": "file:app/api/room-sale/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "rooms",
+        "postgresql",
+        "crud",
+        "next-js"
+      ]
+    },
+    {
+      "id": "file:app/api/sedi/[id]/route.ts",
+      "fanOut": 1,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "sedi",
+        "postgresql",
+        "crud",
+        "dynamic-route"
+      ]
+    },
+    {
+      "id": "file:app/api/sedi/route.ts",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "sedi",
+        "postgresql",
+        "crud",
+        "next-js"
+      ]
+    },
+    {
+      "id": "file:app/api/statistiche/730/route.ts",
+      "fanOut": 4,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "statistiche",
+        "postgresql",
+        "date-utils",
+        "analytics"
+      ]
+    },
+    {
+      "id": "file:app/api/version/route.ts",
+      "fanOut": 2,
+      "fanIn": 0,
+      "tags": [
+        "api-route",
+        "version",
+        "build-id",
+        "next-js",
+        "cache-control"
+      ]
+    },
+    {
+      "id": "file:app/cronologia/page.tsx",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "page",
+        "cronologia",
+        "activity-log",
+        "pagination",
+        "client-component"
+      ]
+    },
+    {
+      "id": "file:app/impostazioni/agende/page.tsx",
+      "fanOut": 1,
+      "fanIn": 0,
+      "tags": [
+        "page",
+        "impostazioni",
+        "agende",
+        "settings",
+        "next-js"
+      ]
+    },
+    {
+      "id": "func:app/api/room-appuntamenti/events/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "sse",
+        "readable-stream",
+        "room-events",
+        "api-handler"
+      ]
+    },
+    {
+      "id": "func:app/api/room-appuntamenti/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "postgresql",
+        "room-appointments",
+        "normalisation"
+      ]
+    },
+    {
+      "id": "func:app/api/room-appuntamenti/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "room-appointments",
+        "conflict-detection",
+        "sse",
+        "logging"
+      ]
+    },
+    {
+      "id": "func:app/api/room-sale/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "rooms",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/room-sale/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "rooms",
+        "postgresql",
+        "insert"
+      ]
+    },
+    {
+      "id": "func:app/api/sedi/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "sedi",
+        "postgresql"
+      ]
+    },
+    {
+      "id": "func:app/api/sedi/route.ts:POST",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "sedi",
+        "postgresql",
+        "insert"
+      ]
+    },
+    {
+      "id": "func:app/api/statistiche/730/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "statistiche",
+        "analytics",
+        "postgresql",
+        "date-utils"
+      ]
+    },
+    {
+      "id": "func:app/api/version/route.ts:GET",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "api-handler",
+        "version",
+        "build-id"
+      ]
+    },
+    {
+      "id": "func:app/cronologia/page.tsx:CronologiaInner",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "react-component",
+        "activity-log",
+        "pagination",
+        "filters",
+        "url-state"
+      ]
+    },
+    {
+      "id": "func:app/cronologia/page.tsx:formatDateGroup",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "date-formatting",
+        "utility",
+        "italian-locale"
+      ]
+    },
+    {
+      "id": "func:app/cronologia/page.tsx:groupByDate",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "grouping",
+        "utility",
+        "activity-log"
+      ]
+    },
+    {
+      "id": "func:app/cronologia/page.tsx:getPaginationItems",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "pagination",
+        "utility"
+      ]
+    },
+    {
+      "id": "func:app/cronologia/page.tsx:loadLogs",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "data-fetching",
+        "api-call",
+        "cronologia"
+      ]
+    },
+    {
+      "id": "file:app/impostazioni/notifiche/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/impostazioni/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/impostazioni/persone/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/impostazioni/sedi/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/layout.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/operatore/[id]/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/operatore/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:app/statistiche/730/page.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/settings/NotificheManager.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "settings",
+        "notifications",
+        "stub",
+        "ui-component",
+        "modal"
+      ]
+    },
+    {
+      "id": "file:components/settings/PersoneManager.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "settings",
+        "personas",
+        "crud",
+        "ui-component",
+        "modal"
+      ]
+    },
+    {
+      "id": "file:components/settings/SediManager.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "settings",
+        "sedi",
+        "crud",
+        "ui-component",
+        "modal"
+      ]
+    },
+    {
+      "id": "file:components/UpdateBanner.tsx",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "version-check",
+        "polling",
+        "banner",
+        "deployment",
+        "ui-component"
+      ]
+    },
+    {
+      "id": "file:lib/types.ts",
+      "fanOut": 0,
+      "fanIn": 3,
+      "tags": [
+        "types",
+        "interfaces",
+        "domain-model",
+        "shared",
+        "typescript"
+      ]
+    },
+    {
+      "id": "func:NotifichePage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:ImpostazioniPage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:PersonePage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:SediPage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RootLayout",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:OperatoreDashboard",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:isReal",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getDayCount",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:OperatoreSelezionePage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getSedi",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getTodayCnt",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:HomePage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:loadAgende",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:StatistichePage",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getPerc",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getBarColor",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getBadgeColor",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getTextColor",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getPerMese",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/AppointmentModal.tsx",
+      "fanOut": 8,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/Calendar.tsx",
+      "fanOut": 12,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/EpasaAppointmentModal.tsx",
+      "fanOut": 5,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/EpasaCalendar.tsx",
+      "fanOut": 16,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/LoredanaView.tsx",
+      "fanOut": 9,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/OperatorePannello.tsx",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/RoomAppointmentModal.tsx",
+      "fanOut": 6,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/RoomCalendar.tsx",
+      "fanOut": 11,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/StatisticheModal.tsx",
+      "fanOut": 5,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:utils/dateUtils.ts",
+      "fanOut": 0,
+      "fanIn": 5,
+      "tags": [
+        "date-utils",
+        "time-slots",
+        "business-logic",
+        "locale",
+        "sede-scheduling"
+      ]
+    },
+    {
+      "id": "file:components/TimeSlot.tsx",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "calendar",
+        "drag-and-drop",
+        "appointment-rendering",
+        "ui-component",
+        "portal"
+      ]
+    },
+    {
+      "id": "func:AppointmentModal.AppointmentModal",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:AppointmentModal.autoResize",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:AppointmentModal.handleSubmit",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:AppointmentModal.handleDelete",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:AppointmentModal.generateCalendarDays",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.Calendar",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.isDayClosedForSede",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.scrollToDate",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.buildWindowAround",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.navigateToDate",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.loadMoreDaysForward",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:Calendar.loadMoreDaysBackward",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaAppointmentModal.EpasaAppointmentModal",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaAppointmentModal.autoResize",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaAppointmentModal.handleSubmit",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaAppointmentModal.handleDelete",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.EpasaCalendar",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.getTimeSlotsForSede",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.getOperatorsForSedeId",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.dateStrToLocal",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.getWeekOfMonthFromFirstMonday",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.isBorgoWorkingDay",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.handleSearch",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.navigateToDate",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.isMileceTimeBlocked",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.isSedeOperatorDayClosed",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.isGiornoChiuso",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.isUffChiusoSlot",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:EpasaCalendar.getRealAppointmentsCount",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.useRowHeight",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.LoredanaView",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.isBorgoWorkingDay",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.isSedeOpenOnDay",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.isGiornoChiuso",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.getAppointmentForSlot",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:LoredanaView.handleEditModeSlotClick",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:OperatorePannello.OperatorePannello",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:OperatorePannello.renderChoose",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:OperatorePannello.renderDashboard",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomAppointmentModal.RoomAppointmentModal",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomAppointmentModal.getAvailableEndTimes",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomAppointmentModal.handleSubmit",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomAppointmentModal.handleDelete",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomAppointmentModal.calculateDuration",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.RoomCalendar",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.getColorForAppointment",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.getSlotSpan",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.loadData",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.processRoomData",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.handleCellClick",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.handleSaveAppointment",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.handleDeleteAppointment",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:RoomCalendar.processRoomData2",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:StatisticheModal.StatisticheModal",
+      "fanOut": 0,
+      "fanIn": 2,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:StatisticheModal.getPerc",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:StatisticheModal.getColor",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:StatisticheModal.getTextColor",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:components/settings/AgendeManager.tsx",
+      "fanOut": 0,
+      "fanIn": 1,
+      "tags": [
+        "settings",
+        "agenda-management",
+        "crud",
+        "persona-sede",
+        "ui-component"
+      ]
+    },
+    {
+      "id": "file:lib/log.ts",
+      "fanOut": 0,
+      "fanIn": 4,
+      "tags": [
+        "logging",
+        "postgresql",
+        "activity-log",
+        "server-util",
+        "types"
+      ]
+    },
+    {
+      "id": "file:lib/postgres.ts",
+      "fanOut": 0,
+      "fanIn": 26,
+      "tags": [
+        "postgresql",
+        "database",
+        "connection-pool",
+        "server-util",
+        "infrastructure"
+      ]
+    },
+    {
+      "id": "file:lib/sse.ts",
+      "fanOut": 0,
+      "fanIn": 10,
+      "tags": [
+        "sse",
+        "real-time",
+        "server-util",
+        "broadcast",
+        "infrastructure"
+      ]
+    },
+    {
+      "id": "func:AppointmentCell",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:TimeSlot",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:UpdateBanner",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:AgendeManager",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:NotificheManager",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:PersoneManager",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:SediManager",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:logActivity",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:query",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:getClient",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:broadcastEpasaUpdate",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:broadcastRoomUpdate",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:broadcast730Update",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "file:next.config.js",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "config",
+        "nextjs",
+        "build",
+        "react-strict-mode"
+      ]
+    },
+    {
+      "id": "file:postcss.config.js",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "config",
+        "postcss",
+        "tailwind",
+        "css",
+        "build"
+      ]
+    },
+    {
+      "id": "file:tailwind.config.ts",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "config",
+        "tailwind",
+        "css",
+        "typography",
+        "theme"
+      ]
+    },
+    {
+      "id": "func:utils/dateUtils.ts::getWeekDays",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:utils/dateUtils.ts::formatDate",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:utils/dateUtils.ts::formatDateDisplay",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:utils/dateUtils.ts::getTimeSlotsForSede",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:utils/dateUtils.ts::getEndTimeSlotsForSede",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    },
+    {
+      "id": "func:utils/dateUtils.ts::isSedeWorkingDay",
+      "fanOut": 0,
+      "fanIn": 0,
+      "tags": [
+        "untagged"
+      ]
+    }
+  ]
+}

@@ -11,6 +11,8 @@ declare global {
   var __roomSSEClients: Set<SSEController> | undefined;
   // eslint-disable-next-line no-var
   var __730SSEClients: Set<SSEController> | undefined;
+  // eslint-disable-next-line no-var
+  var __audioMedicalSSEClients: Set<SSEController> | undefined;
 }
 
 // ─── EPASA ────────────────────────────────────────────────────────────────────
@@ -39,6 +41,20 @@ export function broadcastRoomUpdate(eventType: string = 'update', data: object =
   const toRemove: SSEController[] = [];
   roomClients.forEach(c => { try { c.enqueue(encoded); } catch { toRemove.push(c); } });
   toRemove.forEach(c => roomClients.delete(c));
+}
+
+// ─── AUDIO MEDICAL ────────────────────────────────────────────────────────────
+if (!global.__audioMedicalSSEClients) global.__audioMedicalSSEClients = new Set();
+const audioMedicalClients = global.__audioMedicalSSEClients;
+
+export function addAudioMedicalClient(controller: SSEController) { audioMedicalClients.add(controller); }
+export function removeAudioMedicalClient(controller: SSEController) { audioMedicalClients.delete(controller); }
+export function broadcastAudioMedicalUpdate(eventType: string = 'update', data: object = {}) {
+  const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+  const encoded = new TextEncoder().encode(message);
+  const toRemove: SSEController[] = [];
+  audioMedicalClients.forEach(c => { try { c.enqueue(encoded); } catch { toRemove.push(c); } });
+  toRemove.forEach(c => audioMedicalClients.delete(c));
 }
 
 // ─── AGENDA 730 ──────────────────────────────────────────────────────────────
