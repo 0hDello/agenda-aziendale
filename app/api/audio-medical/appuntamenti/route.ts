@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 import { broadcastAudioMedicalUpdate } from '@/lib/sse';
+import { logActivity } from '@/lib/log';
 
 export async function GET() {
   try {
@@ -48,6 +49,12 @@ export async function POST(request: Request) {
           : result.rows[0].ora,
       };
       broadcastAudioMedicalUpdate('update', { action: 'create' });
+      await logActivity({
+        source: 'SCREENING',
+        action: 'CREATE',
+        descrizione: `Aggiunto appuntamento screening: ${normalized.cliente} — ${normalized.data} ${normalized.ora}`,
+        dettagli: { cliente: normalized.cliente, data: normalized.data, ora: normalized.ora, sede: normalized.sede_id, note: normalized.note },
+      });
       return NextResponse.json(normalized);
     }
 

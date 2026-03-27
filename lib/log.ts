@@ -8,7 +8,7 @@ export type LogAction = 'CREATE' | 'UPDATE' | 'DELETE';
 /**
  * Sorgenti (agenda) tracciabili
  */
-export type LogSource = 'EPASA' | 'SALA_RIUNIONI';
+export type LogSource = 'EPASA' | 'SALA_RIUNIONI' | 'SCREENING';
 
 /**
  * Scrive un record nella tabella activity_log.

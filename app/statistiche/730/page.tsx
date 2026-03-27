@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle, ArrowLeft, Calendar, Building2 } from 'lucide-react';
+import { BarChart2, User, ChevronDown, ChevronUp, TrendingUp, AlertCircle, ArrowLeft, Calendar, Building2, FileDown } from 'lucide-react';
 
 interface MeseStats {
   mese: string;
@@ -27,6 +27,30 @@ export default function StatistichePage() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selectedSede, setSelectedSede] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportConfronto = async () => {
+    setExportLoading(true);
+    try {
+      const res = await fetch('/api/statistiche/730/confronto-2025');
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Errore: ' + (err.error ?? 'Sconosciuto'));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'confronto_730_2025_2026.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Errore durante il download: ' + String(e));
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/statistiche/730')
@@ -104,7 +128,16 @@ export default function StatistichePage() {
             </div>
           </div>
           {!loading && !error && data.length > 0 && (
-            <div className="hidden md:flex items-center gap-6 bg-[#F5F8FA] border border-gray-200 rounded-xl px-5 py-3">
+            <div className="hidden md:flex items-center gap-4">
+            <button
+              onClick={handleExportConfronto}
+              disabled={exportLoading}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+            >
+              <FileDown size={16} />
+              {exportLoading ? 'Generazione...' : 'Confronto 2025 → 2026'}
+            </button>
+            <div className="flex items-center gap-6 bg-[#F5F8FA] border border-gray-200 rounded-xl px-5 py-3">
               <div className="text-center">
                 <p className="text-xs text-gray-500 font-medium">Slot totali anno</p>
                 <p className="text-2xl font-bold text-[#005CA9]">{totCapacita.toLocaleString('it')}</p>
@@ -119,6 +152,7 @@ export default function StatistichePage() {
                 <p className="text-xs text-gray-500 font-medium">Occupazione</p>
                 <p className={`text-2xl font-bold ${getTextColor(totPerc)}`}>{totPerc}%</p>
               </div>
+            </div>
             </div>
           )}
         </div>

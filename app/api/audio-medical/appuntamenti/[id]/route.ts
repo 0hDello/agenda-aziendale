@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { format } from 'date-fns';
 import { broadcastAudioMedicalUpdate } from '@/lib/sse';
+import { logActivity } from '@/lib/log';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -32,6 +33,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     };
 
     broadcastAudioMedicalUpdate('update', { action: 'update' });
+    await logActivity({
+      source: 'SCREENING',
+      action: 'UPDATE',
+      descrizione: `Modificato appuntamento screening: ${normalized.cliente} — ${normalized.data} ${normalized.ora}`,
+      dettagli: { cliente: normalized.cliente, data: normalized.data, ora: normalized.ora, sede: normalized.sede_id, note: normalized.note },
+    });
     return NextResponse.json(normalized);
   } catch (error) {
     console.error('Errore aggiornamento appuntamento Audio Medical:', error);
@@ -44,7 +51,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
 
     const result = await query(
-      'DELETE FROM audio_medical_appuntamenti WHERE id = $1 RETURNING id',
+      'DELETE FROM audio_medical_appuntamenti WHERE id = $1 RETURNING *',
       [id],
     );
 
@@ -52,7 +59,17 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'Appuntamento non trovato' }, { status: 404 });
     }
 
+    const deleted = result.rows[0];
+    const dataStr = deleted.data instanceof Date ? format(deleted.data, 'yyyy-MM-dd') : String(deleted.data).split('T')[0];
+    const oraStr  = typeof deleted.ora === 'string' ? deleted.ora.substring(0, 5) : deleted.ora;
+
     broadcastAudioMedicalUpdate('update', { action: 'delete' });
+    await logActivity({
+      source: 'SCREENING',
+      action: 'DELETE',
+      descrizione: `Eliminato appuntamento screening: ${deleted.cliente} — ${dataStr} ${oraStr}`,
+      dettagli: { cliente: deleted.cliente, data: dataStr, ora: oraStr, sede: deleted.sede_id },
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Errore eliminazione appuntamento Audio Medical:', error);
