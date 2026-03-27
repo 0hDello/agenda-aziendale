@@ -132,8 +132,8 @@ export default function RoomAppointmentModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl animate-slide-in border-t-4 border-[#005CA9] max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border-t-4 border-[#005CA9] max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <div className="bg-[#005CA9] p-2 rounded-lg">
