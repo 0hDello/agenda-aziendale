@@ -252,19 +252,27 @@ export async function GET() {
 
     // ── 2. Carica clienti 2026 dal DB ─────────────────────────────────────────
     const res = await query(`
-      SELECT DISTINCT UPPER(TRIM(cliente)) AS cliente
+      SELECT UPPER(TRIM(cliente)) AS cliente
       FROM appuntamenti
       WHERE EXTRACT(YEAR FROM data::date) = 2026
         AND cliente IS NOT NULL
         AND TRIM(cliente) <> ''
         AND UPPER(TRIM(cliente)) <> 'UFF CHIUSO'
-      ORDER BY 1
     `);
 
-    const clienti2026: { raw: string; extracted: string }[] = res.rows.map((r: any) => {
+    // Deduplicazione per nome estratto (non per stringa grezza):
+    // "ALEX SPITILLI 730 IMU TEL..." e "ALEX SPITILLI IMU 730..."
+    // estraggono entrambi "ALEX SPITILLI" → una sola voce
+    const seenExtracted = new Set<string>();
+    const clienti2026: { raw: string; extracted: string }[] = [];
+    for (const r of res.rows) {
       const raw = normalize(r.cliente);
-      return { raw, extracted: extractName(raw) };
-    });
+      const extracted = extractName(raw);
+      if (extracted && !seenExtracted.has(extracted)) {
+        seenExtracted.add(extracted);
+        clienti2026.push({ raw, extracted });
+      }
+    }
 
     // ── 3. Match ──────────────────────────────────────────────────────────────
     const presenti: { cliente_2026: string; nome_estratto: string; corrispondenza_2025: string; metodo: string }[] = [];
