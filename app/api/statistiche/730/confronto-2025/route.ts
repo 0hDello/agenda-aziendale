@@ -292,41 +292,53 @@ export async function GET() {
       else       assenti.push({ cliente_2026: c.raw, nome_estratto: c.extracted });
     }
 
-    // ── 4. Genera Excel di output ─────────────────────────────────────────────
-    const wbOut = XLSX.utils.book_new();
+    // ── 4. Trova colonna NOTE nel foglio 2025 (riga header = indice 3) ─────────
+    const headerRow2025 = (raw2025[3] || []) as any[];
+    let noteColIdx = headerRow2025.findIndex((h: any) =>
+      String(h ?? '').toUpperCase().replace(/\s+/g, '').includes('NOTE')
+    );
 
-    const ws1 = XLSX.utils.aoa_to_sheet([
-      ['Cliente 2026 (originale)', 'Nome estratto', 'Corrispondenza 2025', 'Metodo match'],
-      ...presenti.map(r => [r.cliente_2026, r.nome_estratto, r.corrispondenza_2025, r.metodo]),
-    ]);
-    ws1['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 30 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wbOut, ws1, 'Presenti 2025 e 2026');
+    if (noteColIdx === -1) {
+      // Colonna NOTE non trovata: aggiungila dopo l'ultima colonna usata
+      const sheetRange = XLSX.utils.decode_range(ws2025['!ref'] || 'A1');
+      noteColIdx = sheetRange.e.c + 1;
+      const hAddr = XLSX.utils.encode_cell({ r: 3, c: noteColIdx });
+      ws2025[hAddr] = { t: 's', v: 'NOTE 2026' };
+      sheetRange.e.c = noteColIdx;
+      ws2025['!ref'] = XLSX.utils.encode_range(sheetRange);
+    }
 
-    const ws2 = XLSX.utils.aoa_to_sheet([
+    // ── 5. Scrivi "già presente" nelle righe 2025 che hanno match nel 2026 ────
+    const matchedIn2025 = new Set(presenti.map(r => r.corrispondenza_2025));
+
+    for (let i = 4; i < raw2025.length; i++) {
+      const row = raw2025[i];
+      const cognome = String(row[7] ?? '').trim();
+      const nome    = String(row[8] ?? '').trim();
+      if (!cognome && !nome) continue;
+      const name2025 = normalize(`${cognome} ${nome}`).trim();
+      if (matchedIn2025.has(name2025)) {
+        const cellAddr = XLSX.utils.encode_cell({ r: i, c: noteColIdx });
+        ws2025[cellAddr] = { t: 's', v: 'già presente' };
+      }
+    }
+
+    // ── 6. Aggiungi foglio "Nuovi 2026" con i clienti solo nel 2026 ──────────
+    const wsNew = XLSX.utils.aoa_to_sheet([
       ['Cliente 2026 (originale)', 'Nome estratto'],
       ...assenti.map(r => [r.cliente_2026, r.nome_estratto]),
     ]);
-    ws2['!cols'] = [{ wch: 40 }, { wch: 25 }];
-    XLSX.utils.book_append_sheet(wbOut, ws2, 'Solo 2026');
+    wsNew['!cols'] = [{ wch: 45 }, { wch: 25 }];
+    XLSX.utils.book_append_sheet(wb2025, wsNew, 'Nuovi 2026');
 
-    const ws3 = XLSX.utils.aoa_to_sheet([
-      ['Riepilogo confronto 730 2025 vs 2026'],
-      [],
-      ['Clienti 2026 totali',       clienti2026.length],
-      ['Presenti anche nel 2025',   presenti.length],
-      ['Non presenti nel 2025',     assenti.length],
-      ['Percentuale ritorni', `${Math.round((presenti.length / (clienti2026.length || 1)) * 100)}%`],
-    ]);
-    ws3['!cols'] = [{ wch: 30 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wbOut, ws3, 'Riepilogo');
-
-    const buffer = XLSX.write(wbOut, { type: 'buffer', bookType: 'xlsx' });
+    // ── 7. Restituisce il file 2025 modificato ────────────────────────────────
+    const buffer = XLSX.write(wb2025, { type: 'buffer', bookType: 'xlsx' });
 
     return new NextResponse(buffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="confronto_730_2025_2026.xlsx"',
+        'Content-Disposition': 'attachment; filename="ELENCO_730_2025_aggiornato.xlsx"',
       },
     });
   } catch (error) {
