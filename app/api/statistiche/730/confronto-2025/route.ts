@@ -8,6 +8,50 @@ function normalize(name: string): string {
   return name.toUpperCase().trim().replace(/\s+/g, ' ');
 }
 
+// Parole che non fanno parte del nome/cognome nel campo cliente
+const NON_NAME_TOKENS = new Set([
+  '730', 'CAF', 'PATRONATO', 'MOD', 'MODELLO', 'DICHIARAZIONE', 'DICHIA',
+  'ISEE', 'RED', 'UNICO', 'REDDITI', 'CUD', 'CU', 'TEL', 'CEL', 'CELL',
+  'TELEF', 'TELEFONO', 'NR', 'NUM', 'VIA', 'CORSO', 'PIAZZA', 'SRL',
+  'SNC', 'SAS', 'SPA', 'ONLUS', 'CONIUGE', 'MOGLIE', 'MARITO', 'FIGLIO',
+  'FIGLIA', 'PRATICA', 'AGGIORNAMENTO', 'RINNOVO', 'NUOVO', 'NUOVA',
+]);
+
+/**
+ * Estrae solo nome e cognome dal campo cliente 2026,
+ * che può contenere note, tipo pratica, numeri, ecc.
+ * Es: "ROSSI MARIO - 730 CAF" → "ROSSI MARIO"
+ *     "ROSSI MARIO (CONIUGE)" → "ROSSI MARIO"
+ */
+function extractName(raw: string): string {
+  let s = normalize(raw);
+
+  // Rimuovi contenuto tra parentesi
+  s = s.replace(/\(.*?\)/g, ' ');
+
+  // Prendi la parte prima del primo separatore forte (" - ", " / ", "|")
+  const dashIdx = s.indexOf(' - ');
+  const slashIdx = s.indexOf('/');
+  let main = s;
+  if (dashIdx > 0) main = s.substring(0, dashIdx);
+  else if (slashIdx > 0) main = s.substring(0, slashIdx);
+
+  // Filtra: solo token puramente alfabetici (include lettere accentate italiane)
+  const isAlpha = (t: string) => /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ']+$/i.test(t) && t.length > 1;
+  const tokens = main
+    .split(/\s+/)
+    .filter(t => isAlpha(t) && !NON_NAME_TOKENS.has(t));
+
+  // Se abbiamo almeno 2 token validi dalla parte prima del separatore, usiamo quelli
+  if (tokens.length >= 2) return tokens.slice(0, 4).join(' ');
+
+  // Fallback: usa l'intera stringa (forse non c'era separatore)
+  return s
+    .split(/\s+/)
+    .filter(t => isAlpha(t) && !NON_NAME_TOKENS.has(t))
+    .slice(0, 4).join(' ');
+}
+
 function levenshtein(a: string, b: string): number {
   const m = a.length, n = b.length;
   if (Math.abs(m - n) > 4) return 999; // early exit se troppo diversi
@@ -28,17 +72,32 @@ function tokenFuzzy(t1: string, t2: string): boolean {
   return levenshtein(t1, t2) <= maxErrors;
 }
 
-function fuzzyTokenSetMatch(tokens1: string[], tokens2: string[]): boolean {
-  if (tokens1.length === 0 || tokens2.length !== tokens1.length) return false;
-  const used = new Array(tokens2.length).fill(false);
-  for (const t1 of tokens1) {
+// Controlla se tutti i token di `needles` si trovano (fuzzy) in `haystack`
+function fuzzySubsetOf(needles: string[], haystack: string[]): boolean {
+  if (needles.length === 0) return false;
+  const used = new Array(haystack.length).fill(false);
+  for (const needle of needles) {
     let found = false;
-    for (let j = 0; j < tokens2.length; j++) {
-      if (!used[j] && tokenFuzzy(t1, tokens2[j])) { used[j] = true; found = true; break; }
+    for (let j = 0; j < haystack.length; j++) {
+      if (!used[j] && tokenFuzzy(needle, haystack[j])) { used[j] = true; found = true; break; }
     }
     if (!found) return false;
   }
   return true;
+}
+
+function fuzzyTokenSetMatch(tokens1: string[], tokens2: string[]): boolean {
+  if (tokens1.length === 0 || tokens2.length === 0) return false;
+  if (tokens1.length === tokens2.length) {
+    // Lunghezza uguale: tutti i token devono matchare
+    return fuzzySubsetOf(tokens1, tokens2);
+  }
+  // Lunghezza diversa: il gruppo più corto deve essere un sottoinsieme fuzzy del più lungo
+  // (richiede almeno 2 token per evitare falsi positivi)
+  const shorter = tokens1.length < tokens2.length ? tokens1 : tokens2;
+  const longer  = tokens1.length < tokens2.length ? tokens2 : tokens1;
+  if (shorter.length < 2) return false;
+  return fuzzySubsetOf(shorter, longer);
 }
 
 // ── Indici costruiti una volta sola ───────────────────────────────────────────
@@ -73,7 +132,8 @@ function findMatch(
   name2026: string,
   idx: Index2025
 ): { matched: string; method: string } | null {
-  const n = normalize(name2026);
+  // Usa il nome estratto (pulito) per il confronto
+  const n = extractName(name2026);
   if (!n) return null;
 
   const tokens = n.split(' ').filter(t => t.length > 1);
@@ -159,33 +219,36 @@ export async function GET() {
       ORDER BY 1
     `);
 
-    const clienti2026: string[] = res.rows.map((r: any) => normalize(r.cliente));
+    const clienti2026: { raw: string; extracted: string }[] = res.rows.map((r: any) => {
+      const raw = normalize(r.cliente);
+      return { raw, extracted: extractName(raw) };
+    });
 
     // ── 3. Match ──────────────────────────────────────────────────────────────
-    const presenti: { cliente_2026: string; corrispondenza_2025: string; metodo: string }[] = [];
-    const assenti:  { cliente_2026: string }[] = [];
+    const presenti: { cliente_2026: string; nome_estratto: string; corrispondenza_2025: string; metodo: string }[] = [];
+    const assenti:  { cliente_2026: string; nome_estratto: string }[] = [];
 
     for (const c of clienti2026) {
-      const match = findMatch(c, idx);
-      if (match) presenti.push({ cliente_2026: c, corrispondenza_2025: match.matched, metodo: match.method });
-      else       assenti.push({ cliente_2026: c });
+      const match = findMatch(c.raw, idx);
+      if (match) presenti.push({ cliente_2026: c.raw, nome_estratto: c.extracted, corrispondenza_2025: match.matched, metodo: match.method });
+      else       assenti.push({ cliente_2026: c.raw, nome_estratto: c.extracted });
     }
 
     // ── 4. Genera Excel di output ─────────────────────────────────────────────
     const wbOut = XLSX.utils.book_new();
 
     const ws1 = XLSX.utils.aoa_to_sheet([
-      ['Cliente 2026', 'Corrispondenza 2025', 'Metodo match'],
-      ...presenti.map(r => [r.cliente_2026, r.corrispondenza_2025, r.metodo]),
+      ['Cliente 2026 (originale)', 'Nome estratto', 'Corrispondenza 2025', 'Metodo match'],
+      ...presenti.map(r => [r.cliente_2026, r.nome_estratto, r.corrispondenza_2025, r.metodo]),
     ]);
-    ws1['!cols'] = [{ wch: 35 }, { wch: 35 }, { wch: 18 }];
+    ws1['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 30 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wbOut, ws1, 'Presenti 2025 e 2026');
 
     const ws2 = XLSX.utils.aoa_to_sheet([
-      ['Cliente 2026 (non trovato nel 2025)'],
-      ...assenti.map(r => [r.cliente_2026]),
+      ['Cliente 2026 (originale)', 'Nome estratto'],
+      ...assenti.map(r => [r.cliente_2026, r.nome_estratto]),
     ]);
-    ws2['!cols'] = [{ wch: 40 }];
+    ws2['!cols'] = [{ wch: 40 }, { wch: 25 }];
     XLSX.utils.book_append_sheet(wbOut, ws2, 'Solo 2026');
 
     const ws3 = XLSX.utils.aoa_to_sheet([
