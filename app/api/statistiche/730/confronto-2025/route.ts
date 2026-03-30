@@ -10,11 +10,25 @@ function normalize(name: string): string {
 
 // Parole che non fanno parte del nome/cognome nel campo cliente
 const NON_NAME_TOKENS = new Set([
+  // Tipi di pratiche fiscali / servizi
   '730', 'CAF', 'PATRONATO', 'MOD', 'MODELLO', 'DICHIARAZIONE', 'DICHIA',
-  'ISEE', 'RED', 'UNICO', 'REDDITI', 'CUD', 'CU', 'TEL', 'CEL', 'CELL',
-  'TELEF', 'TELEFONO', 'NR', 'NUM', 'VIA', 'CORSO', 'PIAZZA', 'SRL',
-  'SNC', 'SAS', 'SPA', 'ONLUS', 'CONIUGE', 'MOGLIE', 'MARITO', 'FIGLIO',
-  'FIGLIA', 'PRATICA', 'AGGIORNAMENTO', 'RINNOVO', 'NUOVO', 'NUOVA',
+  'ISEE', 'RED', 'UNICO', 'REDDITI', 'CUD', 'CU',
+  'IMU', 'TARI', 'TASI', 'IVA', 'IRPEF', 'INPS', 'INAIL',
+  'F24', 'F23', 'DELEGA', 'DELEGHE',
+  'SUCCESSIONE', 'SUCCESSIONI', 'VISURA', 'CATASTO',
+  'SPID', 'CIE', 'IDENTITA', 'DIGITALE',
+  'PENSIONE', 'PENSIONAMENTO', 'INVALIDITA', 'DISABILITA',
+  'BONUS', 'CONTRIBUTO', 'CONTRIBUTI', 'DOMANDA',
+  // Contatti
+  'TEL', 'CEL', 'CELL', 'TELEF', 'TELEFONO', 'NR', 'NUM',
+  // Indirizzi
+  'VIA', 'CORSO', 'PIAZZA', 'VIALE',
+  // Forme societarie
+  'SRL', 'SNC', 'SAS', 'SPA', 'ONLUS', 'ASD',
+  // Relazioni familiari (a volte aggiunte come nota)
+  'CONIUGE', 'MOGLIE', 'MARITO', 'FIGLIO', 'FIGLIA', 'GENITORE',
+  // Generiche
+  'PRATICA', 'AGGIORNAMENTO', 'RINNOVO', 'NUOVO', 'NUOVA', 'ALTRO',
 ]);
 
 /**
@@ -36,8 +50,8 @@ function extractName(raw: string): string {
   if (dashIdx > 0) main = s.substring(0, dashIdx);
   else if (slashIdx > 0) main = s.substring(0, slashIdx);
 
-  // Filtra: solo token puramente alfabetici (include lettere accentate italiane)
-  const isAlpha = (t: string) => /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ']+$/i.test(t) && t.length > 1;
+  // Filtra: token alfabetici (include lettere accentate e punto per nomi tipo M.ELISA, G.CARLO)
+  const isAlpha = (t: string) => /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ'.]+$/i.test(t) && t.length > 1 && /[A-ZÀÁÈÉÌÍÒÓÙÚ]/i.test(t);
   const tokens = main
     .split(/\s+/)
     .filter(t => isAlpha(t) && !NON_NAME_TOKENS.has(t));
@@ -46,9 +60,10 @@ function extractName(raw: string): string {
   if (tokens.length >= 2) return tokens.slice(0, 4).join(' ');
 
   // Fallback: usa l'intera stringa (forse non c'era separatore)
+  const isAlphaFull = (t: string) => /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ'.]+$/i.test(t) && t.length > 1 && /[A-ZÀÁÈÉÌÍÒÓÙÚ]/i.test(t);
   return s
     .split(/\s+/)
-    .filter(t => isAlpha(t) && !NON_NAME_TOKENS.has(t))
+    .filter(t => isAlphaFull(t) && !NON_NAME_TOKENS.has(t))
     .slice(0, 4).join(' ');
 }
 
