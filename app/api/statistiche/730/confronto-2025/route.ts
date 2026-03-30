@@ -27,6 +27,11 @@ const NON_NAME_TOKENS = new Set([
   'SRL', 'SNC', 'SAS', 'SPA', 'ONLUS', 'ASD',
   // Relazioni familiari (a volte aggiunte come nota)
   'CONIUGE', 'MOGLIE', 'MARITO', 'FIGLIO', 'FIGLIA', 'GENITORE',
+  'PADRE', 'MADRE', 'MAMMA', 'PAPA', 'FRATELLO', 'SORELLA',
+  'NONNO', 'NONNA', 'ZIO', 'ZIA', 'NIPOTE',
+  'CONGIUNTO', 'CONGIUNTA',
+  // Preposizioni / connettivi che compaiono tra nomi
+  'PER', 'FA', 'SOLO', 'SOLA', 'VIENE', 'ANCHE',
   // Generiche
   'PRATICA', 'AGGIORNAMENTO', 'RINNOVO', 'NUOVO', 'NUOVA', 'ALTRO',
 ]);
@@ -260,16 +265,19 @@ export async function GET() {
         AND UPPER(TRIM(cliente)) <> 'UFF CHIUSO'
     `);
 
-    // Deduplicazione per nome estratto (non per stringa grezza):
-    // "ALEX SPITILLI 730 IMU TEL..." e "ALEX SPITILLI IMU 730..."
-    // estraggono entrambi "ALEX SPITILLI" → una sola voce
-    const seenExtracted = new Set<string>();
+    // Deduplicazione per primi 2 token del nome estratto (cognome + nome).
+    // Questo gestisce varianti come:
+    //   "MAZZOTTI MICAELA PER SAMUELE" e "MAZZOTTI MICAELA PER PADRE"
+    //   → chiave "MAZZOTTI MICAELA" → una sola voce
+    const seenKey = new Set<string>();
     const clienti2026: { raw: string; extracted: string }[] = [];
     for (const r of res.rows) {
       const raw = normalize(r.cliente);
       const extracted = extractName(raw);
-      if (extracted && !seenExtracted.has(extracted)) {
-        seenExtracted.add(extracted);
+      if (!extracted) continue;
+      const dedupKey = extracted.split(' ').slice(0, 2).join(' ');
+      if (!seenKey.has(dedupKey)) {
+        seenKey.add(dedupKey);
         clienti2026.push({ raw, extracted });
       }
     }
