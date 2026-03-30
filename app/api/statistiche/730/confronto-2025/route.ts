@@ -34,8 +34,10 @@ const NON_NAME_TOKENS = new Set([
 /**
  * Estrae solo nome e cognome dal campo cliente 2026,
  * che può contenere note, tipo pratica, numeri, ecc.
- * Es: "ROSSI MARIO - 730 CAF" → "ROSSI MARIO"
- *     "ROSSI MARIO (CONIUGE)" → "ROSSI MARIO"
+ * Es: "ROSSI MARIO - 730 CAF"            → "ROSSI MARIO"
+ *     "ROSSI MARIO (CONIUGE)"             → "ROSSI MARIO"
+ *     "LIVERANI M.ELISA 730 + IMU 333/..."→ "LIVERANI M.ELISA"
+ *     "RICCI MAURO730+IMU TEL .340/..."   → "RICCI MAURO"
  */
 function extractName(raw: string): string {
   let s = normalize(raw);
@@ -43,28 +45,37 @@ function extractName(raw: string): string {
   // Rimuovi contenuto tra parentesi
   s = s.replace(/\(.*?\)/g, ' ');
 
-  // Prendi la parte prima del primo separatore forte (" - ", " / ", "|")
+  // Sostituisci + con spazio (es: "730+IMU" → "730 IMU")
+  s = s.replace(/\+/g, ' ');
+
+  // Separa lettere da cifre adiacenti (es: "MAURO730" → "MAURO 730")
+  s = s.replace(/([A-ZÀÁÈÉÌÍÒÓÙÚ])(\d)/gi, '$1 $2');
+  s = s.replace(/(\d)([A-ZÀÁÈÉÌÍÒÓÙÚ])/gi, '$1 $2');
+
+  // Normalizza spazi multipli
+  s = s.replace(/\s+/g, ' ').trim();
+
+  // Prendi la parte prima del primo separatore forte (" - ", "/")
   const dashIdx = s.indexOf(' - ');
   const slashIdx = s.indexOf('/');
   let main = s;
   if (dashIdx > 0) main = s.substring(0, dashIdx);
   else if (slashIdx > 0) main = s.substring(0, slashIdx);
 
-  // Filtra: token alfabetici (include lettere accentate e punto per nomi tipo M.ELISA, G.CARLO)
-  const isAlpha = (t: string) => /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ'.]+$/i.test(t) && t.length > 1 && /[A-ZÀÁÈÉÌÍÒÓÙÚ]/i.test(t);
-  const tokens = main
-    .split(/\s+/)
-    .filter(t => isAlpha(t) && !NON_NAME_TOKENS.has(t));
+  // Token valido: solo lettere + punto (per nomi tipo M.ELISA, G.CARLO)
+  // Deve contenere almeno una lettera e non essere una parola-chiave di servizio
+  const isNameToken = (t: string) =>
+    /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ'.]+$/i.test(t) &&
+    t.length > 1 &&
+    /[A-ZÀÁÈÉÌÍÒÓÙÚ]/i.test(t) &&
+    !NON_NAME_TOKENS.has(t);
 
-  // Se abbiamo almeno 2 token validi dalla parte prima del separatore, usiamo quelli
+  const tokens = main.split(/\s+/).filter(isNameToken);
+
   if (tokens.length >= 2) return tokens.slice(0, 4).join(' ');
 
-  // Fallback: usa l'intera stringa (forse non c'era separatore)
-  const isAlphaFull = (t: string) => /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ'.]+$/i.test(t) && t.length > 1 && /[A-ZÀÁÈÉÌÍÒÓÙÚ]/i.test(t);
-  return s
-    .split(/\s+/)
-    .filter(t => isAlphaFull(t) && !NON_NAME_TOKENS.has(t))
-    .slice(0, 4).join(' ');
+  // Fallback: usa l'intera stringa elaborata
+  return s.split(/\s+/).filter(isNameToken).slice(0, 4).join(' ');
 }
 
 function levenshtein(a: string, b: string): number {
@@ -81,8 +92,24 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n];
 }
 
+/**
+ * Riconosce abbreviazioni con punto: G.LUCA vs GIANLUCA, M.ELISA vs MARIAELISA.
+ * La parte dopo il punto deve essere un suffisso del nome completo.
+ */
+function dotAbbrevMatch(t1: string, t2: string): boolean {
+  for (const [abbrev, full] of [[t1, t2], [t2, t1]] as [string, string][]) {
+    const dotIdx = abbrev.indexOf('.');
+    if (dotIdx > 0) {
+      const suffix = abbrev.substring(dotIdx + 1);
+      if (suffix.length >= 2 && full.endsWith(suffix)) return true;
+    }
+  }
+  return false;
+}
+
 function tokenFuzzy(t1: string, t2: string): boolean {
   if (t1 === t2) return true;
+  if (dotAbbrevMatch(t1, t2)) return true;
   const maxErrors = Math.max(t1.length, t2.length) <= 6 ? 1 : 2;
   return levenshtein(t1, t2) <= maxErrors;
 }
