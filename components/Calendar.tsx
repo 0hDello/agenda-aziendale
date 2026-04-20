@@ -381,26 +381,42 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   };
 
   const openPrintModal = () => {
-    const defaultPersona = sedePersone[0]?.id ?? '';
-    setPrintPersonaId(defaultPersona);
+    setPrintPersonaId('__all__');
     setPrintDate(format(selectedDate, 'yyyy-MM-dd'));
     setShowPrintModal(true);
   };
 
   const handlePrint = () => {
     if (!printPersonaId || !printDate) return;
-    const persona = personeMap.get(printPersonaId);
-    const sede    = sedi.find(s => s.id === selectedSedeId);
-    const dayApts = appointments
-      .filter(a => a.data === printDate && a.persona_id === printPersonaId && a.sede_id === selectedSedeId && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO')
-      .sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
-    let [y, mo, d] = printDate.split('-').map(Number);
+    const sede = sedi.find(s => s.id === selectedSedeId);
+    const [y, mo, d] = printDate.split('-').map(Number);
     const dayLabel = format(new Date(y, mo - 1, d, 12), 'EEEE dd MMMM yyyy', { locale: it });
-    const rows = dayApts.map(a => `<tr><td>${a.ora_inizio.substring(0,5)} – ${a.ora_fine.substring(0,5)}</td><td>${a.cliente ?? ''}</td><td>${a.note ?? ''}</td></tr>`).join('');
-    const emptyNote = dayApts.length === 0 ? '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px 0;">Nessun appuntamento</td></tr>' : '';
-    const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8" /><title>Agenda 730 – ${persona?.nome ?? ''} – ${dayLabel}</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Arial, sans-serif; font-size: 12px; color: #111; padding: 24px 32px; } header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #005CA9; padding-bottom: 10px; margin-bottom: 18px; } header h1 { font-size: 20px; color: #005CA9; font-weight: 800; } .sub { font-size: 11px; color: #555; margin-top: 3px; } .meta { text-align: right; font-size: 11px; color: #555; } .meta strong { display: block; font-size: 14px; color: #222; } table { width: 100%; border-collapse: collapse; margin-top: 4px; } thead tr { background: #005CA9; color: #fff; } thead th { padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; } tbody tr { border-bottom: 1px solid #e0e0e0; } tbody tr:nth-child(even) { background: #F5F8FA; } tbody td { padding: 8px 10px; vertical-align: top; } tbody td:first-child { white-space: nowrap; font-weight: 700; color: #005CA9; width: 120px; } tbody td:nth-child(2) { font-weight: 600; } tbody td:nth-child(3) { color: #555; font-style: italic; } footer { margin-top: 28px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #e0e0e0; padding-top: 10px; } @media print { body { padding: 10mm 12mm; } @page { size: A4 portrait; margin: 10mm; } }</style></head><body><header><div><h1>Agenda 730</h1><div class="sub">Sede: ${sede?.nome ?? ''}</div></div><div class="meta"><strong>${persona?.nome ?? ''}</strong><span style="text-transform:capitalize">${dayLabel}</span></div></header><table><thead><tr><th>Orario</th><th>Cliente</th><th>Note</th></tr></thead><tbody>${rows}${emptyNote}</tbody></table><footer>Stampato il ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: it })} &mdash; Agenda Aziendale</footer><script>window.onload = () => { window.print(); }<\/script></body></html>`;
-    const win = window.open('', '_blank', 'width=800,height=700');
-    if (win) { win.document.write(html); win.document.close(); }
+
+    if (printPersonaId === '__all__') {
+      // Stampa multi-colonna: tutti gli operatori affiancati
+      const colWidth = sedePersone.length > 0 ? Math.floor(100 / sedePersone.length) : 100;
+      const columnsHtml = sedePersone.map(persona => {
+        const dayApts = appointments
+          .filter(a => a.data === printDate && a.persona_id === persona.id && a.sede_id === selectedSedeId && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO')
+          .sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+        const rows = dayApts.map(a => `<tr><td class="ora">${a.ora_inizio.substring(0,5)}–${a.ora_fine.substring(0,5)}</td><td class="cliente">${a.cliente ?? ''}</td><td class="note">${a.note ?? ''}</td></tr>`).join('');
+        const emptyNote = dayApts.length === 0 ? '<tr><td colspan="3" class="empty">Nessun appuntamento</td></tr>' : '';
+        return `<div class="col"><div class="col-header"><div class="avatar">${persona.nome.substring(0,1)}</div><span>${persona.nome}</span><span class="cnt">${dayApts.length} appt.</span></div><table><thead><tr><th>Orario</th><th>Cliente</th><th>Note</th></tr></thead><tbody>${rows}${emptyNote}</tbody></table></div>`;
+      }).join('');
+      const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"/><title>Agenda 730 – Tutti gli operatori – ${dayLabel}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;color:#111;padding:8mm 10mm}header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #005CA9;padding-bottom:8px;margin-bottom:12px}header h1{font-size:16px;color:#005CA9;font-weight:800}.sub{font-size:10px;color:#555;margin-top:2px}.meta{text-align:right;font-size:10px;color:#555}.meta strong{display:block;font-size:13px;color:#222;text-transform:capitalize}.cols{display:flex;gap:10px;align-items:flex-start}.col{flex:1;min-width:0}.col-header{display:flex;align-items:center;gap:5px;background:#005CA9;color:#fff;padding:5px 7px;border-radius:4px 4px 0 0;margin-bottom:0}.avatar{width:20px;height:20px;background:rgba(255,255,255,0.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0}.col-header span{font-weight:700;font-size:10px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cnt{font-size:9px;opacity:0.8;white-space:nowrap}table{width:100%;border-collapse:collapse}thead tr{background:#E6F0F9}thead th{padding:4px 5px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;color:#005CA9;border-bottom:2px solid #005CA9}tbody tr{border-bottom:1px solid #e8e8e8}tbody tr:nth-child(even){background:#F8FAFB}tbody td{padding:4px 5px;vertical-align:top;font-size:9px}td.ora{white-space:nowrap;font-weight:700;color:#005CA9;width:70px}td.cliente{font-weight:600}td.note{color:#666;font-style:italic}td.empty{text-align:center;color:#aaa;padding:12px 5px;font-style:italic}footer{margin-top:14px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #e0e0e0;padding-top:8px}@media print{body{padding:8mm 10mm}@page{size:A4 landscape;margin:8mm}}</style></head><body><header><div><h1>Agenda 730</h1><div class="sub">Sede: ${sede?.nome ?? ''} &mdash; Tutti gli operatori</div></div><div class="meta"><strong>${dayLabel}</strong></div></header><div class="cols">${columnsHtml}</div><footer>Stampato il ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: it })} &mdash; Agenda Aziendale</footer><script>window.onload=()=>{window.print()}<\/script></body></html>`;
+      const win = window.open('', '_blank', 'width=1100,height=750');
+      if (win) { win.document.write(html); win.document.close(); }
+    } else {
+      const persona = personeMap.get(printPersonaId);
+      const dayApts = appointments
+        .filter(a => a.data === printDate && a.persona_id === printPersonaId && a.sede_id === selectedSedeId && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO')
+        .sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+      const rows = dayApts.map(a => `<tr><td>${a.ora_inizio.substring(0,5)} – ${a.ora_fine.substring(0,5)}</td><td>${a.cliente ?? ''}</td><td>${a.note ?? ''}</td></tr>`).join('');
+      const emptyNote = dayApts.length === 0 ? '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px 0;">Nessun appuntamento</td></tr>' : '';
+      const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8" /><title>Agenda 730 – ${persona?.nome ?? ''} – ${dayLabel}</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Arial, sans-serif; font-size: 12px; color: #111; padding: 24px 32px; } header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #005CA9; padding-bottom: 10px; margin-bottom: 18px; } header h1 { font-size: 20px; color: #005CA9; font-weight: 800; } .sub { font-size: 11px; color: #555; margin-top: 3px; } .meta { text-align: right; font-size: 11px; color: #555; } .meta strong { display: block; font-size: 14px; color: #222; } table { width: 100%; border-collapse: collapse; margin-top: 4px; } thead tr { background: #005CA9; color: #fff; } thead th { padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; } tbody tr { border-bottom: 1px solid #e0e0e0; } tbody tr:nth-child(even) { background: #F5F8FA; } tbody td { padding: 8px 10px; vertical-align: top; } tbody td:first-child { white-space: nowrap; font-weight: 700; color: #005CA9; width: 120px; } tbody td:nth-child(2) { font-weight: 600; } tbody td:nth-child(3) { color: #555; font-style: italic; } footer { margin-top: 28px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #e0e0e0; padding-top: 10px; } @media print { body { padding: 10mm 12mm; } @page { size: A4 portrait; margin: 10mm; } }</style></head><body><header><div><h1>Agenda 730</h1><div class="sub">Sede: ${sede?.nome ?? ''}</div></div><div class="meta"><strong>${persona?.nome ?? ''}</strong><span style="text-transform:capitalize">${dayLabel}</span></div></header><table><thead><tr><th>Orario</th><th>Cliente</th><th>Note</th></tr></thead><tbody>${rows}${emptyNote}</tbody></table><footer>Stampato il ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: it })} &mdash; Agenda Aziendale</footer><script>window.onload = () => { window.print(); }<\/script></body></html>`;
+      const win = window.open('', '_blank', 'width=800,height=700');
+      if (win) { win.document.write(html); win.document.close(); }
+    }
     setShowPrintModal(false);
   };
 
@@ -913,6 +929,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                 <div className="relative">
                   <select value={printPersonaId} onChange={e => setPrintPersonaId(e.target.value)}
                     className="w-full px-3 py-2.5 pr-8 text-sm bg-[#F5F8FA] border-2 border-gray-200 rounded-lg font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40 focus:border-[#005CA9] appearance-none transition-all">
+                    <option value="__all__">Tutti gli operatori</option>
                     {sedePersone.map(p => (<option key={p.id} value={p.id}>{p.nome}</option>))}
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -924,12 +941,17 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
                   className="w-full px-3 py-2.5 text-sm bg-[#F5F8FA] border-2 border-gray-200 rounded-lg font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#005CA9]/40 focus:border-[#005CA9] transition-all" />
               </div>
               {printPersonaId && printDate && (() => {
-                const cnt = appointments.filter(a => a.data === printDate && a.persona_id === printPersonaId && a.sede_id === selectedSedeId && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').length;
+                const cnt = printPersonaId === '__all__'
+                  ? appointments.filter(a => a.data === printDate && a.sede_id === selectedSedeId && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').length
+                  : appointments.filter(a => a.data === printDate && a.persona_id === printPersonaId && a.sede_id === selectedSedeId && (a.cliente ?? '').trim().toUpperCase() !== 'UFF CHIUSO').length;
+                const isAll = printPersonaId === '__all__';
                 return (
-                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    <CalendarIcon size={14} className="text-blue-600 flex-shrink-0" />
-                    <span className="text-xs text-blue-700 font-medium">
-                      {cnt === 0 ? 'Nessun appuntamento per questo giorno' : `${cnt} appuntament${cnt === 1 ? 'o' : 'i'} trovat${cnt === 1 ? 'o' : 'i'}`}
+                  <div className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${isAll ? 'bg-indigo-50 border-indigo-200' : 'bg-blue-50 border-blue-200'}`}>
+                    <CalendarIcon size={14} className={`flex-shrink-0 ${isAll ? 'text-indigo-600' : 'text-blue-600'}`} />
+                    <span className={`text-xs font-medium ${isAll ? 'text-indigo-700' : 'text-blue-700'}`}>
+                      {isAll
+                        ? (cnt === 0 ? 'Nessun appuntamento per questo giorno' : `${cnt} appuntament${cnt === 1 ? 'o' : 'i'} totali · ${sedePersone.length} colonne`)
+                        : (cnt === 0 ? 'Nessun appuntamento per questo giorno' : `${cnt} appuntament${cnt === 1 ? 'o' : 'i'} trovat${cnt === 1 ? 'o' : 'i'}`)}
                     </span>
                   </div>
                 );
