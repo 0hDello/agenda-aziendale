@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Sidebar from '@/components/Sidebar';
 import UpdateBanner from '@/components/UpdateBanner';
 
 export const metadata: Metadata = {
@@ -13,10 +14,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className="h-full w-full overflow-hidden">
-      <body className="h-full w-full overflow-hidden bg-gray-50">
+    <html lang="it">
+      <body>
         <UpdateBanner />
-        <main className="h-full w-full overflow-hidden">{children}</main>
+        <div className="app-layout">
+          <Sidebar />
+          <main className="app-main">
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );
