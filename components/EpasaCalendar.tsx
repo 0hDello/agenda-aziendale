@@ -102,8 +102,8 @@ const getOperatorsForSedeId = (sedeId: string, allOperators: string[]): string[]
   return allOperators;
 };
 
-const MILECE_WORKING_DAYS = [2, 3, 5];
-const MILECE_START_TIME   = '08:30';
+const MILECE_HISTORICAL_WORKING_DAYS = [2, 3, 5];
+const MILECE_START_TIME              = '08:30';
 
 const dateStrToLocal = (dateStr: string): Date => {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -195,7 +195,16 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   useEffect(() => { sediRef.current = sedi; }, [sedi]);
 
   const formatDate         = (d: Date) => format(d, 'yyyy-MM-dd');
-  const isMileceWorkingDay = (d: Date) => MILECE_WORKING_DAYS.includes(getDay(d));
+  const isMileceWorkingDay = (d: Date) => {
+    const dow = getDay(d);
+    if (dow === 0 || dow === 6) return false;
+    const y = d.getFullYear();
+    const m = d.getMonth(); // 0-indexed: 7 è Agosto
+    if (y > 2026 || (y === 2026 && m >= 7)) {
+      return dow >= 1 && dow <= 5;
+    }
+    return MILECE_HISTORICAL_WORKING_DAYS.includes(dow);
+  };
   const currentTimeSlots   = selectedSede ? getTimeSlotsForSede(selectedSede.id) : TIME_SLOTS_IMOLA;
 
   const markLocalMutation = () => { localMutationAtRef.current = Date.now(); };
