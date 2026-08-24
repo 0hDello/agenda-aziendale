@@ -17,7 +17,7 @@ import { TIME_SLOTS, END_TIME_SLOTS } from '@/utils/dateUtils';
 
 // ── Palette colori ──────────────────────────────────────────────────────
 const HIGHLIGHT_COLORS = [
-  { id: '',       label: 'Nessuna', preview: '#ffffff', border: 'border-gray-300' },
+  { id: '',       label: 'Nessuna', preview: '#ffffff', border: 'border-gray-300' }, 
   { id: 'yellow', label: 'Giallo',  preview: '#fde047', border: 'border-yellow-400' },
   { id: 'orange', label: 'Arancio', preview: '#fb923c', border: 'border-orange-400' },
   { id: 'red',    label: 'Rosso',   preview: '#fca5a5', border: 'border-red-400' },

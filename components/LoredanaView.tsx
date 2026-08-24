@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus, MessageSquare,
-  CheckSquare, Square, FileText, Save, ChevronUp,
+  FileText, Save,
 } from 'lucide-react';
 import {
   format,
@@ -17,7 +17,8 @@ import {
   subMonths,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
-import EpasaAppointmentModal, { HIGHLIGHT_STYLE } from './EpasaAppointmentModal';
+import EpasaAppointmentModal from './EpasaAppointmentModal';
+import { formatDateDisplay } from '@/utils/dateUtils';
 
 // ─── Tipi ───────────────────────────────────────────────────────────────────────────────
 interface Appointment {
@@ -76,11 +77,13 @@ const COL_WIDTH_WE = 48;
 const OPERATOR_COLOR        = '#005CA9';
 const OPERATOR_COLOR_LIGHT  = '#E6F2FF';
 const OPERATOR_COLOR_HOVER  = '#D1E7FF';
-const OPERATOR_COLOR_BORDER = '#BFDBFE';
 
 const UFF_CHIUSO_BG     = '#D1D5DB';
 const UFF_CHIUSO_BORDER = '#9CA3AF';
 const UFF_CHIUSO_ICON   = '#6B7280';
+
+const BULK_HOVER_BG = '#DBEAFE';
+const BULK_HOVER_BORDER = '#60A5FA';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
   imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
@@ -101,7 +104,7 @@ const HL_CSS: Record<string, { bg: string; bgHover: string; border: string; left
   pink:     { bg: '#FCE7F3', bgHover: '#FBCFE8', border: '#EC4899', leftBorder: '#DB2777', text: '#831843' },
 };
 
-// ─── Regole apertura ────────────────────────────────────────────────────────────────────────────
+// ─── Regole apertura ─────────────────────────────────────────────────────────────────────
 const isBorgoWorkingDay = (date: Date): boolean => {
   const y   = date.getFullYear();
   const m   = date.getMonth();
@@ -136,7 +139,7 @@ const isSedeOpenOnDay = (sedeId: string, date: Date): boolean => {
 
 const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
-// ─── Hook: altezza riga ───────────────────────────────────────────────────────────────────────────
+// ─── Hook: altezza riga ──────────────────────────────────────────────────────────────────
 function useRowHeight(slotCount: number): number {
   const [rowH, setRowH] = useState<number>(ROW_MIN);
   useEffect(() => {
@@ -152,22 +155,9 @@ function useRowHeight(slotCount: number): number {
   return rowH;
 }
 
-// ─── Storage key per le note pomeriggio ─────────────────────────────────────────────────
-const AFTERNOON_NOTES_KEY = 'loredana_afternoon_notes';
+// ─── Componente ──────────────────────────────────────────────────────────────────────────
 
-const loadAfternoonNotes = (): Record<string, string> => {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(AFTERNOON_NOTES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-};
-
-const saveAfternoonNotes = (notes: Record<string, string>) => {
-  try { localStorage.setItem(AFTERNOON_NOTES_KEY, JSON.stringify(notes)); } catch { }
-};
-
-// ─── Componente ───────────────────────────────────────────────────────────────────────────────
+// ─── Componente ──────────────────────────────────────────────────────────────────────────
 export default function LoredanaView({
   allAppointments,
   giorniChiusi,
@@ -190,11 +180,6 @@ export default function LoredanaView({
   const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
   const [editMode, setEditMode]             = useState(false);
 
-  // ─── Multi-selezione lucchetti ──────────────────────────────────────────────
-  // selectedSlots = Set di keys "dateStr|time" selezionati per blocco/sblocco multiplo
-  const [multiSelectMode, setMultiSelectMode] = useState(false);
-  const [selectedSlots, setSelectedSlots]     = useState<Set<string>>(new Set());
-
   const [showModal, setShowModal]   = useState(false);
   const [modalSlot, setModalSlot]   = useState<{ date: string; time: string } | null>(null);
   const [editingApt, setEditingApt] = useState<Appointment | null>(null);
@@ -205,31 +190,51 @@ export default function LoredanaView({
 
   // ─── Pannello note pomeriggio ──────────────────────────────────────────────
   const [showNotesPanel, setShowNotesPanel] = useState(false);
-  const [afternoonNotes, setAfternoonNotes] = useState<Record<string, string>>(loadAfternoonNotes);
-  // La data selezionata per le note pomeriggio (default = oggi o primo lunedì disponibile)
+  const [afternoonNotes, setAfternoonNotes] = useState<Record<string, string>>({});
   const [noteDate, setNoteDate] = useState<string>(() => {
     const now = new Date();
-    // CSPT è solo il lunedì, usiamo la data corrente come default
     return formatDate(now);
   });
   const [noteText, setNoteText] = useState<string>('');
   const [noteSaved, setNoteSaved] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Carica il testo nota quando cambia la data selezionata
+  useEffect(() => {
+    fetch('/api/epasa/note-pomeriggio')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setAfternoonNotes(data);
+      })
+      .catch(err => console.error('Errore caricamento note:', err));
+  }, []);
+
   useEffect(() => {
     setNoteText(afternoonNotes[noteDate] ?? '');
     setNoteSaved(false);
-  }, [noteDate, afternoonNotes]);
+  }, [noteDate]);
 
-  const handleSaveNote = () => {
-    const updated = { ...afternoonNotes, [noteDate]: noteText };
-    if (!noteText.trim()) {
-      delete updated[noteDate];
-    }
+  const handleNoteChange = (text: string) => {
+    setNoteText(text);
+    const updated = { ...afternoonNotes, [noteDate]: text };
+    if (!text.trim()) delete updated[noteDate];
     setAfternoonNotes(updated);
-    saveAfternoonNotes(updated);
-    setNoteSaved(true);
-    setTimeout(() => setNoteSaved(false), 2000);
+    setNoteSaved(false);
+    
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      fetch('/api/epasa/note-pomeriggio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: noteDate, testo: text })
+      })
+      .then(res => res.json())
+      .then(() => {
+        setNoteSaved(true);
+        setTimeout(() => setNoteSaved(false), 2000);
+      })
+      .catch(err => console.error('Errore salvataggio nota:', err));
+    }, 1000);
   };
 
   const selectedSede =
@@ -271,129 +276,139 @@ export default function LoredanaView({
   const isUffChiuso = (apt: Appointment | null): boolean =>
     apt !== null && apt.cliente.trim().toUpperCase() === 'UFF CHIUSO';
 
-  // ─── Blocco/sblocco singolo slot ──────────────────────────────────────────
-  const handleEditModeSlotClick = async (sedeId: string, dateStr: string, time: string) => {
-    const realApts = localApts.filter(
-      a => a.sede_id === sedeId && a.data === dateStr &&
-           a.ora === time && a.operatore_id === LOREDANA_ID &&
+  const getRealAppointmentsForSlot = (sedeId: string, dateStr: string, time: string) =>
+    localApts.filter(
+      a => a.sede_id === sedeId &&
+           a.data === dateStr &&
+           a.ora === time &&
+           a.operatore_id === LOREDANA_ID &&
            a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
     );
-    if (realApts.length > 0) return;
 
-    const uffApts = localApts.filter(
-      a => a.sede_id === sedeId && a.data === dateStr &&
-           a.ora === time && a.operatore_id === LOREDANA_ID &&
+  const getUffChiusoAppointmentsForSlot = (sedeId: string, dateStr: string, time: string) =>
+    localApts.filter(
+      a => a.sede_id === sedeId &&
+           a.data === dateStr &&
+           a.ora === time &&
+           a.operatore_id === LOREDANA_ID &&
            a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
     );
-    if (uffApts.length > 0) {
-      for (const apt of uffApts) {
-        try {
-          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error();
-        } catch { alert('Errore durante lo sblocco'); return; }
-      }
-      setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
-    } else {
-      const motivo = window.prompt('Motivo chiusura (es. Ferie, Formazione, ...):') ?? '';
-      try {
-        const res = await fetch('/api/epasa/appuntamenti', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sede_id: sedeId, operatore_id: LOREDANA_ID,
-            data: dateStr, ora: time,
-            cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7), note: motivo,
-          }),
-        });
-        if (!res.ok) throw new Error();
-        const newApt = await res.json();
-        setLocalApts(prev => [...prev, newApt]);
-      } catch { alert('Errore durante il blocco'); }
-    }
-  };
 
-  // ─── Toggle selezione slot in modalità multi-select ──────────────────────
-  const toggleSlotSelection = (dateStr: string, time: string) => {
-    const key = `${dateStr}|${time}`;
-    setSelectedSlots(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+  const createUffChiuso = async (sedeId: string, dateStr: string, time: string, motivo: string) => {
+    const res = await fetch('/api/epasa/appuntamenti', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sede_id: sedeId,
+        operatore_id: LOREDANA_ID,
+        data: dateStr,
+        ora: time,
+        cliente: 'UFF CHIUSO',
+        mese: dateStr.substring(0, 7),
+        note: motivo,
+      }),
     });
+    if (!res.ok) throw new Error();
+    return res.json();
   };
 
-  // ─── Applica blocco multiplo ai selezionati ───────────────────────────────
-  const handleMultiLock = async () => {
-    if (selectedSlots.size === 0) return;
-    const motivo = window.prompt(`Motivo chiusura per ${selectedSlots.size} slot selezionat${selectedSlots.size === 1 ? 'o' : 'i'} (es. Ferie, Formazione, ...):`) ?? '';
-    const sedeId = selectedSede?.id ?? 'imola';
-    let errors = 0;
-    for (const key of Array.from(selectedSlots)) {
-      const [dateStr, time] = key.split('|');
-      // Salta se già bloccato o occupato
-      const realApts = localApts.filter(
-        a => a.sede_id === sedeId && a.data === dateStr && a.ora === time &&
-             a.operatore_id === LOREDANA_ID && a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
-      );
-      const uffApts = localApts.filter(
-        a => a.sede_id === sedeId && a.data === dateStr && a.ora === time &&
-             a.operatore_id === LOREDANA_ID && a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
-      );
-      if (realApts.length > 0 || uffApts.length > 0) continue;
+  const deleteUffChiuso = async (aptIds: string[]) => {
+    for (const id of aptIds) {
+      const res = await fetch(`/api/epasa/appuntamenti/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+    }
+  };
+
+  // ─── Toggle singolo slot in modalità lucchetto ─────────────────────────────
+  const handleProtectedSlotToggle = async (sedeId: string, dateStr: string, time: string, bulkMotivo?: string) => {
+    const realApts = getRealAppointmentsForSlot(sedeId, dateStr, time);
+    if (realApts.length > 0) return;
+
+    const uffApts = getUffChiusoAppointmentsForSlot(sedeId, dateStr, time);
+
+    if (uffApts.length > 0) {
       try {
-        const res = await fetch('/api/epasa/appuntamenti', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sede_id: sedeId, operatore_id: LOREDANA_ID,
-            data: dateStr, ora: time,
-            cliente: 'UFF CHIUSO', mese: dateStr.substring(0, 7), note: motivo,
-          }),
-        });
-        if (!res.ok) throw new Error();
-        const newApt = await res.json();
-        setLocalApts(prev => [...prev, newApt]);
-      } catch { errors++; }
+        await deleteUffChiuso(uffApts.map(a => a.id));
+        setLocalApts(prev => prev.filter(a => !uffApts.some(u => u.id === a.id)));
+      } catch {
+        alert('Errore durante lo sblocco');
+      }
+      return;
     }
-    if (errors > 0) alert(`${errors} slot non sono stati bloccati a causa di errori.`);
-    setSelectedSlots(new Set());
-    setMultiSelectMode(false);
+
+    const motivo = bulkMotivo ?? window.prompt('Motivo chiusura (es. Ferie, Formazione, ...):') ?? '';
+    try {
+      const newApt = await createUffChiuso(sedeId, dateStr, time, motivo);
+      setLocalApts(prev => [...prev, newApt]);
+    } catch {
+      alert('Errore durante il blocco');
+    }
   };
 
-  // ─── Applica sblocco multiplo ai selezionati ─────────────────────────────
-  const handleMultiUnlock = async () => {
-    if (selectedSlots.size === 0) return;
-    const sedeId = selectedSede?.id ?? 'imola';
-    let errors = 0;
-    const toRemoveIds: string[] = [];
-    for (const key of Array.from(selectedSlots)) {
-      const [dateStr, time] = key.split('|');
-      const uffApts = localApts.filter(
-        a => a.sede_id === sedeId && a.data === dateStr && a.ora === time &&
-             a.operatore_id === LOREDANA_ID && a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
-      );
-      for (const apt of uffApts) {
-        try {
-          const res = await fetch(`/api/epasa/appuntamenti/${apt.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error();
-          toRemoveIds.push(apt.id);
-        } catch { errors++; }
+  // ─── Toggle intera giornata dal numero in alto ─────────────────────────────
+  const handleDayHeaderToggle = async (dateStr: string) => {
+    if (!editMode || !selectedSede) return;
+
+    const dayDate = new Date(`${dateStr}T12:00:00`);
+    const sedeOpen = isSedeOpenOnDay(selectedSede.id, dayDate);
+    const manClosed = isGiornoChiuso(dateStr);
+    if (!sedeOpen || manClosed || isWeekend(dayDate)) return;
+
+    const sedeId = selectedSede.id;
+    const actionableSlots = slots.filter(time => getRealAppointmentsForSlot(sedeId, dateStr, time).length === 0);
+    if (actionableSlots.length === 0) return;
+
+    const blockedSlots = actionableSlots.filter(time => getUffChiusoAppointmentsForSlot(sedeId, dateStr, time).length > 0);
+    const allBlocked = blockedSlots.length === actionableSlots.length;
+
+    if (allBlocked) {
+      try {
+        const idsToDelete = actionableSlots.flatMap(time =>
+          getUffChiusoAppointmentsForSlot(sedeId, dateStr, time).map(a => a.id)
+        );
+        await deleteUffChiuso(idsToDelete);
+        setLocalApts(prev => prev.filter(a => !idsToDelete.includes(a.id)));
+      } catch {
+        alert('Errore durante lo sblocco della giornata');
       }
+      return;
     }
-    setLocalApts(prev => prev.filter(a => !toRemoveIds.includes(a.id)));
-    if (errors > 0) alert(`${errors} slot non sono stati sbloccati a causa di errori.`);
-    setSelectedSlots(new Set());
-    setMultiSelectMode(false);
+
+    const motivo = window.prompt(`Motivo chiusura giornata ${format(new Date(`${dateStr}T12:00:00`), 'dd/MM/yyyy')} (es. Ferie, Formazione, ...):`) ?? '';
+    try {
+      const newAppointments: Appointment[] = [];
+      for (const time of actionableSlots) {
+        const isAlreadyBlocked = getUffChiusoAppointmentsForSlot(sedeId, dateStr, time).length > 0;
+        if (isAlreadyBlocked) continue;
+        const newApt = await createUffChiuso(sedeId, dateStr, time, motivo);
+        newAppointments.push(newApt);
+      }
+      if (newAppointments.length > 0) {
+        setLocalApts(prev => [...prev, ...newAppointments]);
+      }
+    } catch {
+      alert('Errore durante il blocco della giornata');
+    }
   };
 
   const openNew = (dateStr: string, time: string) => {
-    setEditingApt(null); setModalSlot({ date: dateStr, time }); setShowModal(true);
+    setEditingApt(null);
+    setModalSlot({ date: dateStr, time });
+    setShowModal(true);
   };
+
   const openEdit = (apt: Appointment) => {
-    setEditingApt(apt); setModalSlot({ date: apt.data, time: apt.ora }); setShowModal(true);
+    setEditingApt(apt);
+    setModalSlot({ date: apt.data, time: apt.ora });
+    setShowModal(true);
   };
-  const closeModal = () => { setShowModal(false); setEditingApt(null); setModalSlot(null); };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingApt(null);
+    setModalSlot(null);
+  };
+
   const handleSave   = async (data: any) => { await onSave(data); };
   const handleUpdate = async (id: string, data: any) => { await onUpdate(id, data); };
   const handleDelete = async (id: string) => {
@@ -405,7 +420,6 @@ export default function LoredanaView({
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (showModal) return;
-        if (multiSelectMode) { setMultiSelectMode(false); setSelectedSlots(new Set()); return; }
         if (editMode) { setEditMode(false); return; }
         if (showNotesPanel) { setShowNotesPanel(false); return; }
         onClose();
@@ -413,17 +427,16 @@ export default function LoredanaView({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, showModal, editMode, multiSelectMode, showNotesPanel]);
+  }, [onClose, showModal, editMode, showNotesPanel]);
 
   useEffect(() => {
     setTimeout(() => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-lv-date="${today}"]`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }, 150);
-  }, [currentMonth]);
+  }, [currentMonth, today]);
 
-  // Conta quante note pomeriggio ci sono nel mese corrente
-  const csptDaysWithNotes = Object.keys(afternoonNotes).filter(k =>
+  const daysWithNotes = Object.keys(afternoonNotes).filter(k =>
     k.startsWith(format(currentMonth, 'yyyy-MM')) && afternoonNotes[k]?.trim()
   ).length;
 
@@ -446,22 +459,31 @@ export default function LoredanaView({
         <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0" />
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={goPrev} disabled={isAtMinMonth}
+          <button
+            onClick={goPrev}
+            disabled={isAtMinMonth}
             className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Mese precedente">
+            title="Mese precedente"
+          >
             <ChevronLeft size={16} className="text-gray-600" />
           </button>
-          <button onClick={goToday}
+
+          <button
+            onClick={goToday}
             className="px-3 py-1.5 text-xs font-bold border rounded-lg transition-colors"
             style={{ minWidth: 160, textAlign: 'center', color: OPERATOR_COLOR, backgroundColor: OPERATOR_COLOR_LIGHT, borderColor: `${OPERATOR_COLOR}33` }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}>
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
+          >
             <CalendarIcon size={12} className="inline mr-1" />
             {format(currentMonth, 'MMMM yyyy', { locale: it })}
           </button>
-          <button onClick={goNext}
+
+          <button
+            onClick={goNext}
             className="p-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors"
-            title="Mese successivo">
+            title="Mese successivo"
+          >
             <ChevronRight size={16} className="text-gray-600" />
           </button>
         </div>
@@ -471,11 +493,14 @@ export default function LoredanaView({
         <div className="flex items-center gap-2 flex-shrink-0">
           <Building2 size={15} className="text-gray-500" />
           <div className="relative">
-            <select value={selectedSedeId} onChange={e => setSelectedSedeId(e.target.value)}
+            <select
+              value={selectedSedeId}
+              onChange={e => setSelectedSedeId(e.target.value)}
               className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold rounded-lg focus:outline-none cursor-pointer transition-colors"
               style={{ backgroundColor: OPERATOR_COLOR_LIGHT, color: OPERATOR_COLOR, border: `2px solid ${OPERATOR_COLOR}40` }}
               onMouseEnter={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_HOVER)}
-              onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}>
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = OPERATOR_COLOR_LIGHT)}
+            >
               {loredanaSedi.map(s => (<option key={s.id} value={s.id}>{s.nome}</option>))}
             </select>
             <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: OPERATOR_COLOR }} />
@@ -497,95 +522,51 @@ export default function LoredanaView({
           </div>
         </div>
 
-        {/* ── Bottone note pomeriggio ── */}
         <button
           onClick={() => setShowNotesPanel(p => !p)}
-          title="Note pomeriggio CSPT"
+          title="Note pomeriggio"
           className={`relative flex items-center gap-1.5 px-3 h-9 rounded-full border-2 text-xs font-bold transition-all flex-shrink-0 ${
             showNotesPanel
               ? 'bg-amber-50 border-amber-400 text-amber-700 shadow-amber-100 shadow-md'
               : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-600'
-          }`}>
+          }`}
+        >
           <FileText size={14} />
           <span className="hidden sm:inline">Note pomeriggio</span>
-          {csptDaysWithNotes > 0 && (
+          {daysWithNotes > 0 && (
             <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-black flex items-center justify-center">
-              {csptDaysWithNotes}
+              {daysWithNotes}
             </span>
           )}
         </button>
 
-        {/* ── Multi-select lucchetti ── */}
-        {editMode && (
-          <button
-            onClick={() => {
-              setMultiSelectMode(m => !m);
-              setSelectedSlots(new Set());
-            }}
-            title={multiSelectMode ? 'Esci dalla selezione multipla' : 'Selezione multipla lucchetti'}
-            className={`flex items-center gap-1.5 px-3 h-9 rounded-full border-2 text-xs font-bold transition-all flex-shrink-0 ${
-              multiSelectMode
-                ? 'bg-blue-500 border-blue-600 text-white shadow-blue-200 shadow-md'
-                : 'bg-white border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500'
-            }`}>
-            <CheckSquare size={14} />
-            <span className="hidden sm:inline">{multiSelectMode ? `${selectedSlots.size} selezionati` : 'Selezione multipla'}</span>
-          </button>
-        )}
-
-        {/* Lucchetto */}
         <button
-          onClick={() => {
-            setEditMode(e => !e);
-            if (multiSelectMode) { setMultiSelectMode(false); setSelectedSlots(new Set()); }
-          }}
+          onClick={() => setEditMode(e => !e)}
           className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 flex-shrink-0 ${
             editMode
               ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
               : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
           }`}
+          title={editMode ? 'Esci dalla modalità blocco multiplo' : 'Entra in modalità blocco multiplo'}
         >
           {editMode ? <Unlock size={16} /> : <Lock size={16} />}
         </button>
 
-        <button onClick={onClose}
+        <button
+          onClick={onClose}
           className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 border border-gray-200 text-gray-500 transition-colors flex-shrink-0"
-          title="Chiudi (ESC)">
+          title="Chiudi (ESC)"
+        >
           <X size={18} />
         </button>
       </div>
 
-      {/* ══ BARRA AZIONI MULTI-SELECT ══ */}
-      {multiSelectMode && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200 flex-shrink-0">
-          <CheckSquare size={14} className="text-blue-600" />
-          <span className="text-xs font-bold text-blue-700">
-            {selectedSlots.size === 0
-              ? 'Clicca sugli slot liberi per selezionarli'
-              : `${selectedSlots.size} slot selezionat${selectedSlots.size === 1 ? 'o' : 'i'}`}
+      {editMode && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+          <Lock size={14} className="text-amber-600" />
+          <span className="text-xs font-bold text-amber-700">
+            Modalità blocco multiplo attiva: clicca sugli slot per bloccare/sbloccare, oppure clicca il numero del giorno per agire su tutta la giornata
           </span>
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={handleMultiLock}
-              disabled={selectedSlots.size === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white border border-amber-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-600 transition-colors"
-            >
-              <Lock size={12} /> Blocca selezionati
-            </button>
-            <button
-              onClick={handleMultiUnlock}
-              disabled={selectedSlots.size === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white border border-green-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
-            >
-              <Unlock size={12} /> Sblocca selezionati
-            </button>
-            <button
-              onClick={() => setSelectedSlots(new Set())}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 border border-gray-300 hover:bg-gray-100"
-            >
-              Deseleziona tutti
-            </button>
-          </div>
         </div>
       )}
 
@@ -619,33 +600,59 @@ export default function LoredanaView({
                 const headerBg   = isToday ? OPERATOR_COLOR : isWe ? '#E5E7EB' : '#F8FAFC';
                 const headerText = isToday ? '#fff' : isWe ? '#9CA3AF' : '#374151';
 
-                // Indicatore nota pomeriggio (solo per CSPT)
-                const hasDayNote = selectedSedeId === 'cspt' && afternoonNotes[dateStr]?.trim();
+                const hasDayNote = afternoonNotes[dateStr]?.trim();
+
+                const actionableSlotsCount = selectedSede && !dayOff
+                  ? slots.filter(time => getRealAppointmentsForSlot(selectedSede.id, dateStr, time).length === 0).length
+                  : 0;
+
+                const blockedSlotsCount = selectedSede && !dayOff
+                  ? slots.filter(time => getUffChiusoAppointmentsForSlot(selectedSede.id, dateStr, time).length > 0).length
+                  : 0;
+
+                const dayFullyBlocked = actionableSlotsCount > 0 && blockedSlotsCount === actionableSlotsCount;
 
                 return (
                   <div key={dateStr} data-lv-date={dateStr} style={{ width: colW, flexShrink: 0, borderRight: '1px solid #E5E7EB' }}>
                     {/* Header giorno */}
                     <div
                       onClick={() => {
-                        if (selectedSedeId === 'cspt' && !isWe && sedeOpen && !manClosed) {
-                          setNoteDate(dateStr);
-                          setShowNotesPanel(true);
+                        if (editMode) {
+                          handleDayHeaderToggle(dateStr);
+                          return;
                         }
+                        setNoteDate(dateStr);
+                        setShowNotesPanel(true);
                       }}
-                      title={selectedSedeId === 'cspt' && !isWe && sedeOpen && !manClosed ? 'Apri note pomeriggio' : undefined}
+                      title={
+                        editMode
+                          ? 'Blocca/sblocca tutta la giornata'
+                          : 'Apri note pomeriggio'
+                      }
                       style={{
-                        height: HEADER_H, backgroundColor: headerBg, color: headerText,
+                        height: HEADER_H,
+                        backgroundColor: editMode && dayFullyBlocked ? '#F59E0B' : headerBg,
+                        color: editMode && dayFullyBlocked ? '#fff' : headerText,
                         borderBottom: '2px solid #E2E8F0',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         overflow: 'hidden',
-                        cursor: selectedSedeId === 'cspt' && !isWe && sedeOpen && !manClosed ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         position: 'relative',
-                      }}>
-                      <span style={{ fontSize: isWe ? 9 : 10, fontWeight: 700, textTransform: 'capitalize', opacity: 0.8 }}>{format(day, 'EEE', { locale: it })}</span>
-                      <span style={{ fontSize: isWe ? 12 : 15, fontWeight: 900, lineHeight: 1.1 }}>{format(day, 'dd')}</span>
+                        transition: 'background-color 0.15s',
+                      }}
+                    >
+                      <span style={{ fontSize: isWe ? 9 : 10, fontWeight: 700, textTransform: 'capitalize', opacity: 0.8 }}>
+                        {format(day, 'EEE', { locale: it })}
+                      </span>
+                      <span style={{ fontSize: isWe ? 12 : 15, fontWeight: 900, lineHeight: 1.1 }}>
+                        {format(day, 'dd')}
+                      </span>
                       {hasDayNote && (
                         <div style={{ position: 'absolute', bottom: 3, right: 4 }}>
-                          <FileText size={8} style={{ color: isToday ? 'rgba(255,255,255,0.8)' : '#F59E0B' }} />
+                          <FileText size={8} style={{ color: isToday || (editMode && dayFullyBlocked) ? 'rgba(255,255,255,0.8)' : '#F59E0B' }} />
                         </div>
                       )}
                     </div>
@@ -654,8 +661,18 @@ export default function LoredanaView({
                     {slots.map(time => {
                       if (dayOff) {
                         return (
-                          <div key={time} style={{ height: ROW_HEIGHT, borderBottom: '1px solid #F1F5F9', backgroundColor: isWe ? '#F3F4F6' : '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {!isWe && <Lock size={8} style={{ color: '#D1D5DB' }} />}
+                          <div
+                            key={time}
+                            style={{
+                              height: ROW_HEIGHT,
+                              borderBottom: `1px solid ${isWe ? '#F1F5F9' : UFF_CHIUSO_BORDER}`,
+                              backgroundColor: isWe ? '#F3F4F6' : UFF_CHIUSO_BG,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {!isWe && <Lock size={12} style={{ color: UFF_CHIUSO_ICON }} />}
                           </div>
                         );
                       }
@@ -665,45 +682,45 @@ export default function LoredanaView({
                       const hasPaz    = apt !== null && !uffClosed;
                       const sedeId    = selectedSede?.id ?? 'imola';
                       const cellKey   = `${dateStr}-${time}`;
-                      const slotKey   = `${dateStr}|${time}`;
                       const isHovered = hoveredCell === cellKey;
-                      const isSelected = selectedSlots.has(slotKey);
 
                       // ── Slot UFF CHIUSO ──
                       if (uffClosed) {
                         const motivoChiusura = apt?.note?.trim() || '';
                         return (
-                          <div key={time}
-                            title={editMode
-                              ? (multiSelectMode ? 'Seleziona per sblocco multiplo' : 'Clicca per sbloccare')
-                              : (motivoChiusura ? `Ufficio chiuso – ${motivoChiusura}` : 'Ufficio chiuso')}
+                          <div
+                            key={time}
+                            title={editMode ? 'Clicca per sbloccare' : (motivoChiusura ? `Ufficio chiuso – ${motivoChiusura}` : 'Ufficio chiuso')}
                             onClick={() => {
                               if (!editMode) return;
-                              if (multiSelectMode) toggleSlotSelection(dateStr, time);
-                              else handleEditModeSlotClick(sedeId, dateStr, time);
+                              handleProtectedSlotToggle(sedeId, dateStr, time);
+                            }}
+                            onMouseEnter={e => {
+                              if (editMode) e.currentTarget.style.backgroundColor = BULK_HOVER_BG;
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.backgroundColor = UFF_CHIUSO_BG;
                             }}
                             style={{
                               height: ROW_HEIGHT,
-                              borderBottom: `1px solid ${isSelected ? '#3B82F6' : UFF_CHIUSO_BORDER}`,
-                              backgroundColor: isSelected ? '#DBEAFE' : UFF_CHIUSO_BG,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              gap: 3, padding: '0 4px',
+                              borderBottom: `1px solid ${editMode ? BULK_HOVER_BORDER : UFF_CHIUSO_BORDER}`,
+                              backgroundColor: UFF_CHIUSO_BG,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 3,
+                              padding: '0 4px',
                               cursor: editMode ? 'pointer' : 'default',
-                              outline: isSelected ? '2px solid #3B82F6' : undefined,
-                              outlineOffset: isSelected ? '-2px' : undefined,
-                            }}>
-                            {multiSelectMode && editMode
-                              ? (isSelected
-                                  ? <CheckSquare size={10} style={{ color: '#2563EB', flexShrink: 0 }} />
-                                  : <Square size={10} style={{ color: UFF_CHIUSO_ICON, flexShrink: 0 }} />)
-                              : <Lock size={8} style={{ color: isSelected ? '#2563EB' : UFF_CHIUSO_ICON, flexShrink: 0 }} />
-                            }
-                            {motivoChiusura && !multiSelectMode && (
+                              transition: 'background-color 0.1s',
+                            }}
+                          >
+                            <Lock size={8} style={{ color: UFF_CHIUSO_ICON, flexShrink: 0 }} />
+                            {motivoChiusura && (
                               <span style={{ fontSize: 9, color: UFF_CHIUSO_ICON, fontStyle: 'italic', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                 {motivoChiusura}
                               </span>
                             )}
-                            {editMode && !multiSelectMode && <Unlock size={8} style={{ color: UFF_CHIUSO_ICON, marginLeft: 2, flexShrink: 0 }} />}
+                            {editMode && <Unlock size={8} style={{ color: UFF_CHIUSO_ICON, marginLeft: 2, flexShrink: 0 }} />}
                           </div>
                         );
                       }
@@ -720,8 +737,9 @@ export default function LoredanaView({
                         const cellTextColor  = hl.text;
 
                         return (
-                          <div key={time}
-                            onClick={() => !editMode && !multiSelectMode && openEdit(apt!)}
+                          <div
+                            key={time}
+                            onClick={() => !editMode && openEdit(apt!)}
                             onMouseEnter={() => setHoveredCell(cellKey)}
                             onMouseLeave={() => setHoveredCell(null)}
                             style={{
@@ -729,14 +747,17 @@ export default function LoredanaView({
                               borderBottom: `1px solid ${cellBorder}`,
                               backgroundColor: cellBg,
                               borderLeft: `3px solid ${cellLeftBorder}`,
-                              display: 'flex', alignItems: 'center',
-                              gap: 3, padding: '0 5px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 3,
+                              padding: '0 5px',
                               overflow: 'visible',
                               cursor: editMode ? 'not-allowed' : 'pointer',
                               position: 'relative',
                               transition: 'background-color 0.1s',
-                            }}>
-
+                              opacity: editMode ? 0.7 : 1,
+                            }}
+                          >
                             <User size={8} style={{ color: cellTextColor, flexShrink: 0 }} />
                             <span style={{ fontSize: 10, fontWeight: 600, color: cellTextColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                               {apt!.cliente}
@@ -745,7 +766,6 @@ export default function LoredanaView({
                               <MessageSquare size={8} style={{ color: cellTextColor, flexShrink: 0, opacity: 0.75 }} />
                             )}
 
-                            {/* Tooltip nota */}
                             {!editMode && hasNote && isHovered && (
                               <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, zIndex: 9999, minWidth: 160, maxWidth: 240, pointerEvents: 'none' }}>
                                 <div style={{ backgroundColor: '#EFF6FF', color: '#1D4ED8', fontSize: 11, borderRadius: 8, padding: '6px 10px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', lineHeight: 1.5, border: '1px solid #BFDBFE' }}>
@@ -764,47 +784,39 @@ export default function LoredanaView({
 
                       // ── Slot vuoto ──
                       return (
-                        <div key={time}
+                        <div
+                          key={time}
                           onClick={() => {
-                            if (multiSelectMode && editMode) {
-                              toggleSlotSelection(dateStr, time);
-                            } else if (editMode) {
-                              handleEditModeSlotClick(sedeId, dateStr, time);
+                            if (editMode) {
+                              handleProtectedSlotToggle(sedeId, dateStr, time);
                             } else {
                               openNew(dateStr, time);
                             }
                           }}
                           onMouseEnter={e => {
-                            if (!isSelected) {
-                              e.currentTarget.style.backgroundColor = multiSelectMode && editMode
-                                ? '#EFF6FF'
-                                : editMode ? '#F3F4F6' : OPERATOR_COLOR_LIGHT;
-                            }
+                            e.currentTarget.style.backgroundColor = editMode ? BULK_HOVER_BG : OPERATOR_COLOR_LIGHT;
                             const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
                             if (icon) icon.style.opacity = '1';
                           }}
                           onMouseLeave={e => {
-                            if (!isSelected) e.currentTarget.style.backgroundColor = '#FFFFFF';
+                            e.currentTarget.style.backgroundColor = '#FFFFFF';
                             const icon = e.currentTarget.querySelector<HTMLElement>('.lv-icon');
                             if (icon) icon.style.opacity = '0';
                           }}
                           style={{
                             height: ROW_HEIGHT,
-                            borderBottom: `1px solid ${isSelected ? '#3B82F6' : '#F1F5F9'}`,
-                            backgroundColor: isSelected ? '#DBEAFE' : '#FFFFFF',
+                            borderBottom: `1px solid ${editMode ? BULK_HOVER_BORDER : '#F1F5F9'}`,
+                            backgroundColor: '#FFFFFF',
                             cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             transition: 'background-color 0.1s',
-                            outline: isSelected ? '2px solid #3B82F6' : undefined,
-                            outlineOffset: isSelected ? '-2px' : undefined,
-                          }}>
-                          {multiSelectMode && editMode
-                            ? (isSelected
-                                ? <CheckSquare size={12} className="lv-icon" style={{ color: '#2563EB', opacity: 1 }} />
-                                : <Square size={12} className="lv-icon" style={{ color: '#9CA3AF', opacity: 0, transition: 'opacity 0.15s' }} />)
-                            : editMode
-                              ? <Lock size={12} className="lv-icon" style={{ color: UFF_CHIUSO_ICON, opacity: 0, transition: 'opacity 0.15s' }} />
-                              : <Plus size={14} className="lv-icon" style={{ color: OPERATOR_COLOR, opacity: 0, transition: 'opacity 0.15s' }} />
+                          }}
+                        >
+                          {editMode
+                            ? <Lock size={12} className="lv-icon" style={{ color: UFF_CHIUSO_ICON, opacity: 0, transition: 'opacity 0.15s' }} />
+                            : <Plus size={14} className="lv-icon" style={{ color: OPERATOR_COLOR, opacity: 0, transition: 'opacity 0.15s' }} />
                           }
                         </div>
                       );
@@ -827,105 +839,116 @@ export default function LoredanaView({
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
-            }}>
-            {/* Header pannello */}
+            }}
+          >
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #FDE68A', backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', gap: 8 }}>
               <FileText size={16} style={{ color: '#D97706', flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#92400E' }}>NOTE POMERIGGIO</div>
-                <div style={{ fontSize: 10, color: '#B45309', marginTop: 1 }}>Appuntamenti CSPT pomeridiani</div>
+                <div style={{ fontSize: 10, color: '#B45309', marginTop: 1 }}>Appuntamenti pomeridiani e promemoria</div>
               </div>
               <button
                 onClick={() => setShowNotesPanel(false)}
                 style={{ padding: 4, borderRadius: 6, color: '#B45309', flexShrink: 0 }}
                 className="hover:bg-amber-200 transition-colors"
-                title="Chiudi pannello">
+                title="Chiudi pannello"
+              >
                 <X size={14} />
               </button>
             </div>
 
-            {/* Selettore data */}
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid #FDE68A' }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: '#92400E', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Data pomeriggio
+            <div style={{ padding: '16px', borderBottom: '1px solid #FDE68A', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <CalendarIcon size={14} /> Seleziona data
               </label>
               <input
                 type="date"
                 value={noteDate}
                 onChange={e => setNoteDate(e.target.value)}
                 style={{
-                  width: '100%', padding: '6px 10px', borderRadius: 8,
-                  border: '1.5px solid #FCD34D', fontSize: 12,
-                  backgroundColor: '#FFFFFF', color: '#451A03',
-                  fontWeight: 600, outline: 'none',
-                }}
-              />
-            </div>
-
-            {/* Area testo nota */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px 16px', gap: 8, overflow: 'hidden' }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Nota appuntamenti pomeridiani
-              </label>
-              <textarea
-                value={noteText}
-                onChange={e => { setNoteText(e.target.value); setNoteSaved(false); }}
-                placeholder={`Appunti pomeriggio ${noteDate}...\n\nEs:\n14:30 – Mario Rossi – consulenza\n15:00 – Anna Bianchi – documentazione\n...`}
-                style={{
-                  flex: 1, padding: '10px 12px', borderRadius: 8,
-                  border: '1.5px solid #FCD34D', fontSize: 12,
-                  backgroundColor: '#FFFFFF', color: '#1C1917',
-                  resize: 'none', outline: 'none', lineHeight: 1.6,
-                  fontFamily: 'inherit',
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: '2px solid #FCD34D',
+                  fontSize: 13,
+                  backgroundColor: '#FFFFFF',
+                  color: '#451A03',
+                  fontWeight: 600,
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
                 }}
                 onFocus={e => (e.currentTarget.style.borderColor = '#F59E0B')}
                 onBlur={e => (e.currentTarget.style.borderColor = '#FCD34D')}
               />
-              <button
-                onClick={handleSaveNote}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '8px 16px', borderRadius: 8,
-                  backgroundColor: noteSaved ? '#059669' : '#D97706',
-                  color: '#FFFFFF', border: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 700,
-                  transition: 'background-color 0.2s',
-                }}
-                onMouseEnter={e => { if (!noteSaved) e.currentTarget.style.backgroundColor = '#B45309'; }}
-                onMouseLeave={e => { if (!noteSaved) e.currentTarget.style.backgroundColor = '#D97706'; }}
-              >
-                <Save size={13} />
-                {noteSaved ? 'Salvato!' : 'Salva nota'}
-              </button>
             </div>
 
-            {/* Lista note del mese */}
-            {csptDaysWithNotes > 0 && (
-              <div style={{ borderTop: '1px solid #FDE68A', padding: '10px 16px', backgroundColor: '#FEF9C3', overflowY: 'auto', maxHeight: 180 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                  Note del mese ({csptDaysWithNotes})
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px', gap: 8, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Testo della nota
+                </label>
+                {noteSaved && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Save size={12} /> Salvato
+                  </span>
+                )}
+              </div>
+              <textarea
+                value={noteText}
+                onChange={e => handleNoteChange(e.target.value)}
+                placeholder={`Appunti pomeriggio ${formatDateDisplay(new Date(noteDate))}...\n\n(Salvato automaticamente)`}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 8,
+                  border: '2px solid #FCD34D',
+                  fontSize: 13,
+                  backgroundColor: '#FFFFFF',
+                  color: '#1C1917',
+                  resize: 'none',
+                  outline: 'none',
+                  lineHeight: 1.6,
+                  fontFamily: 'inherit',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = '#F59E0B')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#FCD34D')}
+              />
+            </div>
+
+            {daysWithNotes > 0 && (
+              <div style={{ borderTop: '2px solid #FDE68A', padding: '16px', backgroundColor: '#FEF9C3', overflowY: 'auto', maxHeight: 220 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <FileText size={14} /> Note in questo mese ({daysWithNotes})
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {Object.entries(afternoonNotes)
                     .filter(([k, v]) => k.startsWith(format(currentMonth, 'yyyy-MM')) && v?.trim())
                     .sort(([a], [b]) => a.localeCompare(b))
                     .map(([dateKey, text]) => {
                       const d = new Date(dateKey + 'T12:00:00');
+                      const isSelected = noteDate === dateKey;
                       return (
                         <button
                           key={dateKey}
                           onClick={() => setNoteDate(dateKey)}
                           style={{
-                            textAlign: 'left', padding: '5px 8px', borderRadius: 6,
-                            backgroundColor: noteDate === dateKey ? '#FDE68A' : '#FFFFFF',
-                            border: `1px solid ${noteDate === dateKey ? '#F59E0B' : '#FDE68A'}`,
-                            cursor: 'pointer', transition: 'background-color 0.1s',
+                            textAlign: 'left',
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            backgroundColor: isSelected ? '#FDE68A' : '#FFFFFF',
+                            border: `2px solid ${isSelected ? '#F59E0B' : '#FDE68A'}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                            boxShadow: isSelected ? '0 2px 4px rgba(217, 119, 6, 0.1)' : 'none',
                           }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = '#F59E0B'; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = '#FDE68A'; }}
                         >
-                          <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E' }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: isSelected ? '#92400E' : '#B45309' }}>
                             {format(d, 'EEEE dd MMMM', { locale: it })}
                           </div>
-                          <div style={{ fontSize: 10, color: '#A16207', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 11, color: '#92400E', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>
                             {text.trim().split('\n')[0]}
                           </div>
                         </button>
@@ -941,12 +964,18 @@ export default function LoredanaView({
       {/* ══ MODAL ══ */}
       {showModal && modalSlot && selectedSede && (
         <EpasaAppointmentModal
-          isOpen={showModal} onClose={closeModal}
-          onSave={handleSave} onUpdate={handleUpdate} onDelete={handleDelete}
+          isOpen={showModal}
+          onClose={closeModal}
+          onSave={handleSave}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
           existingAppointment={editingApt ?? undefined}
-          sedi={loredanaSedi} operatori={operatori}
-          selectedDate={modalSlot.date} selectedTime={modalSlot.time}
-          selectedSedeId={selectedSede.id} defaultOperatoreId={LOREDANA_ID}
+          sedi={loredanaSedi}
+          operatori={operatori}
+          selectedDate={modalSlot.date}
+          selectedTime={modalSlot.time}
+          selectedSedeId={selectedSede.id}
+          defaultOperatoreId={LOREDANA_ID}
         />
       )}
     </div>

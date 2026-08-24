@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -141,7 +141,7 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 type ViewMode = 'daily' | 'monthly';
 type DayAvailability = 'free' | 'partial' | 'full' | 'closed';
 
-const MAX_VISIBLE_DAYS    = 30;
+const MAX_VISIBLE_DAYS    = 60;
 const DAYS_PAST           = 3;
 const DAYS_FUTURE         = 10;
 const DAYS_TO_LOAD        = 5;
@@ -317,6 +317,24 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
   const loadMoreDaysForward = useCallback(() => {
     if (loadingDirRef.current !== 'idle') return;
+    const days = visibleDaysRef.current;
+    if (days.length === 0) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const willTrimFromTop = days.length + DAYS_TO_LOAD > MAX_VISIBLE_DAYS;
+    const anchorIndex = willTrimFromTop ? DAYS_TO_LOAD : 0;
+    const anchorDay = days[anchorIndex];
+    if (anchorDay) {
+      const anchorDateStr = format(anchorDay, 'yyyy-MM-dd');
+      const el = container.querySelector<HTMLElement>(`[data-epasa-date="${anchorDateStr}"]`);
+      if (el) {
+        anchorDateStrRef.current   = anchorDateStr;
+        anchorOffsetTopRef.current = el.offsetTop;
+        anchorScrollTopRef.current = container.scrollTop;
+      }
+    }
+
     loadingDirRef.current = 'fw';
     setVisibleDays(prev => {
       const last = prev[prev.length - 1];
@@ -333,28 +351,27 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     const firstDay = days[0];
     if (!firstDay || startOfDay(firstDay) <= startOfDay(MIN_DATE)) return;
     const container = scrollContainerRef.current;
-    let anchorDateStr = format(firstDay, 'yyyy-MM-dd');
-    let anchorOffsetTop = 0;
-    if (container) {
-      const containerTop = container.getBoundingClientRect().top;
-      const rows = container.querySelectorAll<HTMLElement>('[data-epasa-date]');
-      for (const row of Array.from(rows)) {
-        if (row.getBoundingClientRect().top >= containerTop - 5) {
-          const ds = row.getAttribute('data-epasa-date');
-          if (ds) { anchorDateStr = ds; anchorOffsetTop = row.offsetTop; break; }
-        }
-      }
-    }
+    if (!container) return;
+
+    const anchorDateStr = format(firstDay, 'yyyy-MM-dd');
+    const el = container.querySelector<HTMLElement>(`[data-epasa-date="${anchorDateStr}"]`);
+    const anchorOffsetTop = el ? el.offsetTop : 0;
+
     anchorDateStrRef.current   = anchorDateStr;
     anchorOffsetTopRef.current = anchorOffsetTop;
-    anchorScrollTopRef.current = container ? container.scrollTop : 0;
+    anchorScrollTopRef.current = container.scrollTop;
     loadingDirRef.current = 'bk';
+
     const newDays: Date[] = [];
     for (let i = DAYS_TO_LOAD; i > 0; i--) {
       const d = subDays(firstDay, i);
       if (startOfDay(d) >= startOfDay(MIN_DATE)) newDays.push(d);
     }
-    if (newDays.length === 0) { loadingDirRef.current = 'idle'; return; }
+    if (newDays.length === 0) {
+      loadingDirRef.current = 'idle';
+      return;
+    }
+
     setVisibleDays(prev => {
       let updated = [...newDays, ...prev];
       if (updated.length > MAX_VISIBLE_DAYS) updated = updated.slice(0, MAX_VISIBLE_DAYS);
@@ -362,30 +379,28 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
     });
   }, []);
 
-  const ldEff = useCallback(() => {
+  const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+  useIsomorphicLayoutEffect(() => {
     const dir = loadingDirRef.current;
     if (dir === 'idle') return;
-    if (dir === 'bk') {
-      const anchorDate    = anchorDateStrRef.current;
-      const prevScrollTop = anchorScrollTopRef.current ?? 0;
-      const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
-      const distanceFromTop = prevScrollTop - prevOffsetTop + STICKY_HEADER_HEIGHT;
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (anchorDate) {
-          const container = scrollContainerRef.current;
-          const el = document.querySelector<HTMLElement>(`[data-epasa-date="${anchorDate}"]`);
-          if (el && container) container.scrollTo({ top: el.offsetTop - distanceFromTop, behavior: 'instant' });
-        }
-        anchorDateStrRef.current   = null;
-        anchorOffsetTopRef.current = null;
-        anchorScrollTopRef.current = null;
-        loadingDirRef.current = 'idle';
-      }));
-    } else {
-      requestAnimationFrame(() => requestAnimationFrame(() => { loadingDirRef.current = 'idle'; }));
+    const container = scrollContainerRef.current;
+    const anchorDate = anchorDateStrRef.current;
+    if (container && anchorDate) {
+      const el = container.querySelector<HTMLElement>(`[data-epasa-date="${anchorDate}"]`);
+      if (el) {
+        const prevOffsetTop = anchorOffsetTopRef.current ?? 0;
+        const prevScrollTop = anchorScrollTopRef.current ?? 0;
+        const newOffsetTop = el.offsetTop;
+        const delta = newOffsetTop - prevOffsetTop;
+        container.scrollTop = prevScrollTop + delta;
+      }
     }
-  }, []);
-  useEffect(ldEff, [visibleDays]);
+    anchorDateStrRef.current   = null;
+    anchorOffsetTopRef.current = null;
+    anchorScrollTopRef.current = null;
+    loadingDirRef.current      = 'idle';
+  }, [visibleDays]);
 
   const onScroll = useCallback(() => {
     if (viewModeRef.current !== 'daily') return;
@@ -736,7 +751,7 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   // ═══ VISTA GIORNALIERA ════════════════════════════════════════════════════
   const renderDailyView = () => (
     <div>
-      <div ref={setScrollRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 65px)' }}>
+      <div ref={setScrollRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 65px)', overflowAnchor: 'none' }}>
         <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b-2 border-[#005CA9]/20">
