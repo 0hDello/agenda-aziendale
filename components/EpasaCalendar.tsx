@@ -295,12 +295,13 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
 
   const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
     const container = scrollContainerRef.current;
-    const el = document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
+    const el = container?.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`) ||
+               document.querySelector<HTMLElement>(`[data-epasa-date="${formatDate(date)}"]`);
     if (!el || !container) return;
     const containerRect = container.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     const scrollOffset = elRect.top - containerRect.top + container.scrollTop - STICKY_HEADER_HEIGHT;
-    container.scrollTo({ top: scrollOffset, behavior });
+    container.scrollTo({ top: Math.max(0, scrollOffset), behavior });
   };
 
   const buildWindowAround = (center: Date): Date[] => {
@@ -423,16 +424,29 @@ export default function EpasaCalendar({ agendaId, initialLoredana = false }: Epa
   const setScrollRef = useCallback((el: HTMLDivElement | null) => {
     if (scrollContainerRef.current) scrollContainerRef.current.removeEventListener('scroll', onScroll);
     (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-    if (el) el.addEventListener('scroll', onScroll, { passive: true });
-  }, [onScroll]);
+    if (el) {
+      el.addEventListener('scroll', onScroll, { passive: true });
+      requestAnimationFrame(() => {
+        scrollToDate(selectedDate, 'instant');
+      });
+    }
+  }, [onScroll, selectedDate]);
 
   useEffect(() => {
     if (!isInitialized) {
       setVisibleDays(buildWindowAround(selectedDate));
       setIsInitialized(true);
-      setTimeout(() => scrollToDate(selectedDate, 'instant'), 200);
     }
-  }, []);
+  }, [isInitialized, selectedDate]);
+
+  useEffect(() => {
+    if (!loading && viewMode === 'daily') {
+      const timer = setTimeout(() => {
+        scrollToDate(selectedDate, 'instant');
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, viewMode, selectedDate]);
 
   useEffect(() => { loadData(); }, []);
 
