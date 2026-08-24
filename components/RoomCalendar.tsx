@@ -73,8 +73,8 @@ function getSlotSpan(startTime: string, endTime: string): number {
 export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(0);
-  const [currentYear] = useState(2026);
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
+  const [currentYear, setCurrentYear]   = useState(() => new Date().getFullYear());
   const [roomData, setRoomData] = useState<RoomData>({});
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +122,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
     if (allAppointments.length > 0 && selectedRoom) {
       processRoomData();
     }
-  }, [selectedRoom, currentMonth, allAppointments]);
+  }, [selectedRoom, currentMonth, currentYear, allAppointments]);
 
   const loadData = async () => {
     setLoading(true);
@@ -264,8 +264,22 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
   const getDaysInMonth = () => new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  const previousMonth = () => { if (currentMonth > 0) setCurrentMonth(currentMonth - 1); };
-  const nextMonth     = () => { if (currentMonth < 11) setCurrentMonth(currentMonth + 1); };
+  const previousMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonth(prev => prev - 1);
+    }
+  };
+  const nextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonth(prev => prev + 1);
+    }
+  };
 
   const isCellCovered = (dateKey: string, timeSlot: string): boolean => {
     const timeIndex = TIME_SLOTS.indexOf(timeSlot);
@@ -293,7 +307,7 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
 
   const monthAppointmentsCount = allAppointments.filter(a => {
     const appDate = new Date(a.data + 'T00:00:00');
-    return a.sala_id === selectedRoom.id && appDate.getMonth() === currentMonth;
+    return a.sala_id === selectedRoom.id && appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
   }).length;
 
   const currentAppointment = selectedSlot
@@ -335,20 +349,18 @@ export default function RoomCalendar({ agendaId }: RoomCalendarProps) {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={previousMonth}
-              disabled={currentMonth === 0}
-              className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200"
             >
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <div className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20">
+            <div className="bg-[#E6F2FF] px-4 py-2 rounded-lg border border-[#005CA9]/20 w-44 text-center flex items-center justify-center">
               <span className="text-sm font-semibold text-[#005CA9] whitespace-nowrap">
                 {MONTHS[currentMonth]} {currentYear}
               </span>
             </div>
             <button
               onClick={nextMonth}
-              disabled={currentMonth === 11}
-              className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 hover:bg-blue-50 rounded-lg transition-all border border-gray-200"
             >
               <ChevronRight className="w-4 h-4 text-gray-600" />
             </button>
