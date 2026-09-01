@@ -49,6 +49,7 @@ const TIME_SLOTS_STD_LMM = [
   { hour: 15, minute: 0,  label: '15:00' },
   { hour: 15, minute: 30, label: '15:30' },
   { hour: 16, minute: 0,  label: '16:00' },
+  { hour: 16, minute: 30, label: '16:30' },
   { hour: 17, minute: 0,  label: '17:00' },
   { hour: 17, minute: 30, label: '17:30' },
 ];
@@ -121,7 +122,7 @@ const getStdEndSlotsForDay = (dow: number) => dow === 5 ? END_TIME_SLOTS_STD_VEN
 
 // ─── Funzioni principali ──────────────────────────────────────────────────────────────────
 
-export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
+export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId: string = '730') => {
   if (agendaId === '730' && date) {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (SABATI_730_ECCEZIONE.includes(dateStr)) return TIME_SLOTS_730_SABATO;
@@ -132,7 +133,13 @@ export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?
 
   if (n.includes('imola') || n === '') {
     if (!date) return TIME_SLOTS_IMOLA_LMM;
-    if (dow === 4) return TIME_SLOTS_IMOLA_GIO;
+    if (dow === 4) {
+      // Nel mese di settembre per l'agenda 730 il giovedì pomeriggio torna all'orario normale 14:00/17:30
+      if (agendaId === '730' && date.getMonth() === 8) {
+        return TIME_SLOTS_IMOLA_LMM;
+      }
+      return TIME_SLOTS_IMOLA_GIO;
+    }
     if (dow === 5) return TIME_SLOTS_IMOLA_VEN;
     return TIME_SLOTS_IMOLA_LMM;
   }
@@ -144,7 +151,7 @@ export const getTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?
   return TIME_SLOTS_STD_LMM;
 };
 
-export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId?: string) => {
+export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agendaId: string = '730') => {
   if (agendaId === '730' && date) {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (SABATI_730_ECCEZIONE.includes(dateStr)) return END_TIME_SLOTS_730_SABATO;
@@ -155,7 +162,13 @@ export const getEndTimeSlotsForSede = (nomeSedeOrId: string, date?: Date, agenda
 
   if (n.includes('imola') || n === '') {
     if (!date) return END_TIME_SLOTS_IMOLA_LMM;
-    if (dow === 4) return END_TIME_SLOTS_IMOLA_GIO;
+    if (dow === 4) {
+      // Nel mese di settembre per l'agenda 730 il giovedì pomeriggio torna all'orario normale 14:00/17:30 (fine alle 18:00)
+      if (agendaId === '730' && date.getMonth() === 8) {
+        return END_TIME_SLOTS_IMOLA_LMM;
+      }
+      return END_TIME_SLOTS_IMOLA_GIO;
+    }
     if (dow === 5) return END_TIME_SLOTS_IMOLA_VEN;
     return END_TIME_SLOTS_IMOLA_LMM;
   }
