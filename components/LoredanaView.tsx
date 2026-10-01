@@ -64,66 +64,66 @@ export interface LoredanaViewProps {
 }
 
 // ─── Costanti ────────────────────────────────────────────────────────────────────────────
-const LOREDANA_ID  = 'LOREDANA';
-const MIN_DATE     = new Date(2026, 0, 1);
-const TOPBAR_H     = 53;
-const HEADER_H     = 54;
-const ROW_MIN      = 44;
-const FILL_RATIO   = 0.82;
-const LABEL_W      = 68;
-const COL_WIDTH    = 115;
+const LOREDANA_ID = 'LOREDANA';
+const MIN_DATE = new Date(2026, 0, 1);
+const TOPBAR_H = 53;
+const HEADER_H = 54;
+const ROW_MIN = 44;
+const FILL_RATIO = 0.82;
+const LABEL_W = 68;
+const COL_WIDTH = 115;
 const COL_WIDTH_WE = 48;
 
-const OPERATOR_COLOR        = '#005CA9';
-const OPERATOR_COLOR_LIGHT  = '#E6F2FF';
-const OPERATOR_COLOR_HOVER  = '#D1E7FF';
+const OPERATOR_COLOR = '#005CA9';
+const OPERATOR_COLOR_LIGHT = '#E6F2FF';
+const OPERATOR_COLOR_HOVER = '#D1E7FF';
 
-const UFF_CHIUSO_BG     = '#D1D5DB';
+const UFF_CHIUSO_BG = '#D1D5DB';
 const UFF_CHIUSO_BORDER = '#9CA3AF';
-const UFF_CHIUSO_ICON   = '#6B7280';
+const UFF_CHIUSO_ICON = '#6B7280';
 
 const BULK_HOVER_BG = '#DBEAFE';
 const BULK_HOVER_BORDER = '#60A5FA';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
-  imola: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'],
-  cspt:  ['14:00','14:30','15:00','15:30','16:00','16:30'],
-  borgo: ['09:00','09:30','10:00','10:30','11:00','11:30'],
+  imola: ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00'],
+  cspt: ['14:00', '14:30', '15:00', '15:30', '16:00', '16:30'],
+  borgo: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
 };
 
 const LOREDANA_SEDI = ['imola', 'cspt', 'borgo'];
 
 const HL_CSS: Record<string, { bg: string; bgHover: string; border: string; leftBorder: string; text: string }> = {
-  '':       { bg: '#EFF6FF', bgHover: '#DBEAFE', border: '#BFDBFE', leftBorder: '#3B82F6', text: '#1D4ED8' },
-  yellow:   { bg: '#FEF9C3', bgHover: '#FEF08A', border: '#EAB308', leftBorder: '#CA8A04', text: '#713F12' },
-  orange:   { bg: '#FFEDD5', bgHover: '#FED7AA', border: '#F97316', leftBorder: '#EA580C', text: '#7C2D12' },
-  red:      { bg: '#FEE2E2', bgHover: '#FECACA', border: '#EF4444', leftBorder: '#DC2626', text: '#7F1D1D' },
-  green:    { bg: '#DCFCE7', bgHover: '#BBF7D0', border: '#22C55E', leftBorder: '#16A34A', text: '#14532D' },
-  blue:     { bg: '#DBEAFE', bgHover: '#BFDBFE', border: '#3B82F6', leftBorder: '#2563EB', text: '#1E3A8A' },
-  purple:   { bg: '#F3E8FF', bgHover: '#E9D5FF', border: '#A855F7', leftBorder: '#9333EA', text: '#581C87' },
-  pink:     { bg: '#FCE7F3', bgHover: '#FBCFE8', border: '#EC4899', leftBorder: '#DB2777', text: '#831843' },
+  '': { bg: '#EFF6FF', bgHover: '#DBEAFE', border: '#BFDBFE', leftBorder: '#3B82F6', text: '#1D4ED8' },
+  yellow: { bg: '#FEF9C3', bgHover: '#FEF08A', border: '#EAB308', leftBorder: '#CA8A04', text: '#713F12' },
+  orange: { bg: '#FFEDD5', bgHover: '#FED7AA', border: '#F97316', leftBorder: '#EA580C', text: '#7C2D12' },
+  red: { bg: '#FEE2E2', bgHover: '#FECACA', border: '#EF4444', leftBorder: '#DC2626', text: '#7F1D1D' },
+  green: { bg: '#DCFCE7', bgHover: '#BBF7D0', border: '#22C55E', leftBorder: '#16A34A', text: '#14532D' },
+  blue: { bg: '#DBEAFE', bgHover: '#BFDBFE', border: '#3B82F6', leftBorder: '#2563EB', text: '#1E3A8A' },
+  purple: { bg: '#F3E8FF', bgHover: '#E9D5FF', border: '#A855F7', leftBorder: '#9333EA', text: '#581C87' },
+  pink: { bg: '#FCE7F3', bgHover: '#FBCFE8', border: '#EC4899', leftBorder: '#DB2777', text: '#831843' },
 };
 
 // ─── Regole apertura ─────────────────────────────────────────────────────────────────────
 const isBorgoWorkingDay = (date: Date): boolean => {
-  const y   = date.getFullYear();
-  const m   = date.getMonth();
-  const d   = date.getDate();
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const d = date.getDate();
   const dow = new Date(y, m, d, 12).getDay();
   if (dow !== 2) return false;
   const exceptions: Record<string, number[]> = {
-    '2026-9':  [8, 15],
+    '2026-9': [8, 15],
     '2026-10': [6, 20],
     '2026-12': [15],
   };
   const key = `${y}-${m + 1}`;
   if (exceptions[key]) return exceptions[key].includes(d);
-  const dowFirst       = new Date(y, m, 1, 12).getDay();
+  const dowFirst = new Date(y, m, 1, 12).getDay();
   const offsetMonFirst = (dowFirst + 6) % 7;
-  const firstMondayD   = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
+  const firstMondayD = offsetMonFirst === 0 ? 1 : 8 - offsetMonFirst;
   const offsetMon = (dow + 6) % 7;
-  const mondayD   = d - offsetMon;
-  const diffDays  = mondayD - firstMondayD;
+  const mondayD = d - offsetMon;
+  const diffDays = mondayD - firstMondayD;
   if (diffDays < 0) return false;
   const week = Math.round(diffDays / 7) + 1;
   return week === 2 || week === 3;
@@ -132,7 +132,7 @@ const isBorgoWorkingDay = (date: Date): boolean => {
 const isSedeOpenOnDay = (sedeId: string, date: Date): boolean => {
   if (isWeekend(date)) return false;
   const dow = getDay(date);
-  if (sedeId === 'cspt')  return dow === 1;
+  if (sedeId === 'cspt') return dow === 1;
   if (sedeId === 'borgo') return isBorgoWorkingDay(date);
   return true;
 };
@@ -145,7 +145,7 @@ function useRowHeight(slotCount: number): number {
   useEffect(() => {
     const compute = () => {
       const available = window.innerHeight - TOPBAR_H - HEADER_H;
-      const ideal     = Math.floor((available * FILL_RATIO) / slotCount);
+      const ideal = Math.floor((available * FILL_RATIO) / slotCount);
       setRowH(Math.max(ideal, ROW_MIN));
     };
     compute();
@@ -169,7 +169,7 @@ export default function LoredanaView({
   onDelete,
 }: LoredanaViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const today     = formatDate(new Date());
+  const today = formatDate(new Date());
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -178,10 +178,10 @@ export default function LoredanaView({
 
   const loredanaSedi = sedi.filter(s => LOREDANA_SEDI.includes(s.id));
   const [selectedSedeId, setSelectedSedeId] = useState<string>('imola');
-  const [editMode, setEditMode]             = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
-  const [showModal, setShowModal]   = useState(false);
-  const [modalSlot, setModalSlot]   = useState<{ date: string; time: string } | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalSlot, setModalSlot] = useState<{ date: string; time: string } | null>(null);
   const [editingApt, setEditingApt] = useState<Appointment | null>(null);
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
 
@@ -219,58 +219,58 @@ export default function LoredanaView({
     if (!text.trim()) delete updated[noteDate];
     setAfternoonNotes(updated);
     setNoteSaved(false);
-    
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
+
     saveTimeoutRef.current = setTimeout(() => {
       fetch('/api/epasa/note-pomeriggio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: noteDate, testo: text })
       })
-      .then(res => res.json())
-      .then(() => {
-        setNoteSaved(true);
-        setTimeout(() => setNoteSaved(false), 2000);
-      })
-      .catch(err => console.error('Errore salvataggio nota:', err));
+        .then(res => res.json())
+        .then(() => {
+          setNoteSaved(true);
+          setTimeout(() => setNoteSaved(false), 2000);
+        })
+        .catch(err => console.error('Errore salvataggio nota:', err));
     }, 1000);
   };
 
   const selectedSede =
     loredanaSedi.find(s => s.id === selectedSedeId) ?? loredanaSedi[0];
 
-  const slots      = selectedSede ? (TIME_SLOTS_MAP[selectedSede.id] ?? TIME_SLOTS_MAP['imola']) : [];
+  const slots = selectedSede ? (TIME_SLOTS_MAP[selectedSede.id] ?? TIME_SLOTS_MAP['imola']) : [];
   const ROW_HEIGHT = useRowHeight(slots.length);
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
-    end:   endOfMonth(currentMonth),
+    end: endOfMonth(currentMonth),
   });
 
   const totalColsWidth = days.reduce((acc, day) => acc + (isWeekend(day) ? COL_WIDTH_WE : COL_WIDTH), 0);
 
   const isAtMinMonth =
     currentMonth.getFullYear() === MIN_DATE.getFullYear() &&
-    currentMonth.getMonth()    === MIN_DATE.getMonth();
+    currentMonth.getMonth() === MIN_DATE.getMonth();
 
-  const goPrev  = () => { if (!isAtMinMonth) setCurrentMonth(prev => subMonths(prev, 1)); };
-  const goNext  = () => setCurrentMonth(prev => addMonths(prev, 1));
+  const goPrev = () => { if (!isAtMinMonth) setCurrentMonth(prev => subMonths(prev, 1)); };
+  const goNext = () => setCurrentMonth(prev => addMonths(prev, 1));
   const goToday = () => setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
   const isGiornoChiuso = (dateStr: string): boolean =>
     giorniChiusi.some(
       g => g.data === dateStr &&
-           (g.operatore_id === null || g.operatore_id === LOREDANA_ID)
+        (g.operatore_id === null || g.operatore_id === LOREDANA_ID)
     );
 
   const getAppointmentForSlot = (sedeId: string, dateStr: string, time: string): Appointment | null =>
     localApts.find(
       apt =>
         apt.operatore_id === LOREDANA_ID &&
-        apt.sede_id  === sedeId &&
-        apt.data     === dateStr &&
-        apt.ora      === time
+        apt.sede_id === sedeId &&
+        apt.data === dateStr &&
+        apt.ora === time
     ) ?? null;
 
   const isUffChiuso = (apt: Appointment | null): boolean =>
@@ -279,19 +279,19 @@ export default function LoredanaView({
   const getRealAppointmentsForSlot = (sedeId: string, dateStr: string, time: string) =>
     localApts.filter(
       a => a.sede_id === sedeId &&
-           a.data === dateStr &&
-           a.ora === time &&
-           a.operatore_id === LOREDANA_ID &&
-           a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
+        a.data === dateStr &&
+        a.ora === time &&
+        a.operatore_id === LOREDANA_ID &&
+        a.cliente.trim().toUpperCase() !== 'UFF CHIUSO'
     );
 
   const getUffChiusoAppointmentsForSlot = (sedeId: string, dateStr: string, time: string) =>
     localApts.filter(
       a => a.sede_id === sedeId &&
-           a.data === dateStr &&
-           a.ora === time &&
-           a.operatore_id === LOREDANA_ID &&
-           a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
+        a.data === dateStr &&
+        a.ora === time &&
+        a.operatore_id === LOREDANA_ID &&
+        a.cliente.trim().toUpperCase() === 'UFF CHIUSO'
     );
 
   const createUffChiuso = async (sedeId: string, dateStr: string, time: string, motivo: string) => {
@@ -409,7 +409,7 @@ export default function LoredanaView({
     setModalSlot(null);
   };
 
-  const handleSave   = async (data: any) => { await onSave(data); };
+  const handleSave = async (data: any) => { await onSave(data); };
   const handleUpdate = async (id: string, data: any) => { await onUpdate(id, data); };
   const handleDelete = async (id: string) => {
     await onDelete(id);
@@ -525,11 +525,10 @@ export default function LoredanaView({
         <button
           onClick={() => setShowNotesPanel(p => !p)}
           title="Note pomeriggio"
-          className={`relative flex items-center gap-1.5 px-3 h-9 rounded-full border-2 text-xs font-bold transition-all flex-shrink-0 ${
-            showNotesPanel
+          className={`relative flex items-center gap-1.5 px-3 h-9 rounded-full border-2 text-xs font-bold transition-all flex-shrink-0 ${showNotesPanel
               ? 'bg-amber-50 border-amber-400 text-amber-700 shadow-amber-100 shadow-md'
               : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-600'
-          }`}
+            }`}
         >
           <FileText size={14} />
           <span className="hidden sm:inline">Note pomeriggio</span>
@@ -542,11 +541,10 @@ export default function LoredanaView({
 
         <button
           onClick={() => setEditMode(e => !e)}
-          className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 flex-shrink-0 ${
-            editMode
+          className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 flex-shrink-0 ${editMode
               ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
               : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
-          }`}
+            }`}
           title={editMode ? 'Esci dalla modalità blocco multiplo' : 'Entra in modalità blocco multiplo'}
         >
           {editMode ? <Unlock size={16} /> : <Lock size={16} />}
@@ -590,14 +588,14 @@ export default function LoredanaView({
             {/* Colonne giorni */}
             <div style={{ display: 'flex', flex: 1 }}>
               {days.map(day => {
-                const dateStr   = formatDate(day);
-                const isToday   = dateStr === today;
-                const isWe      = isWeekend(day);
-                const colW      = isWe ? COL_WIDTH_WE : COL_WIDTH;
+                const dateStr = formatDate(day);
+                const isToday = dateStr === today;
+                const isWe = isWeekend(day);
+                const colW = isWe ? COL_WIDTH_WE : COL_WIDTH;
                 const manClosed = isGiornoChiuso(dateStr);
-                const sedeOpen  = selectedSede ? isSedeOpenOnDay(selectedSede.id, day) : false;
-                const dayOff    = !sedeOpen || manClosed || isWe;
-                const headerBg   = isToday ? OPERATOR_COLOR : isWe ? '#E5E7EB' : '#F8FAFC';
+                const sedeOpen = selectedSede ? isSedeOpenOnDay(selectedSede.id, day) : false;
+                const dayOff = !sedeOpen || manClosed || isWe;
+                const headerBg = isToday ? OPERATOR_COLOR : isWe ? '#E5E7EB' : '#F8FAFC';
                 const headerText = isToday ? '#fff' : isWe ? '#9CA3AF' : '#374151';
 
                 const hasDayNote = afternoonNotes[dateStr]?.trim();
@@ -677,11 +675,11 @@ export default function LoredanaView({
                         );
                       }
 
-                      const apt       = selectedSede ? getAppointmentForSlot(selectedSede.id, dateStr, time) : null;
+                      const apt = selectedSede ? getAppointmentForSlot(selectedSede.id, dateStr, time) : null;
                       const uffClosed = isUffChiuso(apt);
-                      const hasPaz    = apt !== null && !uffClosed;
-                      const sedeId    = selectedSede?.id ?? 'imola';
-                      const cellKey   = `${dateStr}-${time}`;
+                      const hasPaz = apt !== null && !uffClosed;
+                      const sedeId = selectedSede?.id ?? 'imola';
+                      const cellKey = `${dateStr}-${time}`;
                       const isHovered = hoveredCell === cellKey;
 
                       // ── Slot UFF CHIUSO ──
@@ -727,14 +725,14 @@ export default function LoredanaView({
 
                       // ── Slot con appuntamento reale ──
                       if (hasPaz) {
-                        const hlKey   = apt!.highlight || '';
-                        const hl      = HL_CSS[hlKey] ?? HL_CSS[''];
+                        const hlKey = apt!.highlight || '';
+                        const hl = HL_CSS[hlKey] ?? HL_CSS[''];
                         const hasNote = !!(apt!.note?.trim());
 
-                        const cellBg         = isHovered ? hl.bgHover : hl.bg;
-                        const cellBorder     = hl.border;
+                        const cellBg = isHovered ? hl.bgHover : hl.bg;
+                        const cellBorder = hl.border;
                         const cellLeftBorder = hl.leftBorder;
-                        const cellTextColor  = hl.text;
+                        const cellTextColor = hl.text;
 
                         return (
                           <div
