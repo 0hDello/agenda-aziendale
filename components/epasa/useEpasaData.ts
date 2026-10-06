@@ -122,9 +122,10 @@ export function useEpasaData() {
     return time === '08:00';
   }, []);
 
-  const isLoredanaBlocked = useCallback((operator: string, day: Date, time: string) => {
-    return isLoredanaAfternoonEmpty(operator, time);
-  }, []);
+  const isLoredanaBlocked = useCallback((operator: string, day: Date, time: string, sedeId?: string) => {
+    const sId = sedeId || selectedSede?.id;
+    return isLoredanaAfternoonBlocked(operator, day, time, sId);
+  }, [selectedSede]);
 
   const isSedeOperatorDayClosed = useCallback((sedeId: string, operator: string, day: Date) => {
     if (isWeekend(day)) return true;
@@ -190,7 +191,7 @@ export function useEpasaData() {
     const slots = getTimeSlotsForSede(selectedSede.id, dateObj);
     const timeBlockedCount = slots.filter(t => 
       isMileceTimeBlocked(operator, dateObj, t) ||
-      isLoredanaBlocked(operator, dateObj, t)
+      isLoredanaBlocked(operator, dateObj, t, selectedSede.id)
     ).length;
     const specialSlotCount = (selectedSede.id === 'imola' && operator !== 'MILECE')
       ? slots.filter(t => IMOLA_SPECIAL_SLOTS.includes(t)).length : 0;

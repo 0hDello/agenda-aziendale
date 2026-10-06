@@ -182,7 +182,7 @@ export default function EpasaDailyTable({
                                 const isDayClosed = isSedeOperatorDayClosed(selectedSede.id, operator, dayLocal);
                                 const isManually  = isGiornoChiuso(dateStr, operator);
                                 const isMTC       = isMileceTimeBlocked(operator, dayLocal, time);
-                                const isLorBlocked = isLoredanaAfternoonBlocked
+                                const isLorBlocked = (selectedSede.id === 'imola' && isLoredanaAfternoonBlocked)
                                   ? isLoredanaAfternoonBlocked(operator, dayLocal, time, selectedSede.id)
                                   : false;
                                 const isUffC      = isUffChiusoSlot(dateStr, time, operator);
@@ -230,13 +230,20 @@ export default function EpasaDailyTable({
                                   );
                                 }
 
-                                if (isLorBlocked) {
+                                if (isLorBlocked && slotApts.length === 0) {
                                   return (
                                     <td
                                       key={`${operator}-${time}`}
-                                      className="p-0 border-r border-gray-300 border-b border-gray-300 bg-white select-none"
+                                      className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
                                       style={{ height: '45px' }}
-                                    />
+                                      title="Ufficio chiuso"
+                                    >
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-[10px] text-slate-200 font-medium flex items-center gap-1">
+                                          <Lock size={9} /> chiuso
+                                        </span>
+                                      </div>
+                                    </td>
                                   );
                                 }
 

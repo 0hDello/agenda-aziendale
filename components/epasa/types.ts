@@ -158,7 +158,10 @@ export const isLoredanaAfternoonEmpty = (operator: string, time: string): boolea
 };
 
 export const isLoredanaAfternoonBlocked = (operator: string, day: Date, time: string, sedeId?: string): boolean => {
-  return isLoredanaAfternoonEmpty(operator, time);
+  if (sedeId !== 'imola') return false;
+  if (!isMileceAfternoonWorkingDay(day)) return false;
+  if (operator.toUpperCase() !== 'LOREDANA') return false;
+  return TIME_SLOTS_IMOLA_AFTERNOON_2027.includes(time);
 };
 
 export const MAX_VISIBLE_DAYS    = 60;
