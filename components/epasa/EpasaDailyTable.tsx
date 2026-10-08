@@ -4,7 +4,7 @@ import React from 'react';
 import { User, Lock, Unlock, MessageSquare, Plus } from 'lucide-react';
 import { format, isWeekend } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { Sede, Appointment, OPERATOR_COLOR, dateStrToLocal } from './types';
+import { Sede, Appointment, OPERATOR_COLOR, dateStrToLocal, isMileceAfternoonWorkingDay, TIME_SLOTS_IMOLA_AFTERNOON_2027, MileceEmptyStyle } from './types';
 import { HIGHLIGHT_STYLE } from '../EpasaAppointmentModal';
 
 interface EpasaDailyTableProps {
@@ -15,6 +15,10 @@ interface EpasaDailyTableProps {
   getTimeSlotsForDay?: (day: Date) => string[];
   selectedSede: Sede;
   editMode: boolean;
+  highlightedAppointmentId?: string | null;
+  mileceEmptyStyle?: MileceEmptyStyle;
+  rowHeightSetting?: 'compact' | 'normal' | 'spacious';
+  showNoteTooltips?: boolean;
   getAppointmentsForSlot: (date: string, time: string, operator: string) => Appointment[];
   isSedeOperatorDayClosed: (sedeId: string, operator: string, day: Date) => boolean;
   isGiornoChiuso: (dateStr: string, operator: string) => boolean;
@@ -35,6 +39,10 @@ export default function EpasaDailyTable({
   getTimeSlotsForDay,
   selectedSede,
   editMode,
+  highlightedAppointmentId,
+  mileceEmptyStyle = 'diagonal',
+  rowHeightSetting = 'normal',
+  showNoteTooltips = true,
   getAppointmentsForSlot,
   isSedeOperatorDayClosed,
   isGiornoChiuso,
@@ -47,6 +55,8 @@ export default function EpasaDailyTable({
   onOpenNewAppointment,
 }: EpasaDailyTableProps) {
   const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
+  const slotHeightPx =
+    rowHeightSetting === 'compact' ? '38px' : rowHeightSetting === 'spacious' ? '52px' : '45px';
 
   return (
     <div>
@@ -171,7 +181,7 @@ export default function EpasaDailyTable({
                           <tr key={`${dateStr}-${time}`}>
                             <td
                               className="p-0 bg-[#F5F8FA] sticky left-0 z-10 border-r border-gray-300 border-b border-gray-300"
-                              style={{ width: '60px', height: '45px' }}
+                              style={{ width: '60px', height: slotHeightPx }}
                             >
                               <div className="px-1 py-2 text-xs font-semibold text-gray-700">{time}</div>
                             </td>
@@ -201,7 +211,7 @@ export default function EpasaDailyTable({
                                     <td
                                       key={`${operator}-${time}`}
                                       className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
-                                      style={{ height: '45px' }}
+                                      style={{ height: slotHeightPx }}
                                       title={title}
                                     >
                                       <div className="w-full h-full flex items-center justify-center">
@@ -213,13 +223,59 @@ export default function EpasaDailyTable({
                                   );
                                 }
 
+                                const isMileceEmptyAfternoon =
+                                  operator === 'MILECE' &&
+                                  time >= '14:00' &&
+                                  (dayLocal.getFullYear() === 2026 ||
+                                    !isMileceAfternoonWorkingDay(dayLocal) ||
+                                    !TIME_SLOTS_IMOLA_AFTERNOON_2027.includes(time));
+
+                                if (isMileceEmptyAfternoon && slotApts.length === 0) {
+                                  const isLastSlot = time === daySlots[daySlots.length - 1];
+                                  if (mileceEmptyStyle === 'white') {
+                                    return (
+                                      <td
+                                        key={`${operator}-${time}`}
+                                        className={`relative p-0 border-r border-gray-100 ${isLastSlot ? 'border-b border-gray-100' : 'border-b-0'} bg-white select-none pointer-events-none`}
+                                        style={{ height: slotHeightPx }}
+                                      />
+                                    );
+                                  }
+                                  if (mileceEmptyStyle === 'locked') {
+                                    return (
+                                      <td
+                                        key={`${operator}-${time}`}
+                                        className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
+                                        style={{ height: slotHeightPx }}
+                                        title="MILECE non riceve di pomeriggio"
+                                      >
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <span className="text-[10px] text-slate-200 font-medium flex items-center gap-1">
+                                            <Lock size={9} /> chiuso
+                                          </span>
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+                                  return (
+                                    <td
+                                      key={`${operator}-${time}`}
+                                      className={`relative p-0 border-r border-gray-300 ${isLastSlot ? 'border-b border-gray-300' : 'border-b-0'} select-none pointer-events-none`}
+                                      style={{
+                                        height: slotHeightPx,
+                                        background: 'repeating-linear-gradient(45deg,#f9fafb,#f9fafb 8px,#f1f5f9 8px,#f1f5f9 16px)',
+                                      }}
+                                    />
+                                  );
+                                }
+
                                 if (isMTC) {
                                   return (
                                     <td
                                       key={`${operator}-${time}`}
                                       className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
-                                      style={{ height: '45px' }}
-                                      title="MILECE inizia alle 08:30"
+                                      style={{ height: slotHeightPx }}
+                                      title={time >= '14:00' ? 'MILECE non riceve di pomeriggio' : 'MILECE inizia alle 08:30'}
                                     >
                                       <div className="w-full h-full flex items-center justify-center">
                                         <span className="text-[10px] text-slate-200 font-medium flex items-center gap-1">
@@ -235,7 +291,7 @@ export default function EpasaDailyTable({
                                     <td
                                       key={`${operator}-${time}`}
                                       className="relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 select-none"
-                                      style={{ height: '45px' }}
+                                      style={{ height: slotHeightPx }}
                                       title="Ufficio chiuso"
                                     >
                                       <div className="w-full h-full flex items-center justify-center">
@@ -256,7 +312,7 @@ export default function EpasaDailyTable({
                                   className={`relative p-0 border-r border-slate-500 border-b border-slate-500 bg-slate-600 ${
                                     editMode ? 'cursor-pointer hover:bg-slate-700' : 'select-none'
                                   }`}
-                                  style={{ height: '45px' }}
+                                  style={{ height: slotHeightPx }}
                                   title={
                                     editMode
                                       ? 'Clicca per sbloccare'
@@ -279,34 +335,54 @@ export default function EpasaDailyTable({
 
                             if (slotApts.length > 0) {
                               const apt   = slotApts[0];
+                              const isHighlighted = slotApts.some(a => a.id === highlightedAppointmentId);
                               const hlKey = apt.highlight || '';
                               const hl    = HIGHLIGHT_STYLE[hlKey] ?? HIGHLIGHT_STYLE[''];
                               return (
                                 <td
                                   key={`${operator}-${time}`}
-                                  className="relative p-0 border-r border-gray-300 border-b border-gray-300 group/slot"
-                                  style={{ height: '45px' }}
+                                  className={`relative p-0 border-r border-gray-300 border-b border-gray-300 group/slot ${
+                                    isHighlighted ? 'z-30' : ''
+                                  }`}
+                                  style={{ height: slotHeightPx }}
                                 >
                                   <div
+                                    id={`epasa-apt-${apt.id}`}
                                     onClick={() => !editMode && onOpenEditAppointment(apt)}
-                                    className={`w-full h-full px-2 py-1 ${hl.cell} border-l-4 ${hl.border} flex items-center ${
-                                      editMode ? 'cursor-not-allowed' : 'hover:brightness-95 cursor-pointer'
+                                    className={`w-full h-full px-2 py-1 flex items-center transition-all duration-700 ease-in-out ${
+                                      isHighlighted
+                                        ? 'bg-red-100/90 border-l-4 border-red-500 ring-2 ring-red-400/50 shadow-md scale-[1.015] z-30 relative cursor-pointer'
+                                        : `${hl.cell} border-l-4 ${hl.border} ${
+                                            editMode ? 'cursor-not-allowed' : 'hover:brightness-95 cursor-pointer'
+                                          }`
                                     }`}
                                     title={editMode ? 'Slot occupato: non bloccabile' : undefined}
                                   >
                                     <div className="w-full overflow-hidden">
                                       <div className="flex items-center gap-1 w-full">
-                                        <User size={10} className={`${hl.text} flex-shrink-0`} />
-                                        <span className={`text-[10px] font-bold truncate ${hl.text} flex-1 min-w-0`}>
+                                        <User
+                                          size={10}
+                                          className={`${isHighlighted ? 'text-red-600' : hl.text} flex-shrink-0 transition-colors duration-500`}
+                                        />
+                                        <span
+                                          className={`text-[10px] font-bold ${
+                                            isHighlighted
+                                              ? 'text-red-700'
+                                              : hl.text
+                                          } truncate flex-1 min-w-0 transition-colors duration-500`}
+                                        >
                                           {apt.cliente}
                                         </span>
                                         {apt.note && !editMode && (
-                                          <MessageSquare size={9} className={`${hl.text} flex-shrink-0 opacity-60`} />
+                                          <MessageSquare
+                                            size={9}
+                                            className={`${isHighlighted ? 'text-red-600 opacity-80' : hl.text} flex-shrink-0 opacity-60 transition-colors duration-500`}
+                                          />
                                         )}
                                       </div>
                                     </div>
                                   </div>
-                                  {!editMode && apt.note && (
+                                  {showNoteTooltips && !editMode && apt.note && (
                                     <div
                                       className="absolute bottom-full left-0 mb-1 z-[60] pointer-events-none opacity-0 group-hover/slot:opacity-100"
                                       style={{ minWidth: '160px', maxWidth: '240px' }}
@@ -336,7 +412,7 @@ export default function EpasaDailyTable({
                               <td
                                 key={`${operator}-${time}`}
                                 className="relative p-0 border-r border-gray-300 border-b border-gray-300 group"
-                                style={{ height: '45px' }}
+                                style={{ height: slotHeightPx }}
                               >
                                 <div
                                   onClick={() =>

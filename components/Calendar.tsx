@@ -10,7 +10,6 @@ import { useCalendarInfiniteScroll } from './calendar/useCalendarInfiniteScroll'
 import CalendarHeader from './calendar/CalendarHeader';
 import CalendarDailyTable from './calendar/CalendarDailyTable';
 import CalendarMonthlyView from './calendar/CalendarMonthlyView';
-import CalendarSearchModal from './calendar/CalendarSearchModal';
 import CalendarPrintModal from './calendar/CalendarPrintModal';
 import CalendarDatePickerModal from './calendar/CalendarDatePickerModal';
 
@@ -32,8 +31,15 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
   const [selectedMonthlyPersona, setSelectedMonthlyPersona] = useState<string | null>(null);
   const [editMode, setEditMode]                             = useState(false);
   const deferredEditMode                                    = useDeferredValue(editMode);
-  const [showSearch, setShowSearch]                         = useState(false);
   const [showPrintModal, setShowPrintModal]                 = useState(false);
+  const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
 
   // Cross-cell appointment hover styling
   useEffect(() => {
@@ -63,18 +69,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       document.removeEventListener('mouseleave', handleMouseLeave, true);
       document.querySelectorAll<HTMLElement>('.appointment-hover').forEach(el => el.classList.remove('appointment-hover'));
     };
-  }, []);
-
-  // Global shortcut Ctrl+K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearch(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleSlotClick = useCallback((
@@ -132,10 +126,25 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
     if (targetSede) data.setSelectedSedeId(targetSede.id);
     try {
       const [y, m, d] = apt.data.split('-').map(Number);
-      setTimeout(() => scroll.navigateToDate(new Date(y, m - 1, d, 12, 0, 0)), 50);
+      scroll.navigateToDate(new Date(y, m - 1, d, 12, 0, 0));
     } catch { }
     scroll.setViewMode('daily');
-    setShowSearch(false);
+
+    // Evidenziazione visiva fluida (circa 1.2 secondi)
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightedAppointmentId(apt.id);
+
+    // Centra l'appuntamento sullo schermo dopo il render
+    setTimeout(() => {
+      const el = document.getElementById(`agenda-730-apt-${apt.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 200);
+
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedAppointmentId(null);
+    }, 1200);
   }, [data, scroll]);
 
   return (
@@ -143,7 +152,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
       {/* ── HEADER ── */}
       <CalendarHeader
         realtimeFlash={data.realtimeFlash}
-        onOpenSearch={() => setShowSearch(true)}
+        onOpenSearch={() => {}}
         onOpenPrint={() => setShowPrintModal(true)}
         viewMode={scroll.viewMode}
         onToggleViewMode={scroll.setViewMode}
@@ -156,6 +165,9 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         selectedSedeId={data.selectedSedeId}
         onSelectSedeId={data.setSelectedSedeId}
         sedi={data.sedi}
+        appointments={data.appointments}
+        personeMap={data.personeMap}
+        onSelectSearchResult={navigateToSearchResult}
       />
 
       {/* ── BODY ── */}
@@ -174,6 +186,7 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
             appointmentsByDayPerson={data.appointmentsByDayPerson}
             isBorgoSede={data.isBorgoSede}
             deferredEditMode={deferredEditMode}
+            highlightedAppointmentId={highlightedAppointmentId}
             onEditModeSlotClick={data.handleEditModeSlotClick}
             onSlotClick={handleSlotClick}
             onDragStart={handleDragStart}
@@ -207,16 +220,6 @@ export default function Calendar({ agendaId = '730' }: CalendarProps) {
         appointments={data.appointments}
         isDayClosedForSede={data.isDayClosedForSede}
         getTimeSlotsForDay={data.getTimeSlotsForDay}
-      />
-
-      {/* ── SEARCH OVERLAY ── */}
-      <CalendarSearchModal
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        appointments={data.appointments}
-        personeMap={data.personeMap}
-        sedi={data.sedi}
-        onSelectResult={navigateToSearchResult}
       />
 
       {/* ── DATE PICKER ── */}

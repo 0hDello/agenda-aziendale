@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   User, Lock, Unlock, Building2, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, Plus, MessageSquare,
-  FileText, Save,
+  FileText, Save, Search,
 } from 'lucide-react';
 import {
   format,
@@ -19,6 +19,7 @@ import {
 import { it } from 'date-fns/locale';
 import EpasaAppointmentModal from './EpasaAppointmentModal';
 import { formatDateDisplay } from '@/utils/dateUtils';
+import { isLoredanaAfternoonWorkingDay, dateStrToLocal } from './epasa/types';
 
 // ─── Tipi ───────────────────────────────────────────────────────────────────────────────
 interface Appointment {
@@ -86,7 +87,10 @@ const BULK_HOVER_BG = '#DBEAFE';
 const BULK_HOVER_BORDER = '#60A5FA';
 
 const TIME_SLOTS_MAP: Record<string, string[]> = {
-  imola: ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00'],
+  imola: [
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00',
+    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  ],
   cspt: ['14:00', '14:30', '15:00', '15:30', '16:00', '16:30'],
   borgo: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
 };
@@ -187,6 +191,107 @@ export default function LoredanaView({
 
   const [localApts, setLocalApts] = useState<Appointment[]>(allAppointments);
   useEffect(() => { setLocalApts(allAppointments); }, [allAppointments]);
+
+  // ─── Barra di ricerca orizzontale ──────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [highlightedAptId, setHighlightedAptId] = useState<string | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
+
+  // Chiusura dropdown se si clicca fuori
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Scorciatoia globale Ctrl+K per dare focus alla ricerca
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        if (searchQuery.trim()) {
+          setIsDropdownOpen(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [searchQuery]);
+
+  // Risultati ricerca filtrati per Loredana
+  const searchResults = useMemo(() => {
+    if (!localApts || !searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    const results = localApts.filter(
+      a =>
+        a.operatore_id.toUpperCase() === LOREDANA_ID &&
+        a.cliente.trim().toUpperCase() !== 'UFF CHIUSO' &&
+        (a.cliente.toLowerCase().includes(q) ||
+          (a.note?.toLowerCase().includes(q)) ||
+          a.data.includes(q) ||
+          a.sede_id.toLowerCase().includes(q) ||
+          a.ora.includes(q))
+    );
+    results.sort((a, b) => b.data.localeCompare(a.data));
+    return results.slice(0, 30);
+  }, [searchQuery, localApts]);
+
+  const handleSelectSearchResult = (apt: Appointment) => {
+    setIsDropdownOpen(false);
+    setSearchQuery('');
+    searchInputRef.current?.blur();
+
+    // 1. Sede: cambia sede se diversa
+    if (apt.sede_id && apt.sede_id !== selectedSedeId) {
+      setSelectedSedeId(apt.sede_id);
+    }
+
+    // 2. Mese: naviga al mese dell'appuntamento se diverso
+    const [y, m] = apt.data.split('-').map(Number);
+    const targetMonth = new Date(y, m - 1, 1);
+    if (
+      currentMonth.getFullYear() !== targetMonth.getFullYear() ||
+      currentMonth.getMonth() !== targetMonth.getMonth()
+    ) {
+      setCurrentMonth(targetMonth);
+    }
+
+    // 3. Evidenziazione visiva
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightedAptId(apt.id);
+
+    // 4. Scorrimento morbido fino alla cella o colonna del giorno
+    setTimeout(() => {
+      const aptEl = document.getElementById(`lv-apt-${apt.id}`);
+      if (aptEl) {
+        aptEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      } else {
+        const dayEl = scrollRef.current?.querySelector<HTMLElement>(`[data-lv-date="${apt.data}"]`);
+        if (dayEl) {
+          dayEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      }
+    }, 250);
+
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedAptId(null);
+    }, 2500);
+  };
 
   // ─── Pannello note pomeriggio ──────────────────────────────────────────────
   const [showNotesPanel, setShowNotesPanel] = useState(false);
@@ -355,7 +460,10 @@ export default function LoredanaView({
     if (!sedeOpen || manClosed || isWeekend(dayDate)) return;
 
     const sedeId = selectedSede.id;
-    const actionableSlots = slots.filter(time => getRealAppointmentsForSlot(sedeId, dateStr, time).length === 0);
+    const actionableSlots = slots.filter(time => {
+      if (sedeId === 'imola' && time >= '14:00' && !isLoredanaAfternoonWorkingDay(dayDate)) return false;
+      return getRealAppointmentsForSlot(sedeId, dateStr, time).length === 0;
+    });
     if (actionableSlots.length === 0) return;
 
     const blockedSlots = actionableSlots.filter(time => getUffChiusoAppointmentsForSlot(sedeId, dateStr, time).length > 0);
@@ -507,40 +615,128 @@ export default function LoredanaView({
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-3 mr-2 flex-shrink-0">
-          <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: OPERATOR_COLOR_LIGHT, border: `1px solid ${OPERATOR_COLOR}` }} />
-            <span className="text-[10px] text-gray-500">Appuntamento</span>
+        {/* ── BARRA ORIZZONTALE DI RICERCA ── */}
+        <div
+          ref={searchContainerRef}
+          className="relative flex-1 min-w-[200px] max-w-xs md:max-w-sm lg:max-w-md mx-2 flex items-center"
+        >
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-300 hover:border-gray-400 focus-within:border-[#005CA9] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#005CA9]/20 transition-all w-full h-[36px] shadow-xs">
+            <Search size={15} className="text-[#005CA9] flex-shrink-0" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setIsDropdownOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim()) setIsDropdownOpen(true);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  setIsDropdownOpen(false);
+                  searchInputRef.current?.blur();
+                } else if (e.key === 'Enter') {
+                  if (searchResults.length > 0) {
+                    e.preventDefault();
+                    handleSelectSearchResult(searchResults[0]);
+                  }
+                }
+              }}
+              placeholder="Cerca cliente, note, data..."
+              className="w-full text-xs bg-transparent outline-none text-gray-800 placeholder-gray-400 font-medium"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setIsDropdownOpen(false);
+                  searchInputRef.current?.focus();
+                }}
+                className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors"
+                title="Cancella ricerca"
+              >
+                <X size={14} />
+              </button>
+            ) : (
+              <kbd className="hidden sm:inline-block text-[10px] text-gray-400 bg-gray-200/70 px-1.5 py-0.5 rounded font-mono pointer-events-none select-none">
+                Ctrl+K
+              </kbd>
+            )}
           </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: UFF_CHIUSO_BG, border: `1px solid ${UFF_CHIUSO_BORDER}` }} />
-            <span className="text-[10px] text-gray-500">Uff. chiuso</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded bg-gray-100 border border-gray-300" />
-            <span className="text-[10px] text-gray-500">Chiuso</span>
-          </div>
+
+          {/* Dropdown Floating dei Risultati */}
+          {isDropdownOpen && searchQuery.trim() && (
+            <div className="absolute top-full left-0 right-0 mt-1.5 z-[10000] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                {searchResults.length === 0 ? (
+                  <div className="px-4 py-6 text-center">
+                    <Search size={22} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-gray-700">Nessun risultato trovato</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Nessun appuntamento corrisponde a &quot;{searchQuery}&quot;
+                    </p>
+                  </div>
+                ) : (
+                  searchResults.map(apt => {
+                    const sede = sedi.find(s => s.id === apt.sede_id);
+                    return (
+                      <div
+                        key={apt.id}
+                        onClick={() => handleSelectSearchResult(apt)}
+                        className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#E6F2FF] cursor-pointer transition-colors group text-left"
+                      >
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-xs"
+                          style={{ backgroundColor: OPERATOR_COLOR }}
+                        >
+                          <User size={13} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-bold text-gray-900 truncate group-hover:text-[#005CA9]">
+                              {apt.cliente}
+                            </p>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 bg-blue-100 text-[#005CA9] border border-blue-200">
+                              {sede?.nome || apt.sede_id.toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span>
+                              {format(dateStrToLocal(apt.data), 'EEE dd/MM/yyyy', { locale: it })}
+                            </span>
+                            <span>&middot;</span>
+                            <span className="font-bold text-gray-800">{apt.ora}</span>
+                          </p>
+                          {apt.note && (
+                            <p className="text-[10px] text-gray-400 truncate mt-0.5 italic">
+                              {apt.note}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight size={14} className="text-gray-300 group-hover:text-[#005CA9] flex-shrink-0" />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {searchResults.length > 0 && (
+                <div className="px-3.5 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                  <span>
+                    {searchResults.length} risultat{searchResults.length === 1 ? 'o' : 'i'} &mdash; premi <kbd className="font-mono font-bold bg-white px-1 py-0.5 rounded border text-[10px]">Invio</kbd> per il primo
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={() => setShowNotesPanel(p => !p)}
-          title="Note pomeriggio"
-          className={`relative flex items-center gap-1.5 px-3 h-9 rounded-full border-2 text-xs font-bold transition-all flex-shrink-0 ${showNotesPanel
-              ? 'bg-amber-50 border-amber-400 text-amber-700 shadow-amber-100 shadow-md'
-              : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-600'
-            }`}
-        >
-          <FileText size={14} />
-          <span className="hidden sm:inline">Note pomeriggio</span>
-          {daysWithNotes > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-black flex items-center justify-center">
-              {daysWithNotes}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setEditMode(e => !e)}
+        <div className="ml-auto flex items-center gap-2.5 flex-shrink-0">
+          <button
+            onClick={() => setEditMode(e => !e)}
           className={`w-9 h-9 rounded-full flex items-center justify-center shadow transition-all border-2 flex-shrink-0 ${editMode
               ? 'bg-amber-500 border-amber-600 text-white shadow-amber-200 shadow-lg scale-110'
               : 'bg-white border-gray-300 text-gray-500 hover:border-amber-400 hover:text-amber-500'
@@ -550,13 +746,14 @@ export default function LoredanaView({
           {editMode ? <Unlock size={16} /> : <Lock size={16} />}
         </button>
 
-        <button
-          onClick={onClose}
-          className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 border border-gray-200 text-gray-500 transition-colors flex-shrink-0"
-          title="Chiudi (ESC)"
-        >
-          <X size={18} />
-        </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 border border-gray-200 text-gray-500 transition-colors flex-shrink-0"
+            title="Chiudi (ESC)"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {editMode && (
@@ -577,7 +774,7 @@ export default function LoredanaView({
 
             {/* Colonna orari fissa */}
             <div style={{ width: LABEL_W, flexShrink: 0, position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#F8FAFC', borderRight: '2px solid #E2E8F0' }}>
-              <div style={{ height: HEADER_H, borderBottom: '1px solid #E2E8F0' }} />
+              <div style={{ height: HEADER_H, borderBottom: '2px solid #E2E8F0', position: 'sticky', top: 0, zIndex: 30, backgroundColor: '#F8FAFC' }} />
               {slots.map(time => (
                 <div key={time} style={{ height: ROW_HEIGHT, borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', padding: '0 8px' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{time}</span>
@@ -600,12 +797,19 @@ export default function LoredanaView({
 
                 const hasDayNote = afternoonNotes[dateStr]?.trim();
 
+                const isLorActiveSlot = (time: string) => {
+                  if (selectedSede?.id === 'imola' && time >= '14:00') {
+                    return isLoredanaAfternoonWorkingDay(dateStr);
+                  }
+                  return true;
+                };
+
                 const actionableSlotsCount = selectedSede && !dayOff
-                  ? slots.filter(time => getRealAppointmentsForSlot(selectedSede.id, dateStr, time).length === 0).length
+                  ? slots.filter(time => isLorActiveSlot(time) && getRealAppointmentsForSlot(selectedSede.id, dateStr, time).length === 0).length
                   : 0;
 
                 const blockedSlotsCount = selectedSede && !dayOff
-                  ? slots.filter(time => getUffChiusoAppointmentsForSlot(selectedSede.id, dateStr, time).length > 0).length
+                  ? slots.filter(time => isLorActiveSlot(time) && getUffChiusoAppointmentsForSlot(selectedSede.id, dateStr, time).length > 0).length
                   : 0;
 
                 const dayFullyBlocked = actionableSlotsCount > 0 && blockedSlotsCount === actionableSlotsCount;
@@ -617,15 +821,12 @@ export default function LoredanaView({
                       onClick={() => {
                         if (editMode) {
                           handleDayHeaderToggle(dateStr);
-                          return;
                         }
-                        setNoteDate(dateStr);
-                        setShowNotesPanel(true);
                       }}
                       title={
                         editMode
                           ? 'Blocca/sblocca tutta la giornata'
-                          : 'Apri note pomeriggio'
+                          : undefined
                       }
                       style={{
                         height: HEADER_H,
@@ -637,8 +838,10 @@ export default function LoredanaView({
                         alignItems: 'center',
                         justifyContent: 'center',
                         overflow: 'hidden',
-                        cursor: 'pointer',
-                        position: 'relative',
+                        cursor: editMode ? 'pointer' : 'default',
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 10,
                         transition: 'background-color 0.15s',
                       }}
                     >
@@ -648,11 +851,6 @@ export default function LoredanaView({
                       <span style={{ fontSize: isWe ? 12 : 15, fontWeight: 900, lineHeight: 1.1 }}>
                         {format(day, 'dd')}
                       </span>
-                      {hasDayNote && (
-                        <div style={{ position: 'absolute', bottom: 3, right: 4 }}>
-                          <FileText size={8} style={{ color: isToday || (editMode && dayFullyBlocked) ? 'rgba(255,255,255,0.8)' : '#F59E0B' }} />
-                        </div>
-                      )}
                     </div>
 
                     {/* Slot */}
@@ -672,6 +870,26 @@ export default function LoredanaView({
                           >
                             {!isWe && <Lock size={12} style={{ color: UFF_CHIUSO_ICON }} />}
                           </div>
+                        );
+                      }
+
+                      if (selectedSede?.id === 'imola' && time >= '14:00' && !isLoredanaAfternoonWorkingDay(dateStr)) {
+                        const dow = getDay(day);
+                        const tooltip = dow === 1
+                          ? 'Lunedì pomeriggio: Loredana riceve a CSPT'
+                          : dow === 5
+                          ? 'Venerdì: solo mattina (08:00 – 12:00)'
+                          : 'Non riceve di pomeriggio';
+                        return (
+                          <div
+                            key={time}
+                            title={tooltip}
+                            style={{
+                              height: ROW_HEIGHT,
+                              borderBottom: `1px solid ${UFF_CHIUSO_BORDER}`,
+                              backgroundColor: UFF_CHIUSO_BG,
+                            }}
+                          />
                         );
                       }
 
@@ -728,14 +946,16 @@ export default function LoredanaView({
                         const hlKey = apt!.highlight || '';
                         const hl = HL_CSS[hlKey] ?? HL_CSS[''];
                         const hasNote = !!(apt!.note?.trim());
+                        const isHighlighted = highlightedAptId === apt!.id;
 
-                        const cellBg = isHovered ? hl.bgHover : hl.bg;
-                        const cellBorder = hl.border;
-                        const cellLeftBorder = hl.leftBorder;
-                        const cellTextColor = hl.text;
+                        const cellBg = isHighlighted ? '#FEE2E2' : (isHovered ? hl.bgHover : hl.bg);
+                        const cellBorder = isHighlighted ? '#EF4444' : hl.border;
+                        const cellLeftBorder = isHighlighted ? '#DC2626' : hl.leftBorder;
+                        const cellTextColor = isHighlighted ? '#B91C1C' : hl.text;
 
                         return (
                           <div
+                            id={`lv-apt-${apt!.id}`}
                             key={time}
                             onClick={() => !editMode && openEdit(apt!)}
                             onMouseEnter={() => setHoveredCell(cellKey)}
@@ -745,6 +965,9 @@ export default function LoredanaView({
                               borderBottom: `1px solid ${cellBorder}`,
                               backgroundColor: cellBg,
                               borderLeft: `3px solid ${cellLeftBorder}`,
+                              boxShadow: isHighlighted ? '0 0 0 2px #EF4444, 0 4px 14px rgba(239, 68, 68, 0.4)' : undefined,
+                              zIndex: isHighlighted ? 35 : undefined,
+                              transform: isHighlighted ? 'scale(1.02)' : undefined,
                               display: 'flex',
                               alignItems: 'center',
                               gap: 3,
@@ -752,7 +975,7 @@ export default function LoredanaView({
                               overflow: 'visible',
                               cursor: editMode ? 'not-allowed' : 'pointer',
                               position: 'relative',
-                              transition: 'background-color 0.1s',
+                              transition: 'all 0.25s ease',
                               opacity: editMode ? 0.7 : 1,
                             }}
                           >

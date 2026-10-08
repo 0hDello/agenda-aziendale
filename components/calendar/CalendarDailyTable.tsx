@@ -26,6 +26,7 @@ interface CalendarDailyTableProps {
   onDragStart: (appointment: Appuntamento, time: string) => void;
   onDrop: (date: string, newTime: string, personaId: string, day: Date) => void;
   onDragOver: (e: React.DragEvent) => void;
+  highlightedAppointmentId?: string | null;
 }
 
 export default function CalendarDailyTable({
@@ -46,6 +47,7 @@ export default function CalendarDailyTable({
   onDragStart,
   onDrop,
   onDragOver,
+  highlightedAppointmentId,
 }: CalendarDailyTableProps) {
   return (
     <div className="h-full flex flex-col">
@@ -209,6 +211,7 @@ export default function CalendarDailyTable({
                                   appointments={slotApts}
                                   allDayAppointments={dayApts}
                                   daySlots={dayTimeSlots}
+                                  highlightedAppointmentId={highlightedAppointmentId}
                                   onClick={apt => !deferredEditMode && onSlotClick(dateStr, slot.label, persona.id, apt)}
                                   onDragStart={onDragStart}
                                   onDrop={t => onDrop(dateStr, t, persona.id, day)}

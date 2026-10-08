@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar as CalendarIcon, Settings, Database, FileText, History, User, BarChart2 } from 'lucide-react';
+import EpasaSettingsModal from '@/components/epasa/EpasaSettingsModal';
+import { EpasaSettings, DEFAULT_EPASA_SETTINGS, Sede } from '@/components/epasa/types';
 
 interface Agenda {
   id: string;
@@ -17,8 +19,39 @@ export default function HomePage() {
   const router = useRouter();
   const [agende, setAgende] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEpasaSettings, setShowEpasaSettings] = useState(false);
+  const [epasaSettings, setEpasaSettings] = useState<EpasaSettings>(DEFAULT_EPASA_SETTINGS);
+  const [epasaSedi, setEpasaSedi] = useState<Sede[]>([
+    { id: 'imola', nome: 'Imola', colore: '#005CA9' },
+    { id: 'cspt', nome: 'CSPT', colore: '#005CA9' },
+    { id: 'borgo', nome: 'Borgo', colore: '#005CA9' },
+  ]);
 
-  useEffect(() => { loadAgende(); }, []);
+  useEffect(() => {
+    loadAgende();
+    try {
+      const saved = localStorage.getItem('epasa_settings');
+      if (saved) {
+        setEpasaSettings(prev => ({ ...prev, ...JSON.parse(saved) }));
+      }
+    } catch {}
+
+    fetch('/api/epasa/sedi')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setEpasaSedi(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveEpasaSettings = (newSettings: EpasaSettings) => {
+    setEpasaSettings(newSettings);
+    try {
+      localStorage.setItem('epasa_settings', JSON.stringify(newSettings));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const loadAgende = async () => {
     try {
@@ -136,6 +169,25 @@ export default function HomePage() {
                           <BarChart2 size={18} className="text-[#005CA9]" />
                         </button>
                       )}
+                      {agenda.id === 'epasa' && (
+                        <>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setShowEpasaSettings(true);
+                            }}
+                            className="bg-gray-200 hover:bg-gray-300 rounded-full p-2.5 transition-all hover:scale-110"
+                            title="Impostazioni EPASA">
+                            <Settings size={18} className="text-[#005CA9]" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); router.push('/statistiche/epasa'); }}
+                            className="bg-blue-50 hover:bg-blue-100 border border-[#005CA9]/20 hover:border-[#005CA9]/50 rounded-full p-2.5 transition-all hover:scale-110"
+                            title="Statistiche EPASA">
+                            <BarChart2 size={18} className="text-[#005CA9]" />
+                          </button>
+                        </>
+                      )}
                     </div>
                     <div className={`text-xl transition-transform ${ agenda.active ? 'text-[#005CA9] group-hover:translate-x-2' : 'text-gray-400' }`}>→</div>
                   </div>
@@ -145,6 +197,15 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {/* Modale Impostazioni EPASA */}
+      <EpasaSettingsModal
+        isOpen={showEpasaSettings}
+        onClose={() => setShowEpasaSettings(false)}
+        settings={epasaSettings}
+        onSaveSettings={handleSaveEpasaSettings}
+        sedi={epasaSedi}
+      />
     </div>
   );
 }

@@ -44,6 +44,13 @@ export const TIME_SLOTS_IMOLA_2027: string[] = [
   ...TIME_SLOTS_IMOLA,
   ...TIME_SLOTS_IMOLA_AFTERNOON_2027,
 ];
+export const TIME_SLOTS_IMOLA_AFTERNOON_LOREDANA: string[] = [
+  '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
+];
+export const TIME_SLOTS_IMOLA_FULL: string[] = [
+  ...TIME_SLOTS_IMOLA,
+  ...TIME_SLOTS_IMOLA_AFTERNOON_LOREDANA,
+];
 export const TIME_SLOTS_CSPT: string[] = [
   '14:00','14:30','15:00','15:30','16:00','16:30',
 ];
@@ -89,11 +96,30 @@ export const isMileceAfternoonWorkingDay = (date: Date | string): boolean => {
   return false;
 };
 
+export const isLoredanaAfternoonWorkingDay = (date: Date | string): boolean => {
+  const d = typeof date === 'string' ? dateStrToLocal(date) : date;
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1; // 1=Gennaio..12=Dicembre
+
+  // Dal 1° ottobre 2026 in poi (sempre attivo da questa data)
+  if (y < 2026) return false;
+  if (y === 2026 && m < 10) return false;
+
+  const dow = d.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mer, 4=Gio, 5=Ven, 6=Sab
+  // Martedì (2), Mercoledì (3), Giovedì (4)
+  return dow === 2 || dow === 3 || dow === 4;
+};
+
 export const getTimeSlotsForSede = (sedeId: string, date?: Date | string): string[] => {
   if (sedeId === 'cspt')  return TIME_SLOTS_CSPT;
   if (sedeId === 'borgo') return TIME_SLOTS_BORGO;
-  if (date && isMileceAfternoonWorkingDay(date)) {
-    return TIME_SLOTS_IMOLA_2027;
+  if (date) {
+    if (isLoredanaAfternoonWorkingDay(date)) {
+      return TIME_SLOTS_IMOLA_FULL;
+    }
+    if (isMileceAfternoonWorkingDay(date)) {
+      return TIME_SLOTS_IMOLA_2027;
+    }
   }
   return TIME_SLOTS_IMOLA;
 };
@@ -149,19 +175,36 @@ export const isMileceWorkingDay = (d: Date) => {
 export const isMileceTimeBlocked = (operator: string, day: Date, time: string): boolean => {
   if (operator !== 'MILECE') return false;
   if (!isMileceWorkingDay(day)) return false;
-  return time === '08:00';
+  if (time === '08:00') return true;
+
+  // Se l'orario è pomeridiano (dalle 14:00 in poi):
+  if (time >= '14:00') {
+    // Se è un giorno in cui MILECE lavora di pomeriggio (Mar e Mer nel periodo 2027),
+    // lavora solo nelle 4 fasce 14:00, 14:30, 15:00, 15:30.
+    if (isMileceAfternoonWorkingDay(day)) {
+      return !TIME_SLOTS_IMOLA_AFTERNOON_2027.includes(time);
+    }
+    // Negli altri giorni (es. Giovedì o nel 2026), MILECE non riceve di pomeriggio.
+    return true;
+  }
+
+  return false;
 };
 
 export const isLoredanaAfternoonEmpty = (operator: string, time: string): boolean => {
   if (operator.toUpperCase() !== 'LOREDANA') return false;
-  return TIME_SLOTS_IMOLA_AFTERNOON_2027.includes(time);
+  return TIME_SLOTS_IMOLA_AFTERNOON_LOREDANA.includes(time);
 };
 
 export const isLoredanaAfternoonBlocked = (operator: string, day: Date, time: string, sedeId?: string): boolean => {
-  if (sedeId !== 'imola') return false;
-  if (!isMileceAfternoonWorkingDay(day)) return false;
   if (operator.toUpperCase() !== 'LOREDANA') return false;
-  return TIME_SLOTS_IMOLA_AFTERNOON_2027.includes(time);
+  if (sedeId !== 'imola') return false;
+  if (time >= '14:00') {
+    // Se è un pomeriggio in cui Loredana lavora, NON è bloccata a codice (è aperta per appuntamenti)
+    if (isLoredanaAfternoonWorkingDay(day)) return false;
+    return true;
+  }
+  return false;
 };
 
 export const MAX_VISIBLE_DAYS    = 60;
@@ -176,3 +219,21 @@ export const STICKY_HEADER_HEIGHT = 41;
 export const LOCAL_MUTATION_WINDOW = 3000;
 
 export const OPERATOR_COLOR = '#005CA9';
+
+export type MileceEmptyStyle = 'diagonal' | 'white' | 'locked';
+
+export interface EpasaSettings {
+  mileceEmptyStyle: MileceEmptyStyle;
+  defaultViewMode?: ViewMode;
+  defaultSedeId?: string;
+  rowHeight?: 'compact' | 'normal' | 'spacious';
+  showNoteTooltips?: boolean;
+}
+
+export const DEFAULT_EPASA_SETTINGS: EpasaSettings = {
+  mileceEmptyStyle: 'diagonal',
+  defaultViewMode: 'daily',
+  defaultSedeId: 'imola',
+  rowHeight: 'normal',
+  showNoteTooltips: true,
+};

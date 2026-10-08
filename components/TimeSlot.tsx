@@ -27,12 +27,14 @@ interface TimeSlotProps {
   onDragOver?: (e: React.DragEvent) => void;
   /** Slot del giorno corrente (per calcolo altezza corretto) */
   daySlots?: { label: string }[];
+  highlightedAppointmentId?: string | null;
 }
 
 function AppointmentCell({
   apt,
   style,
   className,
+  isHighlighted = false,
   onDragStart,
   onDrop,
   onDragOver,
@@ -41,6 +43,7 @@ function AppointmentCell({
   apt: Appuntamento;
   style: React.CSSProperties;
   className: string;
+  isHighlighted?: boolean;
   onDragStart: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -75,6 +78,7 @@ function AppointmentCell({
   return (
     <div
       ref={cellRef}
+      id={`agenda-730-apt-${apt.id}`}
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
@@ -85,29 +89,49 @@ function AppointmentCell({
       data-appointment-id={apt.id}
       style={{
         ...style,
-        backgroundColor: hl.bg,
-        borderLeftColor: hl.border,
+        backgroundColor: isHighlighted ? '#fee2e2' : hl.bg,
+        borderLeftColor: isHighlighted ? '#ef4444' : hl.border,
         borderLeftWidth: '4px',
         borderLeftStyle: 'solid',
+        ...(isHighlighted ? { zIndex: 35 } : {}),
       }}
-      className={`appointment-cell px-2 cursor-move flex flex-col justify-center ${className}`}
+      className={`appointment-cell px-2 cursor-move flex flex-col justify-center transition-all duration-700 ease-in-out ${
+        isHighlighted
+          ? 'bg-red-100/90 border-l-4 border-red-500 ring-2 ring-red-400/50 shadow-md scale-[1.015] z-30 relative'
+          : ''
+      } ${className}`}
     >
       <div className="w-full overflow-hidden">
         <div className="flex items-center gap-1 w-full">
-          <User size={10} className="flex-shrink-0" style={{ color: hl.text }} />
+          <User
+            size={10}
+            className={`flex-shrink-0 transition-colors duration-500 ${isHighlighted ? 'text-red-600' : ''}`}
+            style={{ color: isHighlighted ? '#dc2626' : hl.text }}
+          />
           <span
-            className="text-[10px] font-bold truncate flex-1 min-w-0 pointer-events-none"
-            style={{ color: hl.text }}
+            className={`text-[10px] font-bold truncate flex-1 min-w-0 pointer-events-none transition-colors duration-500 ${
+              isHighlighted ? 'text-red-700' : ''
+            }`}
+            style={{ color: isHighlighted ? '#b91c1c' : hl.text }}
           >
             {apt.cliente || 'Appuntamento'}
           </span>
           {apt.note && (
-            <MessageSquare size={9} className="flex-shrink-0 opacity-60" style={{ color: hl.text }} />
+            <MessageSquare
+              size={9}
+              className={`flex-shrink-0 opacity-60 transition-colors duration-500 ${isHighlighted ? 'text-red-600 opacity-80' : ''}`}
+              style={{ color: isHighlighted ? '#dc2626' : hl.text }}
+            />
           )}
         </div>
         {showTimeRange && (
           <div className="flex items-center gap-0.5 mt-0.5">
-            <span className="text-[9px] opacity-60 pointer-events-none leading-none font-medium" style={{ color: hl.text }}>
+            <span
+              className={`text-[9px] opacity-60 pointer-events-none leading-none font-medium transition-colors duration-500 ${
+                isHighlighted ? 'text-red-700' : ''
+              }`}
+              style={{ color: isHighlighted ? '#b91c1c' : hl.text }}
+            >
               {apt.ora_inizio?.substring(0, 5)} – {apt.ora_fine?.substring(0, 5)}
             </span>
           </div>
@@ -154,6 +178,7 @@ export default function TimeSlot({
   onDrop,
   onDragOver,
   daySlots,
+  highlightedAppointmentId,
 }: TimeSlotProps) {
 
   // Usa gli slot del giorno se forniti, altrimenti fallback al globale
@@ -248,6 +273,7 @@ export default function TimeSlot({
       return (
         <AppointmentCell
           apt={apt}
+          isHighlighted={apt.id === highlightedAppointmentId}
           style={{ height: `${h}px`, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 }}
           className=""
           onDragStart={e => handleDragStartInner(e, apt)}
@@ -269,6 +295,7 @@ export default function TimeSlot({
             <AppointmentCell
               key={apt.id}
               apt={apt}
+              isHighlighted={apt.id === highlightedAppointmentId}
               style={{
                 position: 'absolute',
                 left:   `calc(${ci * colW}% + ${ci > 0 ? gap : 0}px)`,

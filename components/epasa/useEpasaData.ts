@@ -16,8 +16,10 @@ import {
   dateStrToLocal,
   isBorgoWorkingDay,
   isMileceWorkingDay,
+  isMileceTimeBlocked as checkMileceTimeBlocked,
   isDateIn2027OrLater,
   isMileceAfternoonWorkingDay,
+  isLoredanaAfternoonWorkingDay,
   isLoredanaAfternoonBlocked,
   isLoredanaAfternoonEmpty,
   SSE_RELOAD_DEBOUNCE,
@@ -117,9 +119,7 @@ export function useEpasaData() {
   }, [selectedSede]);
 
   const isMileceTimeBlocked = useCallback((operator: string, day: Date, time: string) => {
-    if (operator !== 'MILECE') return false;
-    if (!isMileceWorkingDay(day)) return false;
-    return time === '08:00';
+    return checkMileceTimeBlocked(operator, day, time);
   }, []);
 
   const isLoredanaBlocked = useCallback((operator: string, day: Date, time: string, sedeId?: string) => {
@@ -227,8 +227,13 @@ export function useEpasaData() {
     if (!selectedSede) return '';
     if (selectedSede.id === 'cspt')  return 'Lunedì 14:00-16:30';
     if (selectedSede.id === 'borgo') return 'Martedì (sett. 2 e 3) 9:00-11:30';
-    if (date && isMileceAfternoonWorkingDay(date)) {
-      return '8:00-12:00 / 14:00-16:00';
+    if (date) {
+      if (isLoredanaAfternoonWorkingDay(date)) {
+        return '8:00-12:00 / 14:00-18:00';
+      }
+      if (isMileceAfternoonWorkingDay(date)) {
+        return '8:00-12:00 / 14:00-16:00';
+      }
     }
     return '8:00-12:00';
   }, [selectedSede]);

@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { subDays, addDays, subMonths, addMonths } from 'date-fns';
-import { Appointment, MIN_DATE, dateStrToLocal } from './epasa/types';
+import { Appointment, MIN_DATE, dateStrToLocal, EpasaSettings, DEFAULT_EPASA_SETTINGS } from './epasa/types';
 import { useEpasaData } from './epasa/useEpasaData';
 import { useEpasaInfiniteScroll } from './epasa/useEpasaInfiniteScroll';
 import EpasaHeader from './epasa/EpasaHeader';
 import EpasaDailyTable from './epasa/EpasaDailyTable';
 import EpasaMonthlyView from './epasa/EpasaMonthlyView';
-import EpasaSearchModal from './epasa/EpasaSearchModal';
 import EpasaDatePickerModal from './epasa/EpasaDatePickerModal';
 import EpasaAppointmentModal from './EpasaAppointmentModal';
 import LoredanaView from './LoredanaView';
@@ -29,19 +28,53 @@ export default function EpasaCalendar({ agendaId: _agendaId, initialLoredana = f
   const [editMode, setEditMode]                               = useState(false);
   const [selectedMonthlyOperator, setSelectedMonthlyOperator] = useState<string | null>(null);
   const [showLoredanaView, setShowLoredanaView]               = useState(initialLoredana);
-  const [showSearch, setShowSearch]                           = useState(false);
+  const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
+  const [settings, setSettings]                               = useState<EpasaSettings>(DEFAULT_EPASA_SETTINGS);
+  const initialSedeAppliedRef                                 = useRef(false);
+  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Global shortcut Ctrl+K
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearch(true);
-      }
+    return () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Carica impostazioni da localStorage al montaggio
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('epasa_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSettings(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (e) {
+      console.error('Error loading epasa_settings', e);
+    }
+  }, []);
+
+  // Applica la sede e la vista predefinita se impostate
+  useEffect(() => {
+    if (!initialSedeAppliedRef.current && data.sedi.length > 0) {
+      try {
+        const saved = localStorage.getItem('epasa_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.defaultSedeId) {
+            const target = data.sedi.find(s => s.id === parsed.defaultSedeId);
+            if (target) {
+              data.setSelectedSede(target);
+            }
+          }
+          if (parsed.defaultViewMode) {
+            scroll.setViewMode(parsed.defaultViewMode);
+          }
+        }
+      } catch (e) {
+        console.error('Error applying initial sede/view', e);
+      }
+      initialSedeAppliedRef.current = true;
+    }
+  }, [data.sedi, data.setSelectedSede, scroll]);
 
   const openModalForNewAppointment = useCallback((date: string, time: string, operator: string) => {
     setSelectedSlot({ date, time, operator });
@@ -58,9 +91,24 @@ export default function EpasaCalendar({ agendaId: _agendaId, initialLoredana = f
   const navigateToSearchResult = useCallback((apt: Appointment) => {
     const targetSede = data.sediRef.current.find(s => s.id === apt.sede_id);
     if (targetSede) data.setSelectedSede(targetSede);
-    setTimeout(() => scroll.navigateToDate(dateStrToLocal(apt.data)), 50);
     scroll.setViewMode('daily');
-    setShowSearch(false);
+    scroll.navigateToDate(dateStrToLocal(apt.data));
+
+    // Evidenziazione visiva fluida (circa 1.2 secondi)
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightedAppointmentId(apt.id);
+
+    // Centra l'appuntamento sullo schermo dopo il render
+    setTimeout(() => {
+      const el = document.getElementById(`epasa-apt-${apt.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 200);
+
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedAppointmentId(null);
+    }, 1200);
   }, [data, scroll]);
 
   const handlePrev = useCallback(() => {
@@ -107,8 +155,8 @@ export default function EpasaCalendar({ agendaId: _agendaId, initialLoredana = f
         selectedSede={data.selectedSede}
         sedi={data.sedi}
         onSelectSede={data.setSelectedSede}
-        realtimeFlash={data.realtimeFlash}
-        onOpenSearch={() => setShowSearch(true)}
+        allAppointments={data.allAppointments}
+        onSelectSearchResult={navigateToSearchResult}
         sedeOrariLabel={data.getSedeOrariLabel(scroll.selectedDate)}
         onOpenLoredanaView={() => setShowLoredanaView(true)}
         viewMode={scroll.viewMode}
@@ -132,6 +180,10 @@ export default function EpasaCalendar({ agendaId: _agendaId, initialLoredana = f
             getTimeSlotsForDay={data.getTimeSlotsForDay}
             selectedSede={data.selectedSede}
             editMode={editMode}
+            highlightedAppointmentId={highlightedAppointmentId}
+            mileceEmptyStyle={settings.mileceEmptyStyle}
+            rowHeightSetting={settings.rowHeight}
+            showNoteTooltips={settings.showNoteTooltips}
             getAppointmentsForSlot={data.getAppointmentsForSlot}
             isSedeOperatorDayClosed={data.isSedeOperatorDayClosed}
             isGiornoChiuso={data.isGiornoChiuso}
@@ -162,15 +214,6 @@ export default function EpasaCalendar({ agendaId: _agendaId, initialLoredana = f
           />
         )}
       </div>
-
-      {/* ── SEARCH OVERLAY ── */}
-      <EpasaSearchModal
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        allAppointments={data.allAppointments}
-        sedi={data.sedi}
-        onSelectResult={navigateToSearchResult}
-      />
 
       {/* ── LOREDANA VIEW ── */}
       {showLoredanaView && (
